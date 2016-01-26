@@ -1,0 +1,19 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+VAGRANTFILE_API_VERSION = "2"
+
+Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+
+	config.vm.box = "ubuntu/precise64"
+	config.vm.hostname = "access.dev"
+	config.vm.provision :shell, path: "ac-bootstrap.sh"
+	config.vm.network :private_network, ip:"192.168.23.25"
+	config.vm.network "forwarded_port", guest: 8085, host: 8085
+	config.vm.synced_folder "../", "/vagrant/access"
+	config.vm.provider "virtualbox" do |vb|
+      vb.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
+	  vb.customize ["modifyvm", :id, "--memory", "512"]
+	end
+
+end

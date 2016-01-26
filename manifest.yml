@@ -1,0 +1,7 @@
+applications:
+- name: pz-access
+  host: pz-access
+  memory: 512M
+  instances: 1
+  timeout: 80
+  path: pz-access.jar
