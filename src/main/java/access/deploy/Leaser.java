@@ -2,6 +2,9 @@ package access.deploy;
 
 import org.springframework.stereotype.Component;
 
+import access.database.model.Deployment;
+import access.database.model.Lease;
+
 /**
  * Handles the leasing of deployments of Resources. When a Resource is deployed,
  * it is assigned a lease for a certain period of time. Leasing allows Piazza
@@ -16,4 +19,23 @@ import org.springframework.stereotype.Component;
 @Component
 public class Leaser {
 
+	/**
+	 * Renews the existing deployment.
+	 * 
+	 * @param deployment
+	 *            The deployment to renew.
+	 */
+	public void renewDeploymentLease(Deployment deployment) {
+		throw new UnsupportedOperationException();
+	}
+
+	/**
+	 * Creates a new lease for the Deployment.
+	 * 
+	 * @param deployment
+	 *            Deployment to create a lease for
+	 */
+	public Lease getDeploymentLease(Deployment deployment) {
+		throw new UnsupportedOperationException();
+	}
 }

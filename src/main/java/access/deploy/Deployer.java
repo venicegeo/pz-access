@@ -1,6 +1,10 @@
 package access.deploy;
 
+import model.job.metadata.ResourceMetadata;
+
 import org.springframework.stereotype.Component;
+
+import access.database.model.Deployment;
 
 /**
  * Class that manages the Deployments held by this component. This is done by
@@ -16,4 +20,34 @@ import org.springframework.stereotype.Component;
 @Component
 public class Deployer {
 
+	/**
+	 * Checks to see if the Resource ID currently has a deployment in the system
+	 * or not.
+	 * 
+	 * @param resourceId
+	 *            The resource ID to check.
+	 * @return True if a deployment exists for the Resource matching the
+	 *         Resource ID, false if not.
+	 */
+	public boolean doesDeploymentExist(String resourceId) {
+		throw new UnsupportedOperationException();
+	}
+
+	/**
+	 * Creates a new deployment from the ResourceMetadata object.
+	 * 
+	 * @param resourceMetadata
+	 *            The resource metadata, describing the object to be deployed.
+	 * @return A deployment for the object.
+	 */
+	public Deployment createDeployment(ResourceMetadata resourceMetadata) {
+		// Get the Resources
+
+		// Create the Deployment
+
+		// Insert into Database
+
+		// Return Deployment reference
+		throw new UnsupportedOperationException();
+	}
 }

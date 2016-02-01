@@ -1,12 +1,17 @@
 package access.messaging;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.annotation.PostConstruct;
 
+import messaging.job.JobMessageFactory;
 import messaging.job.KafkaClientFactory;
 import model.job.Job;
+import model.job.JobProgress;
+import model.job.type.AccessJob;
+import model.status.StatusUpdate;
 
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -17,10 +22,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import access.database.MongoAccessor;
+import access.database.model.Deployment;
 import access.deploy.Deployer;
 import access.deploy.Leaser;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mongodb.MongoException;
 
 /**
  * Worker class that listens for Access Jobs being passed in through the
@@ -41,6 +49,8 @@ public class AccessWorker {
 	private Deployer deployer;
 	@Autowired
 	private Leaser leaser;
+	@Autowired
+	private MongoAccessor accessor;
 	@Value("${kafka.host}")
 	private String KAFKA_HOST;
 	@Value("${kafka.port}")
@@ -81,10 +91,51 @@ public class AccessWorker {
 				for (ConsumerRecord<String, String> consumerRecord : consumerRecords) {
 					System.out.println("Processing Access Message " + consumerRecord.topic() + " with key "
 							+ consumerRecord.key());
-					// Wrap the JobRequest in the Job object
 					try {
 						ObjectMapper mapper = new ObjectMapper();
 						Job job = mapper.readValue(consumerRecord.value(), Job.class);
+						AccessJob accessJob = (AccessJob) job.jobType;
+
+						// Update Status that this Job is being processed
+						JobProgress jobProgress = new JobProgress(0);
+						StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_RUNNING, jobProgress);
+						producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate));
+
+						// Depending on how the user wants to Access the
+						// Resource
+						switch (accessJob.getDeploymentType()) {
+						case AccessJob.ACCESS_TYPE_FILE:
+							// TODO: Return FTP link? S3 link? Stream the bytes?
+							break;
+						case AccessJob.ACCESS_TYPE_GEOSERVER:
+							// Check if a Deployment already exists
+							boolean exists = deployer.doesDeploymentExist(accessJob.getResourceId());
+							if (exists) {
+								// If it does, then renew the Lease on the
+								// existing deployment.
+								Deployment deployment = accessor.getDeploymentByResourceId(accessJob.getResourceId());
+								leaser.renewDeploymentLease(deployment);
+							} else {
+								Deployment deployment = deployer.createDeployment(accessor.getMetadataById(accessJob
+										.getResourceId()));
+								// Get a lease for the new deployment.
+								leaser.getDeploymentLease(deployment);
+							}
+							break;
+						}
+
+						// Update Job Status to complete for this Job.
+						jobProgress.percentComplete = 100;
+						statusUpdate = new StatusUpdate(StatusUpdate.STATUS_SUCCESS, jobProgress);
+						producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate));
+
+					} catch (IOException jsonException) {
+						System.out.println("Error Parsing Access Job Message.");
+						jsonException.printStackTrace();
+					} catch (MongoException mongoException) {
+						System.out.println("Error committing Resources to Mongo Collections: "
+								+ mongoException.getMessage());
+						mongoException.printStackTrace();
 					} catch (Exception exception) {
 						System.out.println("An unexpected error occurred while processing the Job Message: "
 								+ exception.getMessage());
