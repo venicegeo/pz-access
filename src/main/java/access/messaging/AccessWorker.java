@@ -75,12 +75,18 @@ public class AccessWorker {
 		// Initialize the Kafka consumer/producer
 		producer = KafkaClientFactory.getProducer(KAFKA_HOST, KAFKA_PORT);
 		consumer = KafkaClientFactory.getConsumer(KAFKA_HOST, KAFKA_PORT, KAFKA_GROUP);
-		// Listen for events
-		listen();
+		// Listen for events TODO: Talk to Sonny about moving to @Async method
+		Thread pollThread = new Thread() {
+			public void run() {
+				listen();
+			}
+		};
+		pollThread.start();
 	}
 
 	/**
-	 * Listens for Kafka Access messages
+	 * Listens for Kafka Access messages for creating Deployments for Access of
+	 * Resources
 	 */
 	public void listen() {
 		try {
@@ -116,7 +122,7 @@ public class AccessWorker {
 								Deployment deployment = accessor.getDeploymentByResourceId(accessJob.getResourceId());
 								leaser.renewDeploymentLease(deployment);
 							} else {
-								Deployment deployment = deployer.createDeployment(accessor.getMetadataById(accessJob
+								Deployment deployment = deployer.createDeployment(accessor.getData(accessJob
 										.getResourceId()));
 								// Get a lease for the new deployment.
 								leaser.getDeploymentLease(deployment);
@@ -128,7 +134,6 @@ public class AccessWorker {
 						jobProgress.percentComplete = 100;
 						statusUpdate = new StatusUpdate(StatusUpdate.STATUS_SUCCESS, jobProgress);
 						producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate));
-
 					} catch (IOException jsonException) {
 						System.out.println("Error Parsing Access Job Message.");
 						jsonException.printStackTrace();

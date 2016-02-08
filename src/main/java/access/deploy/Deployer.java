@@ -1,6 +1,6 @@
 package access.deploy;
 
-import model.job.metadata.ResourceMetadata;
+import model.data.DataResource;
 
 import org.springframework.stereotype.Component;
 
@@ -34,13 +34,13 @@ public class Deployer {
 	}
 
 	/**
-	 * Creates a new deployment from the ResourceMetadata object.
+	 * Creates a new deployment from the dataResource object.
 	 * 
-	 * @param resourceMetadata
+	 * @param dataResource
 	 *            The resource metadata, describing the object to be deployed.
 	 * @return A deployment for the object.
 	 */
-	public Deployment createDeployment(ResourceMetadata resourceMetadata) {
+	public Deployment createDeployment(DataResource dataResource) {
 		// Get the Resources
 
 		// Create the Deployment
