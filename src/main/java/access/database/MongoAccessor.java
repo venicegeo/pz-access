@@ -13,6 +13,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.ResourceAccessException;
 
 import access.database.model.Deployment;
+import access.database.model.Lease;
 
 import com.mongodb.BasicDBObject;
 import com.mongodb.DBCollection;
@@ -39,6 +40,10 @@ public class MongoAccessor {
 	private String DATABASE_NAME;
 	@Value("${mongo.db.collection.resources}")
 	private String RESOURCE_COLLECTION_NAME;
+	@Value("${mongo.db.collection.deployments}")
+	private String DEPLOYMENT_COLLECTION_NAME;
+	@Value("${mongo.db.collection.leases}")
+	private String LEASE_COLLECTION_NAME;
 	private MongoClient mongoClient;
 
 	@PostConstruct
@@ -87,16 +92,6 @@ public class MongoAccessor {
 	}
 
 	/**
-	 * Gets the Mongo Collection of all data currently referenced within Piazza.
-	 * 
-	 * @return Mongo collection for DataResources
-	 */
-	public JacksonDBCollection<DataResource, String> getResourceCollection() {
-		DBCollection collection = mongoClient.getDB(DATABASE_NAME).getCollection(RESOURCE_COLLECTION_NAME);
-		return JacksonDBCollection.wrap(collection, DataResource.class, String.class);
-	}
-
-	/**
 	 * Gets the DataResource from the Resources collection by ID. This ID is
 	 * typically what will be returned to the user as the result of their Job.
 	 * 
@@ -122,5 +117,37 @@ public class MongoAccessor {
 		}
 
 		return data;
+	}
+
+	/**
+	 * Gets the Mongo Collection of all data currently referenced within Piazza.
+	 * 
+	 * @return Mongo collection for DataResources
+	 */
+	private JacksonDBCollection<DataResource, String> getResourceCollection() {
+		DBCollection collection = mongoClient.getDB(DATABASE_NAME).getCollection(RESOURCE_COLLECTION_NAME);
+		return JacksonDBCollection.wrap(collection, DataResource.class, String.class);
+	}
+
+	/**
+	 * Gets the Mongo Collection of all Deployments currently referenced within
+	 * Piazza.
+	 * 
+	 * @return Mongo collection for Deployments
+	 */
+	private JacksonDBCollection<Deployment, String> getDeploymentCollection() {
+		DBCollection collection = mongoClient.getDB(DATABASE_NAME).getCollection(DEPLOYMENT_COLLECTION_NAME);
+		return JacksonDBCollection.wrap(collection, Deployment.class, String.class);
+	}
+
+	/**
+	 * Gets the Mongo Collection of all Leases currently referenced within
+	 * Piazza.
+	 * 
+	 * @return Mongo collection for Leases
+	 */
+	private JacksonDBCollection<Lease, String> getLeaseCollection() {
+		DBCollection collection = mongoClient.getDB(DATABASE_NAME).getCollection(LEASE_COLLECTION_NAME);
+		return JacksonDBCollection.wrap(collection, Lease.class, String.class);
 	}
 }
