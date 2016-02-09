@@ -5,15 +5,29 @@ VAGRANTFILE_API_VERSION = "2"
 
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
 
-	config.vm.box = "ubuntu/precise64"
-	config.vm.hostname = "access.dev"
-	config.vm.provision :shell, path: "ac-bootstrap.sh"
-	config.vm.network :private_network, ip:"192.168.23.25"
-	config.vm.network "forwarded_port", guest: 8085, host: 8085
-	config.vm.synced_folder "../", "/vagrant/access"
-	config.vm.provider "virtualbox" do |vb|
-      vb.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
-	  vb.customize ["modifyvm", :id, "--memory", "512"]
+	config.vm.define "access" do |access|
+		access.vm.box = "ubuntu/precise64"
+		access.vm.hostname = "access.dev"
+		access.vm.provision :shell, path: "ac-bootstrap.sh"
+		access.vm.network :private_network, ip:"192.168.23.26"
+		access.vm.network "forwarded_port", guest: 8085, host: 8085
+		access.vm.synced_folder "../", "/vagrant/access"
+		access.vm.provider "virtualbox" do |vb|
+	      vb.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
+		  vb.customize ["modifyvm", :id, "--memory", "512"]
+		end
 	end
+
+	config.vm.define "geoserver" do |geoserver|
+		geoserver.vm.box = "ubuntu/precise64"
+		geoserver.vm.hostname = "geoserver.dev"
+		geoserver.vm.provision :shell, path: "geoserver-bootstrap.sh"
+		geoserver.vm.network :private_network, ip:"192.168.23.27"
+		geoserver.vm.synced_folder "../", "/vagrant/access"
+		geoserver.vm.provider "virtualbox" do |vb|
+	      vb.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
+		  vb.customize ["modifyvm", :id, "--memory", "512"]
+		end
+	end	
 
 end
