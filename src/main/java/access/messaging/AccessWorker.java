@@ -1,3 +1,18 @@
+/**
+ * Copyright 2016, RadiantBlue Technologies, Inc.
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ **/
 package access.messaging;
 
 import java.io.IOException;
@@ -8,6 +23,7 @@ import javax.annotation.PostConstruct;
 
 import messaging.job.JobMessageFactory;
 import messaging.job.KafkaClientFactory;
+import model.data.DataResource;
 import model.job.Job;
 import model.job.JobProgress;
 import model.job.type.AccessJob;
@@ -122,8 +138,9 @@ public class AccessWorker {
 								Deployment deployment = accessor.getDeploymentByResourceId(accessJob.getResourceId());
 								leaser.renewDeploymentLease(deployment);
 							} else {
-								Deployment deployment = deployer.createDeployment(accessor.getData(accessJob
-										.getResourceId()));
+								// Get the data and deploy it
+								DataResource dataToDeploy = accessor.getData(accessJob.getResourceId());
+								Deployment deployment = deployer.createDeployment(dataToDeploy);
 								// Get a lease for the new deployment.
 								leaser.getDeploymentLease(deployment);
 							}
@@ -131,15 +148,14 @@ public class AccessWorker {
 						}
 
 						// Update Job Status to complete for this Job.
-						jobProgress.percentComplete = 100;
-						statusUpdate = new StatusUpdate(StatusUpdate.STATUS_SUCCESS, jobProgress);
+						statusUpdate = new StatusUpdate(StatusUpdate.STATUS_SUCCESS);
+						statusUpdate.setResult(null /* TODO: Set the result! */);
 						producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate));
 					} catch (IOException jsonException) {
 						System.out.println("Error Parsing Access Job Message.");
 						jsonException.printStackTrace();
 					} catch (MongoException mongoException) {
-						System.out.println("Error committing Resources to Mongo Collections: "
-								+ mongoException.getMessage());
+						System.out.println("Error Accessing Mongo Database: " + mongoException.getMessage());
 						mongoException.printStackTrace();
 					} catch (Exception exception) {
 						System.out.println("An unexpected error occurred while processing the Job Message: "
