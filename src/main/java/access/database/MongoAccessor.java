@@ -125,7 +125,7 @@ public class MongoAccessor {
 		DataResource data;
 
 		try {
-			if ((data = getResourceCollection().findOne(query)) == null) {
+			if ((data = getDataResourceCollection().findOne(query)) == null) {
 				throw new ResourceAccessException("Data not found.");
 			}
 		} catch (MongoTimeoutException mte) {
@@ -140,7 +140,7 @@ public class MongoAccessor {
 	 * 
 	 * @return Mongo collection for DataResources
 	 */
-	private JacksonDBCollection<DataResource, String> getResourceCollection() {
+	private JacksonDBCollection<DataResource, String> getDataResourceCollection() {
 		DBCollection collection = mongoClient.getDB(DATABASE_NAME).getCollection(RESOURCE_COLLECTION_NAME);
 		return JacksonDBCollection.wrap(collection, DataResource.class, String.class);
 	}

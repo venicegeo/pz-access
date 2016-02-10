@@ -43,6 +43,7 @@ import access.database.model.Deployment;
 import access.deploy.Deployer;
 import access.deploy.Leaser;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mongodb.MongoException;
 
@@ -119,8 +120,7 @@ public class AccessWorker {
 						AccessJob accessJob = (AccessJob) job.jobType;
 
 						// Update Status that this Job is being processed
-						JobProgress jobProgress = new JobProgress(0);
-						StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_RUNNING, jobProgress);
+						StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_RUNNING);
 						producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate));
 
 						// Depending on how the user wants to Access the
@@ -128,39 +128,47 @@ public class AccessWorker {
 						switch (accessJob.getDeploymentType()) {
 						case AccessJob.ACCESS_TYPE_FILE:
 							// TODO: Return FTP link? S3 link? Stream the bytes?
-							break;
+							throw new Exception("File type not supported at this time.");
 						case AccessJob.ACCESS_TYPE_GEOSERVER:
 							// Check if a Deployment already exists
-							boolean exists = deployer.doesDeploymentExist(accessJob.getResourceId());
+							boolean exists = deployer.doesDeploymentExist(accessJob.getDataId());
 							if (exists) {
 								// If it does, then renew the Lease on the
 								// existing deployment.
-								Deployment deployment = accessor.getDeploymentByResourceId(accessJob.getResourceId());
+								Deployment deployment = accessor.getDeploymentByResourceId(accessJob.getDataId());
 								leaser.renewDeploymentLease(deployment);
 							} else {
-								// Get the data and deploy it
-								DataResource dataToDeploy = accessor.getData(accessJob.getResourceId());
+								// Obtain the Data to be deployed
+								DataResource dataToDeploy = accessor.getData(accessJob.getDataId());
+								// Create the Deployment
 								Deployment deployment = deployer.createDeployment(dataToDeploy);
 								// Get a lease for the new deployment.
 								leaser.getDeploymentLease(deployment);
 							}
 							break;
+						default:
+							throw new Exception("Unknown Deployment Type: " + accessJob.getDeploymentType());
 						}
 
 						// Update Job Status to complete for this Job.
 						statusUpdate = new StatusUpdate(StatusUpdate.STATUS_SUCCESS);
 						statusUpdate.setResult(null /* TODO: Set the result! */);
 						producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate));
-					} catch (IOException jsonException) {
-						System.out.println("Error Parsing Access Job Message.");
-						jsonException.printStackTrace();
-					} catch (MongoException mongoException) {
-						System.out.println("Error Accessing Mongo Database: " + mongoException.getMessage());
-						mongoException.printStackTrace();
 					} catch (Exception exception) {
-						System.out.println("An unexpected error occurred while processing the Job Message: "
-								+ exception.getMessage());
+						// Handle any errors that occur.
 						exception.printStackTrace();
+						try {
+							// Send the failure message to the Job Manager.
+							producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(),
+									new StatusUpdate(StatusUpdate.STATUS_ERROR)));
+						} catch (JsonProcessingException jsonException) {
+							// If the Kafka message fails to send, at least log
+							// something in the console.
+							System.out
+									.println("Could update Job Manager with failure event in Ingest Worker. Error creating message: "
+											+ jsonException.getMessage());
+							jsonException.printStackTrace();
+						}
 					}
 				}
 			}

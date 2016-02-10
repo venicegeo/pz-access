@@ -24,7 +24,7 @@ package access.database.model;
  */
 public class Deployment {
 	public String id;
-	public String resourceId;
+	public String dataId;
 	public String host;
 	public String port;
 	public String layer;
