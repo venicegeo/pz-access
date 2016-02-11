@@ -30,6 +30,82 @@ public class Deployment {
 	public String layer;
 	public String capabilitiesUrl;
 
+	/**
+	 * Creates a new Deployment.
+	 */
 	public Deployment() {
+	}
+
+	/**
+	 * Creates a new Deployment.
+	 * 
+	 * @param id
+	 *            The ID of this deployment.
+	 * @param dataId
+	 *            The ID of the DataResource that this deployment represents
+	 * @param host
+	 *            The Host of the GeoServer instance
+	 * @param port
+	 *            The port of the GeoServer instance
+	 * @param layer
+	 *            The name of the GeoServer layer being deployed
+	 * @param capabilitiesUrl
+	 *            The URL that will return the Capabilities document
+	 */
+	public Deployment(String id, String dataId, String host, String port, String layer, String capabilitiesUrl) {
+		this.id = id;
+		this.dataId = dataId;
+		this.host = host;
+		this.port = port;
+		this.layer = layer;
+		this.capabilitiesUrl = capabilitiesUrl;
+	}
+
+	public String getId() {
+		return id;
+	}
+
+	public void setId(String id) {
+		this.id = id;
+	}
+
+	public String getDataId() {
+		return dataId;
+	}
+
+	public void setDataId(String dataId) {
+		this.dataId = dataId;
+	}
+
+	public String getHost() {
+		return host;
+	}
+
+	public void setHost(String host) {
+		this.host = host;
+	}
+
+	public String getPort() {
+		return port;
+	}
+
+	public void setPort(String port) {
+		this.port = port;
+	}
+
+	public String getLayer() {
+		return layer;
+	}
+
+	public void setLayer(String layer) {
+		this.layer = layer;
+	}
+
+	public String getCapabilitiesUrl() {
+		return capabilitiesUrl;
+	}
+
+	public void setCapabilitiesUrl(String capabilitiesUrl) {
+		this.capabilitiesUrl = capabilitiesUrl;
 	}
 }

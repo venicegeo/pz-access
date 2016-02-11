@@ -15,7 +15,6 @@
  **/
 package access.messaging;
 
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -25,7 +24,6 @@ import messaging.job.JobMessageFactory;
 import messaging.job.KafkaClientFactory;
 import model.data.DataResource;
 import model.job.Job;
-import model.job.JobProgress;
 import model.job.type.AccessJob;
 import model.status.StatusUpdate;
 
@@ -45,7 +43,6 @@ import access.deploy.Leaser;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.mongodb.MongoException;
 
 /**
  * Worker class that listens for Access Jobs being passed in through the
@@ -142,8 +139,8 @@ public class AccessWorker {
 								DataResource dataToDeploy = accessor.getData(accessJob.getDataId());
 								// Create the Deployment
 								Deployment deployment = deployer.createDeployment(dataToDeploy);
-								// Get a lease for the new deployment.
-								leaser.getDeploymentLease(deployment);
+								// Create a new Lease for this Deployment
+								leaser.createDeploymentLease(deployment);
 							}
 							break;
 						default:

@@ -104,7 +104,7 @@ public class MongoAccessor {
 	 *            Deployment to enter
 	 */
 	public void insertDeployment(Deployment deployment) {
-		throw new UnsupportedOperationException();
+		getDeploymentCollection().insert(deployment);
 	}
 
 	/**

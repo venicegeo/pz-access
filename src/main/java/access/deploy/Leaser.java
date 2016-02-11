@@ -15,6 +15,9 @@
  **/
 package access.deploy;
 
+import java.util.UUID;
+
+import org.joda.time.DateTime;
 import org.springframework.stereotype.Component;
 
 import access.database.model.Deployment;
@@ -41,6 +44,7 @@ public class Leaser {
 	 *            The deployment to renew.
 	 */
 	public void renewDeploymentLease(Deployment deployment) {
+		System.out.println("Renewing Deployment lease for " + deployment.getId());
 		throw new UnsupportedOperationException();
 	}
 
@@ -50,7 +54,9 @@ public class Leaser {
 	 * @param deployment
 	 *            Deployment to create a lease for
 	 */
-	public Lease getDeploymentLease(Deployment deployment) {
-		throw new UnsupportedOperationException();
+	public Lease createDeploymentLease(Deployment deployment) {
+		String leaseId = UUID.randomUUID().toString();
+		Lease lease = new Lease(leaseId, deployment.getId(), DateTime.now().plusDays(7).toString());
+		return lease;
 	}
 }

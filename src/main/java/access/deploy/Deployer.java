@@ -15,22 +15,29 @@
  **/
 package access.deploy;
 
-import java.io.IOException;
+import java.util.UUID;
 
 import model.data.DataResource;
 import model.data.type.ShapefileResource;
 
 import org.apache.commons.io.IOUtils;
+import org.apache.tomcat.util.codec.binary.Base64;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestTemplate;
 
 import access.database.MongoAccessor;
 import access.database.model.Deployment;
 
 /**
- * Class that manages the Deployments held by this component. This is done by
- * managing the Deployments via a MongoDB collection.
+ * Class that manages the GeoServer Deployments held by this component. This is
+ * done by managing the Deployments via a MongoDB collection.
  * 
  * A deployment is, in this current context, a GeoServer layer being stood up.
  * In the future, this may be expanded to other deployment solutions, as
@@ -45,6 +52,13 @@ public class Deployer {
 	private MongoAccessor accessor;
 	@Value("${geoserver.host}")
 	private String GEOSERVER_HOST;
+	@Value("${geoserver.port}")
+	private String GEOSERVER_PORT;
+	@Value("${geoserver.username}")
+	private String GEOSERVER_USERNAME;
+	@Value("${geoserver.password}")
+	private String GEOSERVER_PASSWORD;
+	private static final String ADD_LAYER_ENDPOINT = "http://%s:%s/geoserver/rest/workspaces/piazza/datastores/piazza/featuretypes/";
 
 	/**
 	 * Creates a new deployment from the dataResource object.
@@ -54,23 +68,26 @@ public class Deployer {
 	 * @return A deployment for the object.
 	 */
 	public Deployment createDeployment(DataResource dataResource) throws Exception {
-		// Create the Deployment
-		if (dataResource.getDataType() instanceof ShapefileResource) {
-			// Deploy Shapefile
-			try {
-				String layerName = createShapefileLayer(dataResource);
-			} catch (Exception exception) {
-				exception.printStackTrace();
-				throw new Exception("There was an error deploying to GeoServer: " + exception.getMessage());
+		// Create the GeoServer Deployment based on the Data Type
+		Deployment deployment;
+		try {
+			if (dataResource.getDataType() instanceof ShapefileResource) {
+				// Deploy Shapefile
+				deployment = deployShapefileLayer(dataResource);
+			} else {
+				throw new UnsupportedOperationException("Cannot the following Data Type to GeoServer: "
+						+ dataResource.getDataType().getType());
 			}
-		} else {
-			throw new UnsupportedOperationException("Cannot currently deploy this Data Type to GeoServer.");
+		} catch (Exception exception) {
+			exception.printStackTrace();
+			throw new Exception("There was an error deploying the to GeoServer instance: " + exception.getMessage());
 		}
 
-		// Update Deployment into the Access Database
+		// Insert the Deployment into the Database
+		accessor.insertDeployment(deployment);
 
 		// Return Deployment reference
-		return null;
+		return deployment;
 	}
 
 	/**
@@ -78,14 +95,11 @@ public class Deployer {
 	 * GeoServer layer that will reference the PostGIS table that the shapefile
 	 * has been transferred into.
 	 * 
-	 * TODO: Perhaps some failover if we can get the file, but we cannot get the
-	 * tablespace? Such as trying to redeploy the tablespace.
-	 * 
 	 * @param dataResource
 	 *            The DataResource for the Shapefile to deploy
-	 * @return The layer name of the layer created on GeoServer
+	 * @return The Deployment
 	 */
-	private String createShapefileLayer(DataResource dataResource) throws IOException {
+	private Deployment deployShapefileLayer(DataResource dataResource) throws Exception {
 		// Create the JSON Payload for the Layer request to GeoServer
 		ClassLoader classLoader = getClass().getClassLoader();
 		String featureTypeRequestBody = IOUtils.toString(classLoader
@@ -97,25 +111,54 @@ public class Deployer {
 				shapefileResource.getDatabaseTableName(), shapefileResource.getDatabaseTableName(), dataResource
 						.getSpatialMetadata().getCoordinateReferenceSystem(), "EPSG:4326");
 
-		// Construct the GeoServer endpoint to point to.
+		// Execute the POST to GeoServer to add the FeatureType
+		HttpStatus statusCode = postGeoServerFeatureType(requestBody);
 
-		// Return the Layer Name
-		return shapefileResource.getDatabaseTableName();
+		// Ensure the Status Code is OK
+		if (statusCode != HttpStatus.OK) {
+			throw new Exception("Failed to Deploy to GeoServer; the Status returned a non-OK response code: "
+					+ statusCode);
+		}
+
+		// Create a new Deployment for this Resource
+		String deploymentId = UUID.randomUUID().toString();
+		Deployment deployment = new Deployment(deploymentId, dataResource.getDataId(), GEOSERVER_HOST, GEOSERVER_PORT,
+				shapefileResource.getDatabaseTableName(), null);
+
+		// Return the newly created Deployment
+		return deployment;
 	}
 
 	/**
-	 * Returns an available GeoServer host for deployments. In a clustered
-	 * scenario, there may be multiple GeoServer instances running. This method
-	 * will fetch an available instance and return the hostname. This URL will
-	 * be used to then POST the FeatureType to the server, thus deploying the
-	 * new layer to that instance.
+	 * Executes the POST request to GeoServer to create the FeatureType as a
+	 * Layer.
 	 * 
-	 * @return Hostname of an available GeoServer instance
+	 * @param featureType
+	 *            The JSON Payload of the POST request
+	 * @return The HTTP Status code of the request to GeoServer for adding the
+	 *         layer. GeoServer will typically not return any payload in the
+	 *         response, so the HTTP Status is the best we can do in order to
+	 *         check for success.
 	 */
-	private String getAvailableGeoServerHost() {
-		// TODO: If we have a cluster, add that logic here. For now, let's
-		// assume we have a single instance.
-		return GEOSERVER_HOST;
+	private HttpStatus postGeoServerFeatureType(String featureType) {
+		// Get the Basic authentication Headers for GeoServer
+		String plainCredentials = String.format("%s:%s", GEOSERVER_USERNAME, GEOSERVER_PASSWORD);
+		byte[] credentialBytes = plainCredentials.getBytes();
+		byte[] encodedCredentials = Base64.encodeBase64(credentialBytes);
+		String credentials = new String(encodedCredentials);
+		HttpHeaders headers = new HttpHeaders();
+		headers.add("Authorization", "Basic " + credentials);
+
+		// Construct the endpoint for the Service
+		String url = String.format(ADD_LAYER_ENDPOINT, GEOSERVER_HOST, GEOSERVER_PORT);
+
+		// Create the Request template and execute
+		HttpEntity<String> request = new HttpEntity<String>(featureType, headers);
+		RestTemplate restTemplate = new RestTemplate();
+		ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, request, String.class);
+
+		// Return the HTTP Status
+		return response.getStatusCode();
 	}
 
 	/**
