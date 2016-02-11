@@ -89,12 +89,21 @@ public class MongoAccessor {
 	/**
 	 * Gets the Deployment for the specified Resource ID
 	 * 
-	 * @param resourceId
-	 *            Resource ID
+	 * @param dataId
+	 *            The ID of the DataResource to check for a Deployment
 	 * @return The Deployment for the Resource, if any. Null, if none.
 	 */
-	public Deployment getDeploymentByResourceId(String resourceId) {
-		throw new UnsupportedOperationException();
+	public Deployment getDeploymentByDataId(String dataId) {
+		BasicDBObject query = new BasicDBObject("dataId", dataId);
+		Deployment deployment;
+
+		try {
+			deployment = getDeploymentCollection().findOne(query);
+		} catch (MongoTimeoutException mte) {
+			throw new MongoException("MongoDB instance not available.");
+		}
+
+		return deployment;
 	}
 
 	/**

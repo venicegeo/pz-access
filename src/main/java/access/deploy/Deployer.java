@@ -28,6 +28,7 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
@@ -77,6 +78,7 @@ public class Deployer {
 			} else {
 				throw new UnsupportedOperationException("Cannot the following Data Type to GeoServer: "
 						+ dataResource.getDataType().getType());
+
 			}
 		} catch (Exception exception) {
 			exception.printStackTrace();
@@ -107,6 +109,7 @@ public class Deployer {
 
 		// Inject the Metadata from the Shapefile into the Payload
 		ShapefileResource shapefileResource = (ShapefileResource) dataResource.getDataType();
+
 		String requestBody = String.format(featureTypeRequestBody, shapefileResource.getDatabaseTableName(),
 				shapefileResource.getDatabaseTableName(), shapefileResource.getDatabaseTableName(), dataResource
 						.getSpatialMetadata().getCoordinateReferenceSystem(), "EPSG:4326");
@@ -115,7 +118,7 @@ public class Deployer {
 		HttpStatus statusCode = postGeoServerFeatureType(requestBody);
 
 		// Ensure the Status Code is OK
-		if (statusCode != HttpStatus.OK) {
+		if (statusCode != HttpStatus.CREATED) {
 			throw new Exception("Failed to Deploy to GeoServer; the Status returned a non-OK response code: "
 					+ statusCode);
 		}
@@ -148,12 +151,14 @@ public class Deployer {
 		String credentials = new String(encodedCredentials);
 		HttpHeaders headers = new HttpHeaders();
 		headers.add("Authorization", "Basic " + credentials);
+		headers.setContentType(MediaType.APPLICATION_XML);
 
 		// Construct the endpoint for the Service
 		String url = String.format(ADD_LAYER_ENDPOINT, GEOSERVER_HOST, GEOSERVER_PORT);
 
 		// Create the Request template and execute
 		HttpEntity<String> request = new HttpEntity<String>(featureType, headers);
+
 		RestTemplate restTemplate = new RestTemplate();
 		ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, request, String.class);
 
@@ -170,7 +175,7 @@ public class Deployer {
 	 * @return True if a deployment exists for the Data ID, false if not.
 	 */
 	public boolean doesDeploymentExist(String dataId) {
-		Deployment deployment = accessor.getDeploymentByResourceId(dataId);
+		Deployment deployment = accessor.getDeploymentByDataId(dataId);
 		if (deployment != null) {
 			return true;
 		} else {

@@ -124,7 +124,6 @@ public class AccessWorker {
 						// Resource
 						switch (accessJob.getDeploymentType()) {
 						case AccessJob.ACCESS_TYPE_FILE:
-							// TODO: Return FTP link? S3 link? Stream the bytes?
 							throw new Exception("File type not supported at this time.");
 						case AccessJob.ACCESS_TYPE_GEOSERVER:
 							// Check if a Deployment already exists
@@ -132,7 +131,7 @@ public class AccessWorker {
 							if (exists) {
 								// If it does, then renew the Lease on the
 								// existing deployment.
-								Deployment deployment = accessor.getDeploymentByResourceId(accessJob.getDataId());
+								Deployment deployment = accessor.getDeploymentByDataId(accessJob.getDataId());
 								leaser.renewDeploymentLease(deployment);
 							} else {
 								// Obtain the Data to be deployed
