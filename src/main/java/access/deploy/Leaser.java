@@ -17,11 +17,14 @@ package access.deploy;
 
 import java.util.UUID;
 
+import model.data.deployment.Deployment;
+import model.data.deployment.Lease;
+
 import org.joda.time.DateTime;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import access.database.model.Deployment;
-import access.database.model.Lease;
+import access.database.MongoAccessor;
 
 /**
  * Handles the leasing of deployments of Resources. When a Resource is deployed,
@@ -36,16 +39,38 @@ import access.database.model.Lease;
  */
 @Component
 public class Leaser {
+	@Autowired
+	private MongoAccessor accessor;
+	private static final int DEFAULT_LEASE_PERIOD_DAYS = 7;
 
 	/**
-	 * Renews the existing deployment.
+	 * Renews the existing Deployment. This Deployment must exist in the
+	 * Deployments collection.
 	 * 
 	 * @param deployment
 	 *            The deployment to renew.
+	 * @return The Lease for this Deployment
 	 */
-	public void renewDeploymentLease(Deployment deployment) {
-		System.out.println("Renewing Deployment lease for " + deployment.getId());
-		throw new UnsupportedOperationException();
+	public Lease renewDeploymentLease(Deployment deployment) {
+		Lease lease = accessor.getDeploymentLease(deployment);
+		// If the lease has been reaped by the database, then create a new
+		// Lease.
+		if (lease == null) {
+			lease = createDeploymentLease(deployment);
+		} else {
+			DateTime expirationDate = new DateTime(lease.getExpirationDate());
+			if (expirationDate.isBeforeNow()) {
+				// If the Lease has expired, then the Lease will be extended for
+				// the default Lease period.
+				accessor.updateLeaseExpirationDate(lease.getId(), DateTime.now().plusDays(DEFAULT_LEASE_PERIOD_DAYS)
+						.toString());
+			} else {
+				// If the Lease has not expired, then the Lease will not be
+				// extended. It will simply be reused.
+			}
+		}
+
+		return lease;
 	}
 
 	/**
@@ -55,8 +80,15 @@ public class Leaser {
 	 *            Deployment to create a lease for
 	 */
 	public Lease createDeploymentLease(Deployment deployment) {
+		// Create the Lease
 		String leaseId = UUID.randomUUID().toString();
-		Lease lease = new Lease(leaseId, deployment.getId(), DateTime.now().plusDays(7).toString());
+		Lease lease = new Lease(leaseId, deployment.getId(), DateTime.now().plusDays(DEFAULT_LEASE_PERIOD_DAYS)
+				.toString());
+
+		// Commit the Lease to the Database
+		accessor.insertLease(lease);
+
+		// Return reference
 		return lease;
 	}
 }

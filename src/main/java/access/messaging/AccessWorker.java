@@ -23,7 +23,9 @@ import javax.annotation.PostConstruct;
 import messaging.job.JobMessageFactory;
 import messaging.job.KafkaClientFactory;
 import model.data.DataResource;
+import model.data.deployment.Deployment;
 import model.job.Job;
+import model.job.result.type.DeploymentResult;
 import model.job.type.AccessJob;
 import model.status.StatusUpdate;
 
@@ -37,7 +39,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import access.database.MongoAccessor;
-import access.database.model.Deployment;
 import access.deploy.Deployer;
 import access.deploy.Leaser;
 
@@ -126,30 +127,35 @@ public class AccessWorker {
 						case AccessJob.ACCESS_TYPE_FILE:
 							throw new Exception("File type not supported at this time.");
 						case AccessJob.ACCESS_TYPE_GEOSERVER:
+							Deployment deployment = null;
 							// Check if a Deployment already exists
 							boolean exists = deployer.doesDeploymentExist(accessJob.getDataId());
 							if (exists) {
+								System.out.println("Renewing Deployment Lease for " + accessJob.getDataId());
 								// If it does, then renew the Lease on the
 								// existing deployment.
-								Deployment deployment = accessor.getDeploymentByDataId(accessJob.getDataId());
+								deployment = accessor.getDeploymentByDataId(accessJob.getDataId());
 								leaser.renewDeploymentLease(deployment);
 							} else {
+								System.out.println("Creating a new Deployment and lease for " + accessJob.getDataId());
 								// Obtain the Data to be deployed
 								DataResource dataToDeploy = accessor.getData(accessJob.getDataId());
 								// Create the Deployment
-								Deployment deployment = deployer.createDeployment(dataToDeploy);
+								deployment = deployer.createDeployment(dataToDeploy);
 								// Create a new Lease for this Deployment
 								leaser.createDeploymentLease(deployment);
 							}
+							// Update Job Status to complete for this Job.
+							statusUpdate = new StatusUpdate(StatusUpdate.STATUS_SUCCESS);
+							statusUpdate.setResult(new DeploymentResult(deployment));
+							producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate));
+
+							// Console Logging
+							System.out.println("Deployment Successfully Returned for Resource " + accessJob.getDataId());
 							break;
 						default:
 							throw new Exception("Unknown Deployment Type: " + accessJob.getDeploymentType());
 						}
-
-						// Update Job Status to complete for this Job.
-						statusUpdate = new StatusUpdate(StatusUpdate.STATUS_SUCCESS);
-						statusUpdate.setResult(null /* TODO: Set the result! */);
-						producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate));
 					} catch (Exception exception) {
 						// Handle any errors that occur.
 						exception.printStackTrace();

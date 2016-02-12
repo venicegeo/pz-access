@@ -21,14 +21,15 @@ import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 
 import model.data.DataResource;
+import model.data.deployment.Deployment;
+import model.data.deployment.Lease;
 
+import org.mongojack.DBQuery;
+import org.mongojack.DBUpdate;
 import org.mongojack.JacksonDBCollection;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.ResourceAccessException;
-
-import access.database.model.Deployment;
-import access.database.model.Lease;
 
 import com.mongodb.BasicDBObject;
 import com.mongodb.DBCollection;
@@ -107,13 +108,23 @@ public class MongoAccessor {
 	}
 
 	/**
-	 * Creates a new Deployment entry in the database.
+	 * Gets the Lease for the Deployment, if on exists.
 	 * 
 	 * @param deployment
-	 *            Deployment to enter
+	 *            The Deployment
+	 * @return The Lease for the Deployment, if it exists. Null if not.
 	 */
-	public void insertDeployment(Deployment deployment) {
-		getDeploymentCollection().insert(deployment);
+	public Lease getDeploymentLease(Deployment deployment) {
+		BasicDBObject query = new BasicDBObject("deploymentId", deployment.getId());
+		Lease lease;
+
+		try {
+			lease = getLeaseCollection().findOne(query);
+		} catch (MongoTimeoutException mte) {
+			throw new MongoException("MongoDB instance not available.");
+		}
+
+		return lease;
 	}
 
 	/**
@@ -142,6 +153,38 @@ public class MongoAccessor {
 		}
 
 		return data;
+	}
+
+	/**
+	 * Updates the Expiration date for the Lease.
+	 * 
+	 * @param leaseId
+	 *            The ID of the lease to update.
+	 * @param expirationDate
+	 *            The new Expiration date. ISO8601 String.
+	 */
+	public void updateLeaseExpirationDate(String leaseId, String expirationDate) {
+		getLeaseCollection().update(DBQuery.is("id", leaseId), DBUpdate.set("expirationDate", expirationDate));
+	}
+
+	/**
+	 * Creates a new Deployment entry in the database.
+	 * 
+	 * @param deployment
+	 *            Deployment to enter
+	 */
+	public void insertDeployment(Deployment deployment) {
+		getDeploymentCollection().insert(deployment);
+	}
+
+	/**
+	 * Creates a new Lease entry in the database.
+	 * 
+	 * @param lease
+	 *            Lease to enter
+	 */
+	public void insertLease(Lease lease) {
+		getLeaseCollection().insert(lease);
 	}
 
 	/**

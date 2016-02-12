@@ -18,6 +18,7 @@ package access.deploy;
 import java.util.UUID;
 
 import model.data.DataResource;
+import model.data.deployment.Deployment;
 import model.data.type.ShapefileResource;
 
 import org.apache.commons.io.IOUtils;
@@ -34,7 +35,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
 import access.database.MongoAccessor;
-import access.database.model.Deployment;
 
 /**
  * Class that manages the GeoServer Deployments held by this component. This is
@@ -60,6 +60,7 @@ public class Deployer {
 	@Value("${geoserver.password}")
 	private String GEOSERVER_PASSWORD;
 	private static final String ADD_LAYER_ENDPOINT = "http://%s:%s/geoserver/rest/workspaces/piazza/datastores/piazza/featuretypes/";
+	private static final String CAPABILITIES_URL = "http://%s:%s/geoserver/piazza/wfs?service=wfs&version=2.0.0&request=GetCapabilities";
 
 	/**
 	 * Creates a new deployment from the dataResource object.
@@ -109,7 +110,6 @@ public class Deployer {
 
 		// Inject the Metadata from the Shapefile into the Payload
 		ShapefileResource shapefileResource = (ShapefileResource) dataResource.getDataType();
-
 		String requestBody = String.format(featureTypeRequestBody, shapefileResource.getDatabaseTableName(),
 				shapefileResource.getDatabaseTableName(), shapefileResource.getDatabaseTableName(), dataResource
 						.getSpatialMetadata().getCoordinateReferenceSystem(), "EPSG:4326");
@@ -125,8 +125,9 @@ public class Deployer {
 
 		// Create a new Deployment for this Resource
 		String deploymentId = UUID.randomUUID().toString();
+		String capabilitiesUrl = String.format(CAPABILITIES_URL, GEOSERVER_HOST, GEOSERVER_PORT);
 		Deployment deployment = new Deployment(deploymentId, dataResource.getDataId(), GEOSERVER_HOST, GEOSERVER_PORT,
-				shapefileResource.getDatabaseTableName(), null);
+				shapefileResource.getDatabaseTableName(), capabilitiesUrl);
 
 		// Return the newly created Deployment
 		return deployment;
