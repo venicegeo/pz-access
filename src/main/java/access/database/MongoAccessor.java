@@ -192,7 +192,7 @@ public class MongoAccessor {
 	 * 
 	 * @return Mongo collection for DataResources
 	 */
-	private JacksonDBCollection<DataResource, String> getDataResourceCollection() {
+	public JacksonDBCollection<DataResource, String> getDataResourceCollection() {
 		DBCollection collection = mongoClient.getDB(DATABASE_NAME).getCollection(RESOURCE_COLLECTION_NAME);
 		return JacksonDBCollection.wrap(collection, DataResource.class, String.class);
 	}
@@ -203,7 +203,7 @@ public class MongoAccessor {
 	 * 
 	 * @return Mongo collection for Deployments
 	 */
-	private JacksonDBCollection<Deployment, String> getDeploymentCollection() {
+	public JacksonDBCollection<Deployment, String> getDeploymentCollection() {
 		DBCollection collection = mongoClient.getDB(DATABASE_NAME).getCollection(DEPLOYMENT_COLLECTION_NAME);
 		return JacksonDBCollection.wrap(collection, Deployment.class, String.class);
 	}
@@ -214,7 +214,7 @@ public class MongoAccessor {
 	 * 
 	 * @return Mongo collection for Leases
 	 */
-	private JacksonDBCollection<Lease, String> getLeaseCollection() {
+	public JacksonDBCollection<Lease, String> getLeaseCollection() {
 		DBCollection collection = mongoClient.getDB(DATABASE_NAME).getCollection(LEASE_COLLECTION_NAME);
 		return JacksonDBCollection.wrap(collection, Lease.class, String.class);
 	}

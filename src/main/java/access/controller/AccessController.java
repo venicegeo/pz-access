@@ -24,6 +24,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.ResourceAccessException;
 
@@ -71,6 +72,22 @@ public class AccessController {
 		} catch (Exception exception) {
 			exception.printStackTrace();
 			return new ErrorResponse(null, "Error fetching Data: " + exception.getMessage(), "Access");
+		}
+	}
+
+	/**
+	 * Drops the Mongo collections. This is for internal development use only.
+	 * We should probably remove this in the future. Don't use this.
+	 */
+	@RequestMapping(value = "/drop")
+	public String dropAllTables(@RequestParam(value = "serious", required = false) Boolean serious) {
+		if ((serious != null) && (serious.booleanValue())) {
+			accessor.getDataResourceCollection().drop();
+			accessor.getLeaseCollection().drop();
+			accessor.getDeploymentCollection().drop();
+			return "Collections dropped.";
+		} else {
+			return "You're not serious.";
 		}
 	}
 }
