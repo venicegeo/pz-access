@@ -19,6 +19,7 @@ import java.util.UUID;
 
 import model.data.DataResource;
 import model.data.deployment.Deployment;
+import model.data.type.PostGISResource;
 import model.data.type.ShapefileResource;
 
 import org.apache.commons.io.IOUtils;
@@ -73,9 +74,10 @@ public class Deployer {
 		// Create the GeoServer Deployment based on the Data Type
 		Deployment deployment;
 		try {
-			if (dataResource.getDataType() instanceof ShapefileResource) {
-				// Deploy Shapefile
-				deployment = deployShapefileLayer(dataResource);
+			if ((dataResource.getDataType() instanceof ShapefileResource)
+					|| (dataResource.getDataType() instanceof PostGISResource)) {
+				// Deploy from an existing PostGIS Table
+				deployment = deployPostGisTable(dataResource);
 			} else {
 				throw new UnsupportedOperationException("Cannot the following Data Type to GeoServer: "
 						+ dataResource.getDataType().getType());
@@ -94,25 +96,33 @@ public class Deployer {
 	}
 
 	/**
-	 * Deploys a Shapefile resource to GeoServer. This will create a new
-	 * GeoServer layer that will reference the PostGIS table that the shapefile
-	 * has been transferred into.
+	 * Deploys a PostGIS Table resource to GeoServer. This will create a new
+	 * GeoServer layer that will reference the PostGIS table.
+	 * 
+	 * PostGIS tables can be created via the Ingest process by, for instance,
+	 * ingesting a Shapefile or a WFS into the Database.
 	 * 
 	 * @param dataResource
-	 *            The DataResource for the Shapefile to deploy
+	 *            The DataResource to deploy.
 	 * @return The Deployment
 	 */
-	private Deployment deployShapefileLayer(DataResource dataResource) throws Exception {
+	private Deployment deployPostGisTable(DataResource dataResource) throws Exception {
 		// Create the JSON Payload for the Layer request to GeoServer
 		ClassLoader classLoader = getClass().getClassLoader();
 		String featureTypeRequestBody = IOUtils.toString(classLoader
 				.getResourceAsStream("templates/featureTypeRequest.xml"));
 
-		// Inject the Metadata from the Shapefile into the Payload
-		ShapefileResource shapefileResource = (ShapefileResource) dataResource.getDataType();
-		String requestBody = String.format(featureTypeRequestBody, shapefileResource.getDatabaseTableName(),
-				shapefileResource.getDatabaseTableName(), shapefileResource.getDatabaseTableName(), dataResource
-						.getSpatialMetadata().getCoordinateReferenceSystem(), "EPSG:4326");
+		// Get the appropriate Table Name from the DataResource
+		String tableName = null;
+		if (dataResource.getDataType() instanceof ShapefileResource) {
+			tableName = ((ShapefileResource) dataResource.getDataType()).getDatabaseTableName();
+		} else if (dataResource.getDataType() instanceof PostGISResource) {
+			tableName = ((PostGISResource) dataResource.getDataType()).getTable();
+		}
+
+		// Inject the Metadata from the Data Resource into the Payload
+		String requestBody = String.format(featureTypeRequestBody, tableName, tableName, tableName, dataResource
+				.getSpatialMetadata().getEpsgString(), "EPSG:4326");
 
 		// Execute the POST to GeoServer to add the FeatureType
 		HttpStatus statusCode = postGeoServerFeatureType(requestBody);
@@ -127,7 +137,7 @@ public class Deployer {
 		String deploymentId = UUID.randomUUID().toString();
 		String capabilitiesUrl = String.format(CAPABILITIES_URL, GEOSERVER_HOST, GEOSERVER_PORT);
 		Deployment deployment = new Deployment(deploymentId, dataResource.getDataId(), GEOSERVER_HOST, GEOSERVER_PORT,
-				shapefileResource.getDatabaseTableName(), capabilitiesUrl);
+				tableName, capabilitiesUrl);
 
 		// Return the newly created Deployment
 		return deployment;
