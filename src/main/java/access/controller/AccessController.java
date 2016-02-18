@@ -15,6 +15,8 @@
  **/
 package access.controller;
 
+import java.util.List;
+
 import model.data.DataResource;
 import model.response.DataResourceResponse;
 import model.response.ErrorResponse;
@@ -49,6 +51,8 @@ import access.database.MongoAccessor;
 public class AccessController {
 	@Autowired
 	private MongoAccessor accessor;
+	private static final String DEFAULT_PAGE_SIZE = "10";
+	private static final String DEFAULT_PAGE = "0";
 
 	/**
 	 * Returns the Data resource object from the Resources collection.
@@ -73,6 +77,38 @@ public class AccessController {
 			exception.printStackTrace();
 			return new ErrorResponse(null, "Error fetching Data: " + exception.getMessage(), "Access");
 		}
+	}
+
+	/**
+	 * Returns all Data held by the Piazza Ingest/Access components. This
+	 * corresponds with the items in the Mongo db.Resources collection.
+	 * 
+	 * This is intended to be used by the Swiss-Army-Knife (SAK) administration
+	 * application for reporting the status of this Job Manager component. It is
+	 * not used in normal function of the Job Manager.
+	 * 
+	 * @return The list of all data held by the system.
+	 */
+	@RequestMapping(value = "/data", method = RequestMethod.GET)
+	public List<DataResource> getAllData(
+			@RequestParam(value = "page", required = false, defaultValue = DEFAULT_PAGE) String page,
+			@RequestParam(value = "pageSize", required = false, defaultValue = DEFAULT_PAGE_SIZE) String pageSize) {
+		return accessor.getDataResourceCollection().find().skip(Integer.parseInt(page) * Integer.parseInt(pageSize))
+				.limit(Integer.parseInt(pageSize)).toArray();
+	}
+
+	/**
+	 * Returns the Number of Data Resources in the piazza system.
+	 * 
+	 * This is intended to be used by the Swiss-Army-Knife (SAK) administration
+	 * application for reporting the status of this Job Manager component. It is
+	 * not used in normal function of the Job Manager.
+	 * 
+	 * @return Number of Data items in the system.
+	 */
+	@RequestMapping(value = "/data/count", method = RequestMethod.GET)
+	public long getDataCount() {
+		return accessor.getDataResourceCollection().count();
 	}
 
 	/**

@@ -20,7 +20,9 @@ import java.util.UUID;
 import model.data.DataResource;
 import model.data.deployment.Deployment;
 import model.data.type.PostGISResource;
+import model.data.type.RasterResource;
 import model.data.type.ShapefileResource;
+import model.data.type.WfsResource;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.tomcat.util.codec.binary.Base64;
@@ -78,10 +80,19 @@ public class Deployer {
 					|| (dataResource.getDataType() instanceof PostGISResource)) {
 				// Deploy from an existing PostGIS Table
 				deployment = deployPostGisTable(dataResource);
+			} else if (dataResource.getDataType() instanceof WfsResource) {
+				// User has requested to deploy a WFS type resource. In this
+				// case, there's nothing to deploy since the WFS is already
+				// accessible by design? Just return the WFS information back to
+				// them? Or return an error?
+				deployment = null;
+			} else if (dataResource.getDataType() instanceof RasterResource) {
+				// Deploy a GeoTIFF to GeoServer
+				throw new UnsupportedOperationException("GeoTIFF deployments not supported currently.");
 			} else {
+				// Unsupported Data type has been specified.
 				throw new UnsupportedOperationException("Cannot the following Data Type to GeoServer: "
 						+ dataResource.getDataType().getType());
-
 			}
 		} catch (Exception exception) {
 			exception.printStackTrace();
