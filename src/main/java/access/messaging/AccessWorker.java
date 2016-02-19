@@ -26,6 +26,7 @@ import model.data.DataResource;
 import model.data.deployment.Deployment;
 import model.job.Job;
 import model.job.result.type.DeploymentResult;
+import model.job.result.type.ErrorResult;
 import model.job.type.AccessJob;
 import model.status.StatusUpdate;
 
@@ -151,7 +152,8 @@ public class AccessWorker {
 							producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate));
 
 							// Console Logging
-							System.out.println("Deployment Successfully Returned for Resource " + accessJob.getDataId());
+							System.out
+									.println("Deployment Successfully Returned for Resource " + accessJob.getDataId());
 							break;
 						default:
 							throw new Exception("Unknown Deployment Type: " + accessJob.getDeploymentType());
@@ -161,8 +163,9 @@ public class AccessWorker {
 						exception.printStackTrace();
 						try {
 							// Send the failure message to the Job Manager.
-							producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(),
-									new StatusUpdate(StatusUpdate.STATUS_ERROR)));
+							StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_ERROR);
+							statusUpdate.setResult(new ErrorResult("Could not Ingest", exception.getMessage()));
+							producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate));
 						} catch (JsonProcessingException jsonException) {
 							// If the Kafka message fails to send, at least log
 							// something in the console.
