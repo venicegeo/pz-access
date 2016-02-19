@@ -164,7 +164,7 @@ public class AccessWorker {
 						try {
 							// Send the failure message to the Job Manager.
 							StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_ERROR);
-							statusUpdate.setResult(new ErrorResult("Could not Ingest", exception.getMessage()));
+							statusUpdate.setResult(new ErrorResult("Could not Deploy Data", exception.getMessage()));
 							producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate));
 						} catch (JsonProcessingException jsonException) {
 							// If the Kafka message fails to send, at least log
