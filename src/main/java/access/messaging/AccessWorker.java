@@ -39,6 +39,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import util.PiazzaLogger;
 import access.database.MongoAccessor;
 import access.deploy.Deployer;
 import access.deploy.Leaser;
@@ -61,6 +62,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 @Component
 public class AccessWorker {
 	private static final String ACCESS_TOPIC_NAME = "access";
+	@Autowired
+	private PiazzaLogger logger;
 	@Autowired
 	private Deployer deployer;
 	@Autowired
@@ -114,9 +117,16 @@ public class AccessWorker {
 					System.out.println("Processing Access Message " + consumerRecord.topic() + " with key "
 							+ consumerRecord.key());
 					try {
+						// Parse Job information from Kafka
 						ObjectMapper mapper = new ObjectMapper();
 						Job job = mapper.readValue(consumerRecord.value(), Job.class);
 						AccessJob accessJob = (AccessJob) job.jobType;
+
+						// Logging
+						logger.log(
+								String.format("Received Request to Access Data %s of Type %s under Job ID",
+										accessJob.getDataId(), accessJob.getDeploymentType(), job.getJobId()),
+								PiazzaLogger.INFO);
 
 						// Update Status that this Job is being processed
 						StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_RUNNING);
@@ -152,6 +162,9 @@ public class AccessWorker {
 							producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate));
 
 							// Console Logging
+							logger.log(
+									String.format("GeoServer Deployment successul for Resource %s",
+											accessJob.getDataId()), PiazzaLogger.INFO);
 							System.out
 									.println("Deployment Successfully Returned for Resource " + accessJob.getDataId());
 							break;
@@ -159,7 +172,8 @@ public class AccessWorker {
 							throw new Exception("Unknown Deployment Type: " + accessJob.getDeploymentType());
 						}
 					} catch (Exception exception) {
-						// Handle any errors that occur.
+						logger.log(String.format("Error Accessing Data under Job %s with Error %s",
+								consumerRecord.key(), exception.getMessage()), PiazzaLogger.ERROR);
 						exception.printStackTrace();
 						try {
 							// Send the failure message to the Job Manager.
@@ -178,6 +192,8 @@ public class AccessWorker {
 				}
 			}
 		} catch (WakeupException exception) {
+			logger.log(String.format("Access Listener Thread forcefully shut: %s", exception.getMessage()),
+					PiazzaLogger.FATAL);
 			// Ignore exception if closing
 			if (!closed.get()) {
 				throw exception;

@@ -28,8 +28,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.client.ResourceAccessException;
 
+import util.PiazzaLogger;
 import access.database.MongoAccessor;
 
 /**
@@ -50,6 +50,8 @@ import access.database.MongoAccessor;
 @RestController
 public class AccessController {
 	@Autowired
+	private PiazzaLogger logger;
+	@Autowired
 	private MongoAccessor accessor;
 	private static final String DEFAULT_PAGE_SIZE = "10";
 	private static final String DEFAULT_PAGE = "0";
@@ -69,12 +71,17 @@ public class AccessController {
 			}
 			// Query for the Data ID
 			DataResource data = accessor.getData(dataId);
+			if (data == null) {
+				logger.log(String.format("Data not found for requested ID %s", dataId), PiazzaLogger.WARNING);
+				return new ErrorResponse(null, String.format("Data not found: %s", dataId), "Access");
+			}
+
 			// Return the Data Resource item
+			logger.log(String.format("Returning Data Metadata for %s", dataId), PiazzaLogger.INFO);
 			return new DataResourceResponse(data);
-		} catch (ResourceAccessException exception) {
-			return new ErrorResponse(null, exception.getMessage(), "Access");
 		} catch (Exception exception) {
 			exception.printStackTrace();
+			logger.log(String.format("Error fetching Data %s: %s", dataId, exception.getMessage()), PiazzaLogger.ERROR);
 			return new ErrorResponse(null, "Error fetching Data: " + exception.getMessage(), "Access");
 		}
 	}

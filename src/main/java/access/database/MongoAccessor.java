@@ -146,7 +146,7 @@ public class MongoAccessor {
 
 		try {
 			if ((data = getDataResourceCollection().findOne(query)) == null) {
-				throw new ResourceAccessException("Data not found.");
+				return null;
 			}
 		} catch (MongoTimeoutException mte) {
 			throw new MongoException("MongoDB instance not available.");

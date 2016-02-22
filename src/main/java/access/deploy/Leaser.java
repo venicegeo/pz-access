@@ -15,8 +15,6 @@
  **/
 package access.deploy;
 
-import java.util.UUID;
-
 import model.data.deployment.Deployment;
 import model.data.deployment.Lease;
 
@@ -24,6 +22,8 @@ import org.joda.time.DateTime;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import util.PiazzaLogger;
+import util.UUIDFactory;
 import access.database.MongoAccessor;
 
 /**
@@ -39,6 +39,10 @@ import access.database.MongoAccessor;
  */
 @Component
 public class Leaser {
+	@Autowired
+	private PiazzaLogger logger;
+	@Autowired
+	private UUIDFactory uuidFactory;
 	@Autowired
 	private MongoAccessor accessor;
 	private static final int DEFAULT_LEASE_PERIOD_DAYS = 7;
@@ -64,6 +68,9 @@ public class Leaser {
 				// the default Lease period.
 				accessor.updateLeaseExpirationDate(lease.getId(), DateTime.now().plusDays(DEFAULT_LEASE_PERIOD_DAYS)
 						.toString());
+				logger.log(
+						String.format("Updating Deployment Lease for Deployment %s on host %s for %s",
+								deployment.getId(), deployment.getHost(), deployment.getDataId()), PiazzaLogger.INFO);
 			} else {
 				// If the Lease has not expired, then the Lease will not be
 				// extended. It will simply be reused.
@@ -81,7 +88,7 @@ public class Leaser {
 	 */
 	public Lease createDeploymentLease(Deployment deployment) {
 		// Create the Lease
-		String leaseId = UUID.randomUUID().toString();
+		String leaseId = uuidFactory.getUUID();
 		Lease lease = new Lease(leaseId, deployment.getId(), DateTime.now().plusDays(DEFAULT_LEASE_PERIOD_DAYS)
 				.toString());
 
@@ -89,6 +96,8 @@ public class Leaser {
 		accessor.insertLease(lease);
 
 		// Return reference
+		logger.log(String.format("Creating Deployment Lease for Deployment %s on host %s for %s", deployment.getId(),
+				deployment.getHost(), deployment.getDataId()), PiazzaLogger.INFO);
 		return lease;
 	}
 }

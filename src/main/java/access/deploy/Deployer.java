@@ -15,8 +15,6 @@
  **/
 package access.deploy;
 
-import java.util.UUID;
-
 import model.data.DataResource;
 import model.data.deployment.Deployment;
 import model.data.type.PostGISResource;
@@ -37,6 +35,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
+import util.PiazzaLogger;
+import util.UUIDFactory;
 import access.database.MongoAccessor;
 
 /**
@@ -52,6 +52,10 @@ import access.database.MongoAccessor;
  */
 @Component
 public class Deployer {
+	@Autowired
+	private PiazzaLogger logger;
+	@Autowired
+	private UUIDFactory uuidFactory;
 	@Autowired
 	private MongoAccessor accessor;
 	@Value("${geoserver.host}")
@@ -102,6 +106,11 @@ public class Deployer {
 		// Insert the Deployment into the Database
 		accessor.insertDeployment(deployment);
 
+		// Log information
+		logger.log(
+				String.format("Created Deployment %s for Data %s on host %s", deployment.getId(),
+						deployment.getDataId(), deployment.getHost()), PiazzaLogger.INFO);
+
 		// Return Deployment reference
 		return deployment;
 	}
@@ -140,12 +149,15 @@ public class Deployer {
 
 		// Ensure the Status Code is OK
 		if (statusCode != HttpStatus.CREATED) {
+			logger.log(String.format(
+					"Failed to Deploy PostGIS Table name %s for Resource %s to GeoServer. HTTP Code: ", tableName,
+					dataResource.getDataId(), statusCode), PiazzaLogger.ERROR);
 			throw new Exception("Failed to Deploy to GeoServer; the Status returned a non-OK response code: "
 					+ statusCode);
 		}
 
 		// Create a new Deployment for this Resource
-		String deploymentId = UUID.randomUUID().toString();
+		String deploymentId = uuidFactory.getUUID();
 		String capabilitiesUrl = String.format(CAPABILITIES_URL, GEOSERVER_HOST, GEOSERVER_PORT);
 		Deployment deployment = new Deployment(deploymentId, dataResource.getDataId(), GEOSERVER_HOST, GEOSERVER_PORT,
 				tableName, capabilitiesUrl);
