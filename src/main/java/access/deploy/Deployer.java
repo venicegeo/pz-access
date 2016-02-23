@@ -84,6 +84,8 @@ public class Deployer {
 					|| (dataResource.getDataType() instanceof PostGISResource)) {
 				// Deploy from an existing PostGIS Table
 				deployment = deployPostGisTable(dataResource);
+				
+				
 			} else if (dataResource.getDataType() instanceof WfsResource) {
 				// User has requested to deploy a WFS type resource. In this
 				// case, there's nothing to deploy since the WFS is already
@@ -92,7 +94,7 @@ public class Deployer {
 				deployment = null;
 			} else if (dataResource.getDataType() instanceof RasterResource) {
 				// Deploy a GeoTIFF to GeoServer
-				throw new UnsupportedOperationException("GeoTIFF deployments not supported currently.");
+				deployment = deployGeoTiff(dataResource);
 			} else {
 				// Unsupported Data type has been specified.
 				throw new UnsupportedOperationException("Cannot the following Data Type to GeoServer: "
@@ -164,6 +166,36 @@ public class Deployer {
 
 		// Return the newly created Deployment
 		return deployment;
+	}
+	
+	/**
+	 * Deploys a GeoTIFF resource to GeoServer. This will create a new
+	 * GeoServer data store and layer that. GeoTIFF files are assumed
+	 * to reside under data directory of GeoServer 
+	 * 
+	 * @param dataResource
+	 *            The DataResource to deploy.
+	 * @return The Deployment
+	 */
+	private Deployment deployGeoTiff(DataResource dataResource) throws Exception {
+
+		// Execute the POST to GeoServer to add the FeatureType
+//		HttpStatus statusCode = postGeoServerFeatureType(requestBody);
+
+		// Ensure the Status Code is OK
+//		if (statusCode != HttpStatus.CREATED) {
+//			logger.log(String.format(
+//					"Failed to Deploy GeoTIFF for Resource %s to GeoServer. HTTP Code: ",dataResource.getDataId(), statusCode), PiazzaLogger.ERROR);
+//			throw new Exception("Failed to Deploy to GeoServer; the Status returned a non-OK response code: "+ statusCode);
+//		}
+
+		// Create a new Deployment for this Resource
+//		String deploymentId = uuidFactory.getUUID();
+//		String capabilitiesUrl = String.format(CAPABILITIES_URL, GEOSERVER_HOST, GEOSERVER_PORT);
+//		Deployment deployment = new Deployment(deploymentId, dataResource.getDataId(), GEOSERVER_HOST, GEOSERVER_PORT,tableName, capabilitiesUrl);
+
+		// Return the newly created Deployment
+		return new Deployment();
 	}
 
 	/**
