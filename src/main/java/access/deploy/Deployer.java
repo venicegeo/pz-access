@@ -23,10 +23,7 @@ import model.data.type.RasterResource;
 import model.data.type.ShapefileResource;
 import model.data.type.WfsResource;
 
-import java.awt.image.RenderedImage;
 import java.io.File;
-import java.io.IOException;
-
 import org.apache.commons.io.IOUtils;
 import org.apache.tomcat.util.codec.binary.Base64;
 import org.geotools.coverage.grid.GridCoverage2D;
@@ -34,8 +31,6 @@ import org.geotools.coverage.grid.io.AbstractGridFormat;
 import org.geotools.coverage.grid.io.GridCoverage2DReader;
 import org.geotools.coverage.grid.io.GridFormatFinder;
 import org.geotools.referencing.CRS;
-import org.opengis.geometry.Envelope;
-import org.opengis.referencing.FactoryException;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -185,39 +180,6 @@ public class Deployer {
 		// Return the newly created Deployment
 		return deployment;
 	}
-	
-	/**
-	 * Deploys a GeoTIFF resource to GeoServer. This will create a new
-	 * GeoServer data store and layer that. GeoTIFF files are assumed
-	 * to reside under data directory of GeoServer 
-	 * 
-	 * @param dataResource
-	 *            The DataResource to deploy.
-	 * @return The Deployment
-	 */
-	private Deployment deployGeoTiff(DataResource dataResource) throws Exception {
-
-		deployDataStoreAndLayerToGeoServer(dataResource);
-
-
-		// Execute the POST to GeoServer to add the FeatureType
-//		HttpStatus statusCode = postGeoServerFeatureType(requestBody);
-
-		// Ensure the Status Code is OK
-//		if (statusCode != HttpStatus.CREATED) {
-//			logger.log(String.format(
-//					"Failed to Deploy GeoTIFF for Resource %s to GeoServer. HTTP Code: ",dataResource.getDataId(), statusCode), PiazzaLogger.ERROR);
-//			throw new Exception("Failed to Deploy to GeoServer; the Status returned a non-OK response code: "+ statusCode);
-//		}
-
-		// Create a new Deployment for this Resource
-//		String deploymentId = uuidFactory.getUUID();
-//		String capabilitiesUrl = String.format(CAPABILITIES_URL, GEOSERVER_HOST, GEOSERVER_PORT);
-//		Deployment deployment = new Deployment(deploymentId, dataResource.getDataId(), GEOSERVER_HOST, GEOSERVER_PORT,tableName, capabilitiesUrl);
-
-		// Return the newly created Deployment
-		return new Deployment();
-	}
 
 	/**
 	 * Will copy file to geoserver data directory, and return direct path
@@ -231,8 +193,17 @@ public class Deployer {
 		//TODO: copy file to geoserver data directory, and return direct path
 		return "/home/vagrant/elevation.tif";
 	}
-
-	private void deployDataStoreAndLayerToGeoServer(DataResource dataResource) throws IOException, FactoryException {
+	
+	/**
+	 * Deploys a GeoTIFF resource to GeoServer. This will create a new
+	 * GeoServer data store and layer. GeoTIFF file assumed
+	 * to reside under data directory of GeoServer 
+	 * 
+	 * @param dataResource
+	 *            The DataResource to deploy.
+	 * @return The Deployment
+	 */
+	private Deployment deployGeoTiff(DataResource dataResource) throws Exception {
 
 		// Obtain copy of GeoTIFF from S3
 		File geoTiffFile = new File("C:\\geoFiles\\geotiff\\elevation.tif");
@@ -241,33 +212,87 @@ public class Deployer {
 		GridCoverage2DReader reader = format.getReader(geoTiffFile);
 		GridCoverage2D coverage = (GridCoverage2D) reader.read(null);
 
-		ClassLoader classLoader = getClass().getClassLoader();
 		String dataStoreName = dataResource.getDataId();
-		String dataStoreDescription = "Piazza generated data store";
-		String workspace = "piazza";
+		String dataStoreDescription = "piazza generated data store";
+		String workspaceName = "piazza";
 
 		// Will copy file from AWS S3 to data directory of the GeoServer,
 		// returns direct path to file in GeoServer data ex: "/home/vagrant/elevation.tif"
 		String dataStoreFileLocation = copyFileToGeoServerData(null);
 		String layerName = dataStoreName;
 		String layerTitle = dataStoreName;
-		String layerDescription = "Piazza generated layer";
+		String layerDescription = "piazza generated layer";
 
-		// GeoServer Data Store Creation
-		String dataStoreTemplate = IOUtils
-				.toString(classLoader.getResourceAsStream("templates/coverageStoreTypeRequest.xml"));
+		// Create Data Store in GeoServer for a given resource
+		createDataStore(dataStoreName, dataStoreDescription, workspaceName, dataStoreFileLocation);
+
+		// Create Layer in GeoServer for a given resource
+		createLayer(dataStoreName, workspaceName, coverage, layerName, layerTitle, layerDescription);
+		
+		// Create a new Deployment for this Resource
+		String deploymentId = uuidFactory.getUUID();
+		String capabilitiesUrl = String.format(HOST_ADDRESS, GEOSERVER_HOST, GEOSERVER_PORT) + CAPABILITIES_URL;
+		Deployment deployment = new Deployment(deploymentId, dataResource.getDataId(), GEOSERVER_HOST, GEOSERVER_PORT, "GeoTIFF_" + dataResource.getDataId(), capabilitiesUrl);
+
+		// Return the newly created Deployment
+		return deployment;
+	}
+
+	/**
+	 * Executes the POST request to GeoServer to create the new layer
+	 * 
+	 * @param dataStoreName
+	 *            The name of the new data store
+	 * @param dataStoreDescription
+	 *            The description of the new data store
+	 * @param workspace
+	 *            The workspace to use to place data store under
+	 * @param dataStoreFileLocation
+	 *            The path of the raster file to use for data store
+	 *            
+	 */
+	private void createDataStore(String dataStoreName, String dataStoreDescription, String workspaceName,
+			String dataStoreFileLocation) throws Exception {
+
+		// Load template
+		ClassLoader classLoader = getClass().getClassLoader();
+		String dataStoreTemplate = IOUtils.toString(classLoader.getResourceAsStream("templates/coverageStoreTypeRequest.xml"));
 
 		// Inject Metadata from the Data Resource into the Data Store Payload
-		String dataStoreRequestBody = String.format(dataStoreTemplate, dataStoreName, dataStoreDescription, workspace,
-				dataStoreFileLocation);
+		String dataStoreRequestBody = String.format(dataStoreTemplate, dataStoreName, dataStoreDescription, workspaceName, dataStoreFileLocation);
 
 		// Execute the POST to GeoServer to add the data store
 		HttpStatus statusCode = postGeoServerFeatureType(DATA_STORE_ENDPOINT, dataStoreRequestBody);
-		System.out.println("\n response from data store post:\n\n" + statusCode.getReasonPhrase());
 
-		
+		// Ensure the Status Code is OK
+		if (statusCode != HttpStatus.CREATED) {
+			logger.log(String.format("Failed to create Data Source on for Resource %s to GeoServer. HTTP Code: ",dataStoreName, statusCode), PiazzaLogger.ERROR);
+			throw new Exception("Failed to Deploy GeoTIFF data store to GeoServer; the Status returned a non-OK response code: "+ statusCode);
+		}
+	}
+	
+	/**
+	 * Executes the POST request to GeoServer to create the new layer
+	 * 
+	 * @param dataStoreName
+	 *            The name of the new data store
+	 * @param workspaceName
+	 *            The name of the workspace where data store will be placed
+	 * @param coverage
+	 *            The GridCoverage2D to grab data from
+	 * @param layerName
+	 *            The name of the new layer
+	 * @param layerTitle
+	 *            The title of the new layer
+	 * @param layerDescription
+	 *            The description of the new layer
+	 *            
+	 */
+	private void createLayer(String dataStoreName, String workspaceName, GridCoverage2D coverage, String layerName,
+			String layerTitle, String layerDescription) throws Exception {
 
-		// GeoServer Layer Creation
+		// Load template
+		ClassLoader classLoader = getClass().getClassLoader();
 		String layerTemplate = IOUtils.toString(classLoader.getResourceAsStream("templates/coverageTypeRequest.xml"));
 
 		// Obtain NativeBoundingBox Data
@@ -275,22 +300,29 @@ public class Deployer {
 		double maxX = coverage.getEnvelope().getUpperCorner().getDirectPosition().getCoordinate()[0];
 		double minY = coverage.getEnvelope().getLowerCorner().getDirectPosition().getCoordinate()[1];
 		double maxY = coverage.getEnvelope().getUpperCorner().getDirectPosition().getCoordinate()[1];
-		
+
 		// Obtain Coordinate Reference System Data
 		CoordinateReferenceSystem crs = coverage.getCoordinateReferenceSystem();
 		String coordinateReferenceSystemData = crs.toWKT();
 		Integer epsgCode = CRS.lookupEpsgCode(crs, true);
-		
-		// Inject the Metadata from the Data Resource into the Payload
-		String layerRequestBody = String.format(layerTemplate, layerName, layerName,
-				workspace, layerTitle, layerDescription, coordinateReferenceSystemData, epsgCode, minX,
-				maxX, minY, maxY, epsgCode, workspace, dataStoreName, epsgCode, epsgCode);
 
-		// Execute the POST to GeoServer to add the data store, url has parameters
+		// Inject the Metadata from the Data Resource into the Payload
+		String layerRequestBody = String.format(layerTemplate, layerName, layerName, workspaceName, layerTitle,
+				layerDescription, coordinateReferenceSystemData, epsgCode, minX, maxX, minY, maxY, epsgCode,
+				workspaceName, dataStoreName, epsgCode, epsgCode);
+
+		// Execute the POST to GeoServer to create the layer
 		String layerRestEndpoint = String.format(LAYER_REST_ENDPOINT, dataStoreName);
-		
-		HttpStatus statusCode2 = postGeoServerFeatureType(layerRestEndpoint, layerRequestBody);
-		System.out.println("\n response from data store post:\n\n" + statusCode2.getReasonPhrase());
+		HttpStatus statusCode = postGeoServerFeatureType(layerRestEndpoint, layerRequestBody);
+
+		// Ensure the Status Code is OK
+		if (statusCode != HttpStatus.CREATED) {
+			logger.log(String.format("Failed to create layer for Resource %s on GeoServer. HTTP Code: ", dataStoreName,
+					statusCode), PiazzaLogger.ERROR);
+			throw new Exception(
+					"Failed to Deploy GeoTIFF layer to GeoServer; the Status returned a non-OK response code: "
+							+ statusCode);
+		}
 	}
 	
 	/**
