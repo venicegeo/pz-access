@@ -22,8 +22,19 @@ import model.data.type.RasterResource;
 import model.data.type.ShapefileResource;
 import model.data.type.WfsResource;
 
+import java.awt.image.RenderedImage;
+import java.io.File;
+import java.io.IOException;
+
 import org.apache.commons.io.IOUtils;
 import org.apache.tomcat.util.codec.binary.Base64;
+import org.geotools.coverage.grid.GridCoverage2D;
+import org.geotools.coverage.grid.io.AbstractGridFormat;
+import org.geotools.coverage.grid.io.GridCoverage2DReader;
+import org.geotools.coverage.grid.io.GridFormatFinder;
+import org.geotools.referencing.CRS;
+import org.opengis.geometry.Envelope;
+import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
@@ -66,8 +77,13 @@ public class Deployer {
 	private String GEOSERVER_USERNAME;
 	@Value("${geoserver.password}")
 	private String GEOSERVER_PASSWORD;
+	
 	private static final String ADD_LAYER_ENDPOINT = "http://%s:%s/geoserver/rest/workspaces/piazza/datastores/piazza/featuretypes/";
 	private static final String CAPABILITIES_URL = "http://%s:%s/geoserver/piazza/wfs?service=wfs&version=2.0.0&request=GetCapabilities";
+	
+	private static final String DATA_REST_ENDPOINT = "http://%s:%s/geoserver/rest/workspaces/testgeotiff/coveragestores";
+	private static final String LAYER_REST_ENDPOINT = "http://%s:%s/geoserver/rest/workspaces/%s/coveragestores/%s/coverages";
+
 
 	/**
 	 * Creates a new deployment from the dataResource object.
@@ -84,8 +100,6 @@ public class Deployer {
 					|| (dataResource.getDataType() instanceof PostGISResource)) {
 				// Deploy from an existing PostGIS Table
 				deployment = deployPostGisTable(dataResource);
-				
-				
 			} else if (dataResource.getDataType() instanceof WfsResource) {
 				// User has requested to deploy a WFS type resource. In this
 				// case, there's nothing to deploy since the WFS is already
@@ -179,6 +193,51 @@ public class Deployer {
 	 */
 	private Deployment deployGeoTiff(DataResource dataResource) throws Exception {
 
+		File file = new File("C:\\geoFiles\\geotiff\\elevation.tif");
+
+		AbstractGridFormat format = GridFormatFinder.findFormat( file );
+		GridCoverage2DReader reader = format.getReader( file );
+		GridCoverage2D coverage;
+		
+		try {
+			coverage = (GridCoverage2D) reader.read(null);
+			//CoordinateReferenceSystem crs = coverage.getCoordinateReferenceSystem2D();
+			CoordinateReferenceSystem crs = coverage.getCoordinateReferenceSystem();
+			String coordinateReferenceSystemData = crs.toWKT();
+			Integer epsgCode = CRS.lookupEpsgCode(crs, true);
+			
+			Envelope env = coverage.getEnvelope();
+			int dimension = env.getDimension();
+			RenderedImage image = coverage.getRenderedImage();
+			
+			double[] coordinateUpperRightCorner = coverage.getEnvelope().getUpperCorner().getDirectPosition().getCoordinate();
+			double[] coordinateLowerLeftCorner = coverage.getEnvelope().getLowerCorner().getDirectPosition().getCoordinate();
+			double[] coordinateUpperLeftCorner = {coordinateLowerLeftCorner[0], coordinateUpperRightCorner[1]};
+			double[] coordinateLowerRightCorner = {coordinateUpperRightCorner[0], coordinateLowerLeftCorner[1]};
+			
+//			System.out.println("-------------upper left: " + coordinateUpperLeftCorner[0] + " -- " + coordinateUpperLeftCorner[1]);
+//			System.out.println("-------------lower left: " + coordinateLowerLeftCorner[0] + " -- " + coordinateLowerLeftCorner[1]);
+//			System.out.println("-------------upper right: " + coordinateUpperRightCorner[0] + " -- " + coordinateUpperRightCorner[1]);
+//			System.out.println("-------------lower right: " + coordinateLowerRightCorner[0] + " -- " + coordinateLowerRightCorner[1]);
+//			
+//			System.out.println("==================== crs:\n" + crs.toWKT());
+			System.out.println("==================== crs:\n" + CRS.lookupEpsgCode(crs, true));
+//			
+//			System.out.println("\n\n 1111111 crs:\n" + crs.getCoordinateSystem().toString());
+//			
+//			System.out.println("\n\n 22222222222 crs:\n" + crs.getCoordinateSystem().getAxis(0));
+//			System.out.println("\n22222222222 crs:\n" + crs.getCoordinateSystem().getAxis(1));
+			
+			processdatastoreandlayerGeoServer(coordinateReferenceSystemData, epsgCode, coverage);
+
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		
+		
+
 		// Execute the POST to GeoServer to add the FeatureType
 //		HttpStatus statusCode = postGeoServerFeatureType(requestBody);
 
@@ -198,6 +257,50 @@ public class Deployer {
 		return new Deployment();
 	}
 
+	private void processdatastoreandlayerGeoServer(String coordinateReferenceSystemData, Integer epsgCode, GridCoverage2D coverage) throws IOException {
+
+		ClassLoader classLoader = getClass().getClassLoader();
+		String dataStoreName = "dataStoreName";
+		String dataStoreNameDescription = "Data store description goes here.";
+		String dataStoreWorkspaceLocation = "ExistingWorkspaceLocation";
+		String dataStoreFileLocation = "/home/vagrant/elevation.tif";
+		
+		String layerName = "layerName";
+		String layerTitle = "layerName";
+		String layerDescription = "Generated via automated import";
+		
+
+		// Data Store creation
+		//Load and inject metadata from the data resource into the Payload
+		String coverageStoreTypeRequestBody = IOUtils.toString(classLoader.getResourceAsStream("templates/coverageStoreTypeRequest.xml"));
+		String requestBody = String.format(coverageStoreTypeRequestBody, dataStoreName, dataStoreNameDescription, dataStoreWorkspaceLocation, dataStoreFileLocation);
+
+		// Execute the POST to GeoServer to add the data store
+//		HttpStatus statusCode = postGeoServerFeatureType(DATA_REST_ENDPOINT, requestBody, null);
+//		System.out.println("\n response from data store post:\n\n" + statusCode.getReasonPhrase());
+		
+		// Layer creation
+		String coverageTypeRequestBody = IOUtils.toString(classLoader.getResourceAsStream("templates/coverageTypeRequest.xml"));
+
+		double[] coordinateUpperRightCorner = coverage.getEnvelope().getUpperCorner().getDirectPosition().getCoordinate();
+		double[] coordinateLowerLeftCorner = coverage.getEnvelope().getLowerCorner().getDirectPosition().getCoordinate();
+		double minX = coordinateLowerLeftCorner[0];
+		double maxX = coordinateUpperRightCorner[0];
+		double minY = coordinateLowerLeftCorner[1];
+		double maxY = coordinateUpperRightCorner[1];
+		
+		// Inject the Metadata from the Data Resource into the Payload
+		String coverageTypeRequestBodyFormatted = String.format(coverageTypeRequestBody, layerName, layerName,
+				dataStoreWorkspaceLocation, layerTitle, layerDescription, coordinateReferenceSystemData, epsgCode, minX,
+				maxX, minY, maxY, epsgCode, dataStoreWorkspaceLocation, dataStoreName, epsgCode, epsgCode);
+
+		// Execute the POST to GeoServer to add the data store, url has parameters
+		String url = String.format(LAYER_REST_ENDPOINT, "192.168.23.27", "8080", dataStoreWorkspaceLocation, dataStoreName);
+
+//		HttpStatus statusCode2 = postGeoServerFeatureType(LAYER_REST_ENDPOINT, coverageTypeRequestBodyFormatted, url);
+//		System.out.println("\n response from data store post:\n\n" + statusCode2.getReasonPhrase());
+	}
+	
 	/**
 	 * Executes the POST request to GeoServer to create the FeatureType as a
 	 * Layer.
