@@ -29,7 +29,6 @@ import org.mongojack.DBUpdate;
 import org.mongojack.JacksonDBCollection;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.ResourceAccessException;
 
 import com.mongodb.BasicDBObject;
 import com.mongodb.DBCollection;
