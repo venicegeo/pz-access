@@ -17,6 +17,7 @@ package access.deploy;
 
 import model.data.DataResource;
 import model.data.deployment.Deployment;
+import model.data.location.FileLocation;
 import model.data.type.PostGISResource;
 import model.data.type.RasterResource;
 import model.data.type.ShapefileResource;
@@ -34,6 +35,7 @@ import org.geotools.coverage.grid.io.GridCoverage2DReader;
 import org.geotools.coverage.grid.io.GridFormatFinder;
 import org.geotools.referencing.CRS;
 import org.opengis.geometry.Envelope;
+import org.opengis.referencing.FactoryException;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -78,12 +80,13 @@ public class Deployer {
 	@Value("${geoserver.password}")
 	private String GEOSERVER_PASSWORD;
 	
-	private static final String ADD_LAYER_ENDPOINT = "http://%s:%s/geoserver/rest/workspaces/piazza/datastores/piazza/featuretypes/";
-	private static final String CAPABILITIES_URL = "http://%s:%s/geoserver/piazza/wfs?service=wfs&version=2.0.0&request=GetCapabilities";
+	private static final String HOST_ADDRESS = "http://%s:%s";
 	
-	private static final String DATA_REST_ENDPOINT = "http://%s:%s/geoserver/rest/workspaces/testgeotiff/coveragestores";
-	private static final String LAYER_REST_ENDPOINT = "http://%s:%s/geoserver/rest/workspaces/%s/coveragestores/%s/coverages";
-
+	private static final String ADD_LAYER_ENDPOINT = "/geoserver/rest/workspaces/piazza/datastores/piazza/featuretypes/";
+	private static final String CAPABILITIES_URL = "/geoserver/piazza/wfs?service=wfs&version=2.0.0&request=GetCapabilities";
+	
+	private static final String DATA_STORE_ENDPOINT = "/geoserver/rest/workspaces/piazza/coveragestores";
+	private static final String LAYER_REST_ENDPOINT = "/geoserver/rest/workspaces/piazza/coveragestores/%s/coverages";
 
 	/**
 	 * Creates a new deployment from the dataResource object.
@@ -161,7 +164,7 @@ public class Deployer {
 				.getSpatialMetadata().getEpsgString(), "EPSG:4326");
 
 		// Execute the POST to GeoServer to add the FeatureType
-		HttpStatus statusCode = postGeoServerFeatureType(requestBody);
+		HttpStatus statusCode = postGeoServerFeatureType(ADD_LAYER_ENDPOINT, requestBody);
 
 		// Ensure the Status Code is OK
 		if (statusCode != HttpStatus.CREATED) {
@@ -174,7 +177,8 @@ public class Deployer {
 
 		// Create a new Deployment for this Resource
 		String deploymentId = uuidFactory.getUUID();
-		String capabilitiesUrl = String.format(CAPABILITIES_URL, GEOSERVER_HOST, GEOSERVER_PORT);
+		String capabilitiesUrl = String.format(HOST_ADDRESS, GEOSERVER_HOST, GEOSERVER_PORT) + CAPABILITIES_URL;
+		
 		Deployment deployment = new Deployment(deploymentId, dataResource.getDataId(), GEOSERVER_HOST, GEOSERVER_PORT,
 				tableName, capabilitiesUrl);
 
@@ -193,50 +197,8 @@ public class Deployer {
 	 */
 	private Deployment deployGeoTiff(DataResource dataResource) throws Exception {
 
-		File file = new File("C:\\geoFiles\\geotiff\\elevation.tif");
+		deployDataStoreAndLayerToGeoServer(dataResource);
 
-		AbstractGridFormat format = GridFormatFinder.findFormat( file );
-		GridCoverage2DReader reader = format.getReader( file );
-		GridCoverage2D coverage;
-		
-		try {
-			coverage = (GridCoverage2D) reader.read(null);
-			//CoordinateReferenceSystem crs = coverage.getCoordinateReferenceSystem2D();
-			CoordinateReferenceSystem crs = coverage.getCoordinateReferenceSystem();
-			String coordinateReferenceSystemData = crs.toWKT();
-			Integer epsgCode = CRS.lookupEpsgCode(crs, true);
-			
-			Envelope env = coverage.getEnvelope();
-			int dimension = env.getDimension();
-			RenderedImage image = coverage.getRenderedImage();
-			
-			double[] coordinateUpperRightCorner = coverage.getEnvelope().getUpperCorner().getDirectPosition().getCoordinate();
-			double[] coordinateLowerLeftCorner = coverage.getEnvelope().getLowerCorner().getDirectPosition().getCoordinate();
-			double[] coordinateUpperLeftCorner = {coordinateLowerLeftCorner[0], coordinateUpperRightCorner[1]};
-			double[] coordinateLowerRightCorner = {coordinateUpperRightCorner[0], coordinateLowerLeftCorner[1]};
-			
-//			System.out.println("-------------upper left: " + coordinateUpperLeftCorner[0] + " -- " + coordinateUpperLeftCorner[1]);
-//			System.out.println("-------------lower left: " + coordinateLowerLeftCorner[0] + " -- " + coordinateLowerLeftCorner[1]);
-//			System.out.println("-------------upper right: " + coordinateUpperRightCorner[0] + " -- " + coordinateUpperRightCorner[1]);
-//			System.out.println("-------------lower right: " + coordinateLowerRightCorner[0] + " -- " + coordinateLowerRightCorner[1]);
-//			
-//			System.out.println("==================== crs:\n" + crs.toWKT());
-			System.out.println("==================== crs:\n" + CRS.lookupEpsgCode(crs, true));
-//			
-//			System.out.println("\n\n 1111111 crs:\n" + crs.getCoordinateSystem().toString());
-//			
-//			System.out.println("\n\n 22222222222 crs:\n" + crs.getCoordinateSystem().getAxis(0));
-//			System.out.println("\n22222222222 crs:\n" + crs.getCoordinateSystem().getAxis(1));
-			
-			processdatastoreandlayerGeoServer(coordinateReferenceSystemData, epsgCode, coverage);
-
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		
-		
-		
 
 		// Execute the POST to GeoServer to add the FeatureType
 //		HttpStatus statusCode = postGeoServerFeatureType(requestBody);
@@ -257,48 +219,78 @@ public class Deployer {
 		return new Deployment();
 	}
 
-	private void processdatastoreandlayerGeoServer(String coordinateReferenceSystemData, Integer epsgCode, GridCoverage2D coverage) throws IOException {
+	/**
+	 * Will copy file to geoserver data directory, and return direct path
+	 * 
+	 * @param fileLocation
+	 * 			Interface to get file info from.
+	 * @return String 
+	 * 			Path to file
+	 */
+	private String copyFileToGeoServerData(FileLocation fileLocation) {
+		//TODO: copy file to geoserver data directory, and return direct path
+		return "/home/vagrant/elevation.tif";
+	}
+
+	private void deployDataStoreAndLayerToGeoServer(DataResource dataResource) throws IOException, FactoryException {
+
+		// Obtain copy of GeoTIFF from S3
+		File geoTiffFile = new File("C:\\geoFiles\\geotiff\\elevation.tif");
+
+		AbstractGridFormat format = GridFormatFinder.findFormat(geoTiffFile);
+		GridCoverage2DReader reader = format.getReader(geoTiffFile);
+		GridCoverage2D coverage = (GridCoverage2D) reader.read(null);
 
 		ClassLoader classLoader = getClass().getClassLoader();
-		String dataStoreName = "dataStoreName";
-		String dataStoreNameDescription = "Data store description goes here.";
-		String dataStoreWorkspaceLocation = "ExistingWorkspaceLocation";
-		String dataStoreFileLocation = "/home/vagrant/elevation.tif";
-		
-		String layerName = "layerName";
-		String layerTitle = "layerName";
-		String layerDescription = "Generated via automated import";
-		
+		String dataStoreName = dataResource.getDataId();
+		String dataStoreDescription = "Piazza generated data store";
+		String workspace = "piazza";
 
-		// Data Store creation
-		//Load and inject metadata from the data resource into the Payload
-		String coverageStoreTypeRequestBody = IOUtils.toString(classLoader.getResourceAsStream("templates/coverageStoreTypeRequest.xml"));
-		String requestBody = String.format(coverageStoreTypeRequestBody, dataStoreName, dataStoreNameDescription, dataStoreWorkspaceLocation, dataStoreFileLocation);
+		// Will copy file from AWS S3 to data directory of the GeoServer,
+		// returns direct path to file in GeoServer data ex: "/home/vagrant/elevation.tif"
+		String dataStoreFileLocation = copyFileToGeoServerData(null);
+		String layerName = dataStoreName;
+		String layerTitle = dataStoreName;
+		String layerDescription = "Piazza generated layer";
+
+		// GeoServer Data Store Creation
+		String dataStoreTemplate = IOUtils
+				.toString(classLoader.getResourceAsStream("templates/coverageStoreTypeRequest.xml"));
+
+		// Inject Metadata from the Data Resource into the Data Store Payload
+		String dataStoreRequestBody = String.format(dataStoreTemplate, dataStoreName, dataStoreDescription, workspace,
+				dataStoreFileLocation);
 
 		// Execute the POST to GeoServer to add the data store
-//		HttpStatus statusCode = postGeoServerFeatureType(DATA_REST_ENDPOINT, requestBody, null);
-//		System.out.println("\n response from data store post:\n\n" + statusCode.getReasonPhrase());
-		
-		// Layer creation
-		String coverageTypeRequestBody = IOUtils.toString(classLoader.getResourceAsStream("templates/coverageTypeRequest.xml"));
+		HttpStatus statusCode = postGeoServerFeatureType(DATA_STORE_ENDPOINT, dataStoreRequestBody);
+		System.out.println("\n response from data store post:\n\n" + statusCode.getReasonPhrase());
 
-		double[] coordinateUpperRightCorner = coverage.getEnvelope().getUpperCorner().getDirectPosition().getCoordinate();
-		double[] coordinateLowerLeftCorner = coverage.getEnvelope().getLowerCorner().getDirectPosition().getCoordinate();
-		double minX = coordinateLowerLeftCorner[0];
-		double maxX = coordinateUpperRightCorner[0];
-		double minY = coordinateLowerLeftCorner[1];
-		double maxY = coordinateUpperRightCorner[1];
+		
+
+		// GeoServer Layer Creation
+		String layerTemplate = IOUtils.toString(classLoader.getResourceAsStream("templates/coverageTypeRequest.xml"));
+
+		// Obtain NativeBoundingBox Data
+		double minX = coverage.getEnvelope().getLowerCorner().getDirectPosition().getCoordinate()[0];
+		double maxX = coverage.getEnvelope().getUpperCorner().getDirectPosition().getCoordinate()[0];
+		double minY = coverage.getEnvelope().getLowerCorner().getDirectPosition().getCoordinate()[1];
+		double maxY = coverage.getEnvelope().getUpperCorner().getDirectPosition().getCoordinate()[1];
+		
+		// Obtain Coordinate Reference System Data
+		CoordinateReferenceSystem crs = coverage.getCoordinateReferenceSystem();
+		String coordinateReferenceSystemData = crs.toWKT();
+		Integer epsgCode = CRS.lookupEpsgCode(crs, true);
 		
 		// Inject the Metadata from the Data Resource into the Payload
-		String coverageTypeRequestBodyFormatted = String.format(coverageTypeRequestBody, layerName, layerName,
-				dataStoreWorkspaceLocation, layerTitle, layerDescription, coordinateReferenceSystemData, epsgCode, minX,
-				maxX, minY, maxY, epsgCode, dataStoreWorkspaceLocation, dataStoreName, epsgCode, epsgCode);
+		String layerRequestBody = String.format(layerTemplate, layerName, layerName,
+				workspace, layerTitle, layerDescription, coordinateReferenceSystemData, epsgCode, minX,
+				maxX, minY, maxY, epsgCode, workspace, dataStoreName, epsgCode, epsgCode);
 
 		// Execute the POST to GeoServer to add the data store, url has parameters
-		String url = String.format(LAYER_REST_ENDPOINT, "192.168.23.27", "8080", dataStoreWorkspaceLocation, dataStoreName);
-
-//		HttpStatus statusCode2 = postGeoServerFeatureType(LAYER_REST_ENDPOINT, coverageTypeRequestBodyFormatted, url);
-//		System.out.println("\n response from data store post:\n\n" + statusCode2.getReasonPhrase());
+		String layerRestEndpoint = String.format(LAYER_REST_ENDPOINT, dataStoreName);
+		
+		HttpStatus statusCode2 = postGeoServerFeatureType(layerRestEndpoint, layerRequestBody);
+		System.out.println("\n response from data store post:\n\n" + statusCode2.getReasonPhrase());
 	}
 	
 	/**
@@ -312,7 +304,7 @@ public class Deployer {
 	 *         response, so the HTTP Status is the best we can do in order to
 	 *         check for success.
 	 */
-	private HttpStatus postGeoServerFeatureType(String featureType) {
+	private HttpStatus postGeoServerFeatureType(String restEndpoint, String featureType) {
 		// Get the Basic authentication Headers for GeoServer
 		String plainCredentials = String.format("%s:%s", GEOSERVER_USERNAME, GEOSERVER_PASSWORD);
 		byte[] credentialBytes = plainCredentials.getBytes();
@@ -323,7 +315,8 @@ public class Deployer {
 		headers.setContentType(MediaType.APPLICATION_XML);
 
 		// Construct the endpoint for the Service
-		String url = String.format(ADD_LAYER_ENDPOINT, GEOSERVER_HOST, GEOSERVER_PORT);
+		String host = String.format(HOST_ADDRESS, GEOSERVER_HOST, GEOSERVER_PORT);
+		String url = host + restEndpoint;
 
 		// Create the Request template and execute
 		HttpEntity<String> request = new HttpEntity<String>(featureType, headers);
