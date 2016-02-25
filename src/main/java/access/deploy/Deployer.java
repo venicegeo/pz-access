@@ -79,6 +79,7 @@ public class Deployer {
 	private String AMAZONS3_PRIVATE_KEY;
 	
 	private static final String HOST_ADDRESS = "http://%s:%s%s";
+	private static final String GEOSERVER_DEFAULT_WORKSPACE = "piazza";
 	
 	private static final String ADD_LAYER_ENDPOINT = "/geoserver/rest/workspaces/piazza/datastores/piazza/featuretypes/";
 	private static final String CAPABILITIES_URL = "/geoserver/piazza/wfs?service=wfs&version=2.0.0&request=GetCapabilities";
@@ -218,10 +219,10 @@ public class Deployer {
 		String dataStoreFileLocation = copyFileToGeoServerData(fileLocation);
 
 		// Create Data Store in GeoServer for a given resource
-		createGeoTiffDataStore(dataResource, "piazza", dataStoreFileLocation);
+		createGeoTiffDataStore(dataResource, GEOSERVER_DEFAULT_WORKSPACE, dataStoreFileLocation);
 
 		// Create Layer in GeoServer for a given resource
-		createLayer(dataResource, "piazza");
+		createCoverageLayer(dataResource, GEOSERVER_DEFAULT_WORKSPACE);
 
 		// Create a new Deployment for this Resource
 		String deploymentId = uuidFactory.getUUID();
@@ -285,7 +286,7 @@ public class Deployer {
 	 *            The description of the new layer
 	 *            
 	 */
-	private void createLayer(DataResource dataResource, String workspaceName) throws Exception {
+	private void createCoverageLayer(DataResource dataResource, String workspaceName) throws Exception {
 		// Load template
 		ClassLoader classLoader = getClass().getClassLoader();
 		String layerTemplate = IOUtils.toString(classLoader.getResourceAsStream("templates/coverageTypeRequest.xml"));
