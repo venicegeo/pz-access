@@ -22,6 +22,7 @@ import model.data.deployment.Deployment;
 import model.job.Job;
 import model.job.result.type.DeploymentResult;
 import model.job.result.type.ErrorResult;
+import model.job.result.type.FileResult;
 import model.job.type.AccessJob;
 import model.status.StatusUpdate;
 
@@ -109,7 +110,16 @@ public class AccessWorker implements Runnable {
 			// Resource
 			switch (accessJob.getDeploymentType()) {
 			case AccessJob.ACCESS_TYPE_FILE:
-				throw new Exception("File type not supported at this time.");
+				// Return the URL that the user can use to acquire the file
+				statusUpdate = new StatusUpdate(StatusUpdate.STATUS_SUCCESS);
+				statusUpdate.setResult(new FileResult(accessJob.getDataId()));
+				producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate));
+
+				// Console Logging
+				logger.log(String.format("GeoServer File Request successul for Resource %s", accessJob.getDataId()),
+						PiazzaLogger.INFO);
+				System.out.println("Deployment File Request Returned for Resource " + accessJob.getDataId());
+				break;
 			case AccessJob.ACCESS_TYPE_GEOSERVER:
 				Deployment deployment = null;
 				// Check if a Deployment already exists

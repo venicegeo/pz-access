@@ -15,14 +15,23 @@
  **/
 package access.controller;
 
+import java.io.InputStream;
 import java.util.List;
 
 import model.data.DataResource;
+import model.data.FileRepresentation;
+import model.data.location.FileAccessFactory;
 import model.response.DataResourceResponse;
 import model.response.ErrorResponse;
 import model.response.PiazzaResponse;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.util.StreamUtils;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
@@ -53,8 +62,56 @@ public class AccessController {
 	private PiazzaLogger logger;
 	@Autowired
 	private MongoAccessor accessor;
+	@Value("${s3.key.access:}")
+	private String AMAZONS3_ACCESS_KEY;
+	@Value("${s3.key.private:}")
+	private String AMAZONS3_PRIVATE_KEY;
+
 	private static final String DEFAULT_PAGE_SIZE = "10";
 	private static final String DEFAULT_PAGE = "0";
+
+	/**
+	 * Requests a file download that has been prepared by this Access component.
+	 * This will return the raw bytes of the resource.
+	 * 
+	 * @param dataId
+	 *            The ID of the Data Item to get. Assumes this file is ready to
+	 *            be downloaded.
+	 */
+	@RequestMapping(value = "/file/{dataId}", method = RequestMethod.GET)
+	public ResponseEntity<byte[]> accessFile(@PathVariable(value = "dataId") String dataId) throws Exception {
+		// Get the DataResource item
+		DataResource data = accessor.getData(dataId);
+		if (data == null) {
+			String message = String.format("Data not found for requested ID %s", dataId);
+			logger.log(message, PiazzaLogger.WARNING);
+			throw new Exception(message);
+		}
+
+		// Ensure the Data Resource is a File-based resource (Not WFS, etc)
+		if (!(data.getDataType() instanceof FileRepresentation)) {
+			String message = String.format("File download not available for Data ID %s; type is %s", dataId, data
+					.getDataType().getType());
+			logger.log(message, PiazzaLogger.WARNING);
+			throw new Exception(message);
+		}
+
+		// Get the File Bytes from wherever the File Location
+		FileAccessFactory fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY);
+		InputStream byteStream = fileFactory.getFile(((FileRepresentation) data.getDataType()).getLocation());
+		byte[] bytes = StreamUtils.copyToByteArray(byteStream);
+
+		// Log the Request
+		logger.log(String.format("Returning Bytes for %s of length %s", dataId, bytes.length), PiazzaLogger.INFO);
+
+		// Stream the Bytes back
+		HttpHeaders header = new HttpHeaders();
+		header.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+		header.set("Content-Disposition", "attachment; filename="
+				+ ((FileRepresentation) data.getDataType()).getLocation().getFileName());
+		header.setContentLength(bytes.length);
+		return new ResponseEntity<byte[]>(bytes, header, HttpStatus.OK);
+	}
 
 	/**
 	 * Returns the Data resource object from the Resources collection.
