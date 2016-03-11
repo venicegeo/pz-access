@@ -24,7 +24,7 @@ import java.util.Map;
 import model.data.DataResource;
 import model.data.FileRepresentation;
 import model.data.location.FileAccessFactory;
-import model.data.type.PostGISResource;
+import model.data.type.PostGISDataType;
 import model.response.DataResourceResponse;
 import model.response.ErrorResponse;
 import model.response.PiazzaResponse;
@@ -37,7 +37,6 @@ import org.geotools.data.simple.SimpleFeatureIterator;
 import org.geotools.data.simple.SimpleFeatureSource;
 import org.geotools.geojson.feature.FeatureJSON;
 import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
@@ -120,12 +119,12 @@ public class AccessController {
 		}
 
 		String geoJSON = "";
-		if (data.getDataType() instanceof PostGISResource) {
+		if (data.getDataType() instanceof PostGISDataType) {
 			// Connect to POSTGIS and gather geoJSON info
 			DataStore postGisStore = GeoToolsUtil.getPostGisDataStore(POSTGRES_HOST, POSTGRES_PORT, POSTGRES_SCHEMA, POSTGRES_DB_NAME,
 					POSTGRES_USER, POSTGRES_PASSWORD);
 
-			PostGISResource resource = (PostGISResource) (data.getDataType());
+			PostGISDataType resource = (PostGISDataType) (data.getDataType());
 			SimpleFeatureSource simpleFeatureSource = postGisStore.getFeatureSource(resource.getTable());
 			SimpleFeatureCollection simpleFeatureCollection = simpleFeatureSource.getFeatures(Query.ALL);
 			SimpleFeatureIterator simpleFeatureIterator = simpleFeatureCollection.features();
@@ -152,10 +151,11 @@ public class AccessController {
 			// Stream the Bytes back
 			HttpHeaders header = new HttpHeaders();
 			header.setContentType(MediaType.TEXT_PLAIN);
-			header.set("Content-Disposition", "attachment; filename=" + ((PostGISResource) data.getDataType()).getTable());
+			header.set("Content-Disposition", "attachment; filename=" + ((PostGISDataType) data.getDataType()).getTable());
 			header.setContentLength(geoJSON.length());
 			return new ResponseEntity<byte[]>(geoJSON.getBytes(), header, HttpStatus.OK);
-		} else if (!(data.getDataType() instanceof FileRepresentation)) {
+		} else 
+			if (!(data.getDataType() instanceof FileRepresentation)) {
 			String message = String.format("File download not available for Data ID %s; type is %s", dataId, data.getDataType().getType());
 			logger.log(message, PiazzaLogger.WARNING);
 			throw new Exception(message);
