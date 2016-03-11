@@ -118,7 +118,9 @@ public class AccessController {
 			// Connect to POSTGIS and gather geoJSON info
 			DataStore postGisStore = GeoToolsUtil.getPostGisDataStore(POSTGRES_HOST, POSTGRES_PORT, POSTGRES_SCHEMA, POSTGRES_DB_NAME,
 					POSTGRES_USER, POSTGRES_PASSWORD);
-			SimpleFeatureSource simpleFeatureSource = postGisStore.getFeatureSource("shelters");
+
+			PostGISResource resource = (PostGISResource) (data.getDataType());
+			SimpleFeatureSource simpleFeatureSource = postGisStore.getFeatureSource(resource.getTable());
 			SimpleFeatureCollection simpleFeatureCollection = simpleFeatureSource.getFeatures(Query.ALL);
 			SimpleFeatureIterator simpleFeatureIterator = simpleFeatureCollection.features();
 
