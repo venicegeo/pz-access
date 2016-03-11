@@ -15,17 +15,18 @@
  **/
 package access.deploy;
 
+import java.io.File;
+import java.io.IOException;
+
 import model.data.DataResource;
 import model.data.deployment.Deployment;
 import model.data.location.FileAccessFactory;
 import model.data.location.FileLocation;
-import model.data.type.PostGISResource;
-import model.data.type.RasterResource;
-import model.data.type.ShapefileResource;
-import model.data.type.WfsResource;
+import model.data.type.PostGISDataType;
+import model.data.type.RasterDataType;
+import model.data.type.ShapefileDataType;
+import model.data.type.WfsDataType;
 
-import java.io.File;
-import java.io.IOException;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.tomcat.util.codec.binary.Base64;
@@ -77,13 +78,13 @@ public class Deployer {
 	private String AMAZONS3_ACCESS_KEY;
 	@Value("${s3.key.private:}")
 	private String AMAZONS3_PRIVATE_KEY;
-	
+
 	private static final String HOST_ADDRESS = "http://%s:%s%s";
 	private static final String GEOSERVER_DEFAULT_WORKSPACE = "piazza";
-	
+
 	private static final String ADD_LAYER_ENDPOINT = "/geoserver/rest/workspaces/piazza/datastores/piazza/featuretypes/";
 	private static final String CAPABILITIES_URL = "/geoserver/piazza/wfs?service=wfs&version=2.0.0&request=GetCapabilities";
-	
+
 	private static final String DATA_STORE_ENDPOINT = "/geoserver/rest/workspaces/piazza/coveragestores";
 	private static final String LAYER_REST_ENDPOINT = "/geoserver/rest/workspaces/piazza/coveragestores/%s/coverages";
 
@@ -98,22 +99,23 @@ public class Deployer {
 		// Create the GeoServer Deployment based on the Data Type
 		Deployment deployment;
 		try {
-			if ((dataResource.getDataType() instanceof ShapefileResource) || (dataResource.getDataType() instanceof PostGISResource)) {
+			if ((dataResource.getDataType() instanceof ShapefileDataType)
+					|| (dataResource.getDataType() instanceof PostGISDataType)) {
 				// Deploy from an existing PostGIS Table
 				deployment = deployPostGisTable(dataResource);
-			} else if (dataResource.getDataType() instanceof WfsResource) {
+			} else if (dataResource.getDataType() instanceof WfsDataType) {
 				// User has requested to deploy a WFS type resource. In this
 				// case, there's nothing to deploy since the WFS is already
 				// accessible by design? Just return the WFS information back to
 				// them? Or return an error?
 				deployment = null;
-			} else if (dataResource.getDataType() instanceof RasterResource) {
+			} else if (dataResource.getDataType() instanceof RasterDataType) {
 				// Deploy a GeoTIFF to GeoServer
 				deployment = deployGeoTiff(dataResource);
 			} else {
 				// Unsupported Data type has been specified.
-				throw new UnsupportedOperationException(
-						"Cannot the following Data Type to GeoServer: " + dataResource.getDataType().getType());
+				throw new UnsupportedOperationException("Cannot the following Data Type to GeoServer: "
+						+ dataResource.getDataType().getType());
 			}
 		} catch (Exception exception) {
 			exception.printStackTrace();
@@ -124,8 +126,9 @@ public class Deployer {
 		accessor.insertDeployment(deployment);
 
 		// Log information
-		logger.log(String.format("Created Deployment %s for Data %s on host %s", deployment.getId(), deployment.getDataId(),
-				deployment.getHost()), PiazzaLogger.INFO);
+		logger.log(
+				String.format("Created Deployment %s for Data %s on host %s", deployment.getId(),
+						deployment.getDataId(), deployment.getHost()), PiazzaLogger.INFO);
 
 		// Return Deployment reference
 		return deployment;
@@ -150,10 +153,10 @@ public class Deployer {
 
 		// Get the appropriate Table Name from the DataResource
 		String tableName = null;
-		if (dataResource.getDataType() instanceof ShapefileResource) {
-			tableName = ((ShapefileResource) dataResource.getDataType()).getDatabaseTableName();
-		} else if (dataResource.getDataType() instanceof PostGISResource) {
-			tableName = ((PostGISResource) dataResource.getDataType()).getTable();
+		if (dataResource.getDataType() instanceof ShapefileDataType) {
+			tableName = ((ShapefileDataType) dataResource.getDataType()).getDatabaseTableName();
+		} else if (dataResource.getDataType() instanceof PostGISDataType) {
+			tableName = ((PostGISDataType) dataResource.getDataType()).getTable();
 		}
 
 		// Inject the Metadata from the Data Resource into the Payload
@@ -175,7 +178,7 @@ public class Deployer {
 		// Create a new Deployment for this Resource
 		String deploymentId = uuidFactory.getUUID();
 		String capabilitiesUrl = String.format(HOST_ADDRESS, GEOSERVER_HOST, GEOSERVER_PORT, CAPABILITIES_URL);
-		
+
 		Deployment deployment = new Deployment(deploymentId, dataResource.getDataId(), GEOSERVER_HOST, GEOSERVER_PORT,
 				tableName, capabilitiesUrl);
 
@@ -187,11 +190,10 @@ public class Deployer {
 	 * Will copy file to geoserver data directory, and return direct path
 	 * 
 	 * @param fileLocation
-	 * 			Interface to get file info from.
-	 * @return String 
-	 * 			Path to file
-	 * @throws Exception 
-	 * @throws IOException 
+	 *            Interface to get file info from.
+	 * @return String Path to file
+	 * @throws Exception
+	 * @throws IOException
 	 */
 	private String copyFileToGeoServerData(FileLocation fileLocation) throws IOException, Exception {
 		// Get file stream from AWS S3
@@ -203,11 +205,11 @@ public class Deployer {
 
 		return file.getAbsolutePath();
 	}
-	
+
 	/**
-	 * Deploys a GeoTIFF resource to GeoServer. This will create a new
-	 * GeoServer data store and layer. GeoTIFF file assumed
-	 * to reside under data directory of GeoServer 
+	 * Deploys a GeoTIFF resource to GeoServer. This will create a new GeoServer
+	 * data store and layer. GeoTIFF file assumed to reside under data directory
+	 * of GeoServer
 	 * 
 	 * @param dataResource
 	 *            The DataResource to deploy.
@@ -215,7 +217,7 @@ public class Deployer {
 	 */
 	private Deployment deployGeoTiff(DataResource dataResource) throws Exception {
 		// Copy GeoTIFF from AWS S3 to Data Directory of GeoServer
-		FileLocation fileLocation = ((RasterResource) dataResource.getDataType()).getLocation();
+		FileLocation fileLocation = ((RasterDataType) dataResource.getDataType()).getLocation();
 		String dataStoreFileLocation = copyFileToGeoServerData(fileLocation);
 
 		// Create Data Store in GeoServer for a given resource
@@ -228,8 +230,8 @@ public class Deployer {
 		String deploymentId = uuidFactory.getUUID();
 		String capabilitiesUrl = String.format(HOST_ADDRESS, GEOSERVER_HOST, GEOSERVER_PORT, CAPABILITIES_URL);
 		String deploymentLayerName = fileLocation.getFileName() + "-" + dataResource.getDataId();
-		Deployment deployment = new Deployment(deploymentId, dataResource.getDataId(), GEOSERVER_HOST, GEOSERVER_PORT, deploymentLayerName,
-				capabilitiesUrl);
+		Deployment deployment = new Deployment(deploymentId, dataResource.getDataId(), GEOSERVER_HOST, GEOSERVER_PORT,
+				deploymentLayerName, capabilitiesUrl);
 
 		// Return the newly created Deployment
 		return deployment;
@@ -246,16 +248,18 @@ public class Deployer {
 	 *            The workspace to use to place data store under
 	 * @param dataStoreFileLocation
 	 *            The path of the raster file to use for data store
-	 *            
+	 * 
 	 */
-	private void createGeoTiffDataStore(DataResource dataResource, String workspaceName, String dataStoreFileLocation) throws Exception {
+	private void createGeoTiffDataStore(DataResource dataResource, String workspaceName, String dataStoreFileLocation)
+			throws Exception {
 		// Load template
 		ClassLoader classLoader = getClass().getClassLoader();
-		String dataStoreTemplate = IOUtils.toString(classLoader.getResourceAsStream("templates/coverageStoreTypeRequest.xml"));
+		String dataStoreTemplate = IOUtils.toString(classLoader
+				.getResourceAsStream("templates/coverageStoreTypeRequest.xml"));
 
 		// Inject Metadata from the Data Resource into the Data Store Payload
-		String dataStoreRequestBody = String.format(dataStoreTemplate, dataResource.getDataId(), "piazza generated data store",
-				workspaceName, dataStoreFileLocation);
+		String dataStoreRequestBody = String.format(dataStoreTemplate, dataResource.getDataId(),
+				"piazza generated data store", workspaceName, dataStoreFileLocation);
 
 		// Execute the POST to GeoServer to add the data store
 		HttpStatus statusCode = postGeoServerFeatureType(DATA_STORE_ENDPOINT, dataStoreRequestBody);
@@ -265,10 +269,11 @@ public class Deployer {
 			logger.log(String.format("Failed to create Data Source on for Resource %s to GeoServer. HTTP Code: %s",
 					dataResource.getDataId(), statusCode), PiazzaLogger.ERROR);
 			throw new Exception(
-					"Failed to Deploy GeoTIFF data store to GeoServer; the Status returned a non-OK response code: " + statusCode);
+					"Failed to Deploy GeoTIFF data store to GeoServer; the Status returned a non-OK response code: "
+							+ statusCode);
 		}
 	}
-	
+
 	/**
 	 * Executes the POST request to GeoServer to create the new layer
 	 * 
@@ -284,7 +289,7 @@ public class Deployer {
 	 *            The title of the new layer
 	 * @param layerDescription
 	 *            The description of the new layer
-	 *            
+	 * 
 	 */
 	private void createCoverageLayer(DataResource dataResource, String workspaceName) throws Exception {
 		// Load template
@@ -302,9 +307,10 @@ public class Deployer {
 		Integer epsgCode = dataResource.getSpatialMetadata().getEpsgCode();
 
 		// Inject the Metadata from the Data Resource into the Payload
-		String layerRequestBody = String.format(layerTemplate, dataResource.getDataId(), dataResource.getDataId(), workspaceName,
-				dataResource.getDataId(), "piazza generated layer", coordinateReferenceSystemData, epsgCode, minX, maxX, minY, maxY,
-				epsgCode, workspaceName, dataResource.getDataId(), epsgCode, epsgCode);
+		String layerRequestBody = String
+				.format(layerTemplate, dataResource.getDataId(), dataResource.getDataId(), workspaceName,
+						dataResource.getDataId(), "piazza generated layer", coordinateReferenceSystemData, epsgCode,
+						minX, maxX, minY, maxY, epsgCode, workspaceName, dataResource.getDataId(), epsgCode, epsgCode);
 
 		// Execute the POST to GeoServer to create the layer
 		String layerRestEndpoint = String.format(LAYER_REST_ENDPOINT, dataResource.getDataId());
@@ -312,12 +318,15 @@ public class Deployer {
 
 		// Ensure the Status Code is OK
 		if (statusCode != HttpStatus.CREATED) {
-			logger.log(String.format("Failed to create layer for Resource %s on GeoServer. HTTP Code: %s", dataResource.getDataId(),
-					statusCode), PiazzaLogger.ERROR);
-			throw new Exception("Failed to Deploy GeoTIFF layer to GeoServer; the Status returned a non-OK response code: " + statusCode);
+			logger.log(
+					String.format("Failed to create layer for Resource %s on GeoServer. HTTP Code: %s",
+							dataResource.getDataId(), statusCode), PiazzaLogger.ERROR);
+			throw new Exception(
+					"Failed to Deploy GeoTIFF layer to GeoServer; the Status returned a non-OK response code: "
+							+ statusCode);
 		}
 	}
-	
+
 	/**
 	 * Executes the POST request to GeoServer to create the FeatureType as a
 	 * Layer.
