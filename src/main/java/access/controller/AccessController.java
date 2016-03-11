@@ -16,15 +16,25 @@
 package access.controller;
 
 import java.io.InputStream;
+import java.io.StringWriter;
 import java.util.List;
-
 import model.data.DataResource;
 import model.data.FileRepresentation;
 import model.data.location.FileAccessFactory;
+import model.data.type.PostGISResource;
 import model.response.DataResourceResponse;
 import model.response.ErrorResponse;
 import model.response.PiazzaResponse;
 
+import org.elasticsearch.common.lang3.StringUtils;
+import org.geotools.data.DataStore;
+import org.geotools.data.Query;
+import org.geotools.data.simple.SimpleFeatureCollection;
+import org.geotools.data.simple.SimpleFeatureIterator;
+import org.geotools.data.simple.SimpleFeatureSource;
+import org.geotools.geojson.feature.FeatureJSON;
+import org.opengis.feature.simple.SimpleFeature;
+import org.opengis.feature.simple.SimpleFeatureType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
@@ -38,6 +48,7 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import util.GeoToolsUtil;
 import util.PiazzaLogger;
 import access.database.MongoAccessor;
 
@@ -58,6 +69,20 @@ import access.database.MongoAccessor;
  */
 @RestController
 public class AccessController {
+	
+	@Value("${postgres.host}")
+	private String POSTGRES_HOST;
+	@Value("${postgres.port}")
+	private String POSTGRES_PORT;
+	@Value("${postgres.db.name}")
+	private String POSTGRES_DB_NAME;
+	@Value("${postgres.user}")
+	private String POSTGRES_USER;
+	@Value("${postgres.password}")
+	private String POSTGRES_PASSWORD;
+	@Value("${postgres.schema}")
+	private String POSTGRES_SCHEMA;
+	
 	@Autowired
 	private PiazzaLogger logger;
 	@Autowired
@@ -88,29 +113,61 @@ public class AccessController {
 			throw new Exception(message);
 		}
 
-		// Ensure the Data Resource is a File-based resource (Not WFS, etc)
-		if (!(data.getDataType() instanceof FileRepresentation)) {
-			String message = String.format("File download not available for Data ID %s; type is %s", dataId, data
-					.getDataType().getType());
+		String geoJSON = "";
+		if (data.getDataType() instanceof PostGISResource) {
+			// Connect to POSTGIS and gather geoJSON info
+			DataStore postGisStore = GeoToolsUtil.getPostGisDataStore(POSTGRES_HOST, POSTGRES_PORT, POSTGRES_SCHEMA, POSTGRES_DB_NAME,
+					POSTGRES_USER, POSTGRES_PASSWORD);
+			SimpleFeatureSource simpleFeatureSource = postGisStore.getFeatureSource("shelters");
+			SimpleFeatureCollection simpleFeatureCollection = simpleFeatureSource.getFeatures(Query.ALL);
+			SimpleFeatureIterator simpleFeatureIterator = simpleFeatureCollection.features();
+
+			try {
+				while (simpleFeatureIterator.hasNext()) {
+					SimpleFeature simpleFeature = simpleFeatureIterator.next();
+					FeatureJSON featureJSON = new FeatureJSON();
+					StringWriter writer = new StringWriter();
+
+					featureJSON.writeFeature(simpleFeature, writer);
+					String json = writer.toString();
+
+					// Append each section
+					geoJSON = StringUtils.isNotEmpty(geoJSON) ? String.format("%s,%s", geoJSON, json) : json;
+				}
+			} finally {
+				simpleFeatureIterator.close();
+			}
+
+			// Log the Request
+			logger.log(String.format("Returning Bytes for %s of length %s", dataId, geoJSON.length()), PiazzaLogger.INFO);
+
+			// Stream the Bytes back
+			HttpHeaders header = new HttpHeaders();
+			header.setContentType(MediaType.TEXT_PLAIN);
+			header.set("Content-Disposition", "attachment; filename=" + ((PostGISResource) data.getDataType()).getTable());
+			header.setContentLength(geoJSON.length());
+			return new ResponseEntity<byte[]>(geoJSON.getBytes(), header, HttpStatus.OK);
+		} else if (!(data.getDataType() instanceof FileRepresentation)) {
+			String message = String.format("File download not available for Data ID %s; type is %s", dataId, data.getDataType().getType());
 			logger.log(message, PiazzaLogger.WARNING);
 			throw new Exception(message);
+		} else {
+			// Get the File Bytes from wherever the File Location
+			FileAccessFactory fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY);
+			InputStream byteStream = fileFactory.getFile(((FileRepresentation) data.getDataType()).getLocation());
+			byte[] bytes = StreamUtils.copyToByteArray(byteStream);
+
+			// Log the Request
+			logger.log(String.format("Returning Bytes for %s of length %s", dataId, bytes.length), PiazzaLogger.INFO);
+
+			// Stream the Bytes back
+			HttpHeaders header = new HttpHeaders();
+			header.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+			header.set("Content-Disposition", "attachment; filename="
+					+ ((FileRepresentation) data.getDataType()).getLocation().getFileName());
+			header.setContentLength(bytes.length);
+			return new ResponseEntity<byte[]>(bytes, header, HttpStatus.OK);
 		}
-
-		// Get the File Bytes from wherever the File Location
-		FileAccessFactory fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY);
-		InputStream byteStream = fileFactory.getFile(((FileRepresentation) data.getDataType()).getLocation());
-		byte[] bytes = StreamUtils.copyToByteArray(byteStream);
-
-		// Log the Request
-		logger.log(String.format("Returning Bytes for %s of length %s", dataId, bytes.length), PiazzaLogger.INFO);
-
-		// Stream the Bytes back
-		HttpHeaders header = new HttpHeaders();
-		header.setContentType(MediaType.APPLICATION_OCTET_STREAM);
-		header.set("Content-Disposition", "attachment; filename="
-				+ ((FileRepresentation) data.getDataType()).getLocation().getFileName());
-		header.setContentLength(bytes.length);
-		return new ResponseEntity<byte[]>(bytes, header, HttpStatus.OK);
 	}
 
 	/**
