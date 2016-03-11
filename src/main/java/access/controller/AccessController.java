@@ -17,7 +17,10 @@ package access.controller;
 
 import java.io.InputStream;
 import java.io.StringWriter;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+
 import model.data.DataResource;
 import model.data.FileRepresentation;
 import model.data.location.FileAccessFactory;
@@ -51,6 +54,7 @@ import org.springframework.web.bind.annotation.RestController;
 import util.GeoToolsUtil;
 import util.PiazzaLogger;
 import access.database.MongoAccessor;
+import access.messaging.AccessThreadManager;
 
 /**
  * Allows for synchronous fetching of Resource Data from the Mongo Resource
@@ -83,6 +87,8 @@ public class AccessController {
 	@Value("${postgres.schema}")
 	private String POSTGRES_SCHEMA;
 	
+	@Autowired
+	private AccessThreadManager threadManager;
 	@Autowired
 	private PiazzaLogger logger;
 	@Autowired
@@ -249,4 +255,17 @@ public class AccessController {
 			return "You're not serious.";
 		}
 	}
+
+	/**
+	 * Returns administrative statistics for this component.
+	 * 
+	 * @return Component information
+	 */
+	@RequestMapping(value = "/admin/stats", method = RequestMethod.GET)
+	public ResponseEntity<Map<String, Object>> getAdminStats() {
+		Map<String, Object> stats = new HashMap<String, Object>();
+		// Return information on the jobs currently being processed
+		stats.put("jobs", threadManager.getRunningJobIDs());
+		return new ResponseEntity<Map<String, Object>>(stats, HttpStatus.OK);
+}
 }
