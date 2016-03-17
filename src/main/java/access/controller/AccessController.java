@@ -20,6 +20,7 @@ import java.io.StringWriter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.lang.StringBuilder;
 
 import model.data.DataResource;
 import model.data.FileRepresentation;
@@ -117,7 +118,7 @@ public class AccessController {
 			throw new Exception(message);
 		}
 
-		String geoJSON = "";
+		StringBuilder geoJSON = new StringBuilder();
 		if (data.getDataType() instanceof PostGISDataType) {
 			// Connect to POSTGIS and gather geoJSON info
 			DataStore postGisStore = GeoToolsUtil.getPostGisDataStore(POSTGRES_HOST, POSTGRES_PORT, POSTGRES_SCHEMA, POSTGRES_DB_NAME,
@@ -138,7 +139,7 @@ public class AccessController {
 					String json = writer.toString();
 
 					// Append each section
-					geoJSON = !(geoJSON.equals("")) ? String.format("%s,%s", geoJSON, json) : json;
+					geoJSON.append(json);
 				}
 			} finally {
 				simpleFeatureIterator.close();
@@ -152,7 +153,7 @@ public class AccessController {
 			header.setContentType(MediaType.TEXT_PLAIN);
 			header.set("Content-Disposition", "attachment; filename=" + ((PostGISDataType) data.getDataType()).getTable());
 			header.setContentLength(geoJSON.length());
-			return new ResponseEntity<byte[]>(geoJSON.getBytes(), header, HttpStatus.OK);
+			return new ResponseEntity<byte[]>(geoJSON.toString().getBytes(), header, HttpStatus.OK);
 		} else 
 			if (!(data.getDataType() instanceof FileRepresentation)) {
 			String message = String.format("File download not available for Data ID %s; type is %s", dataId, data.getDataType().getType());
