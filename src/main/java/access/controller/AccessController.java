@@ -29,7 +29,6 @@ import model.response.DataResourceResponse;
 import model.response.ErrorResponse;
 import model.response.PiazzaResponse;
 
-import org.elasticsearch.common.lang3.StringUtils;
 import org.geotools.data.DataStore;
 import org.geotools.data.Query;
 import org.geotools.data.simple.SimpleFeatureCollection;
@@ -139,7 +138,7 @@ public class AccessController {
 					String json = writer.toString();
 
 					// Append each section
-					geoJSON = StringUtils.isNotEmpty(geoJSON) ? String.format("%s,%s", geoJSON, json) : json;
+					geoJSON = !(geoJSON.equals("")) ? String.format("%s,%s", geoJSON, json) : json;
 				}
 			} finally {
 				simpleFeatureIterator.close();
