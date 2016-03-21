@@ -3,7 +3,7 @@ applications:
   host: pz-access
   path: pz-access.jar
   buildpack: java_buildpack_offline
-  domain: stage.geointservices.io
+  domain: test.geointservices.io
   memory: 512M
   instances: 1
   timeout: 80

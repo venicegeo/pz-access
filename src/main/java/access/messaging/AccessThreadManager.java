@@ -65,9 +65,9 @@ public class AccessThreadManager {
 	private Leaser leaser;
 	@Autowired
 	private MongoAccessor accessor;
-	@Value("${kafka.host}")
+	@Value("${vcap.services.pz-kafka.credentials.host:kafka.dev:9092}")
+	private String KAFKA_ADDRESS;
 	private String KAFKA_HOST;
-	@Value("${kafka.port}")
 	private String KAFKA_PORT;
 	@Value("${kafka.group}")
 	private String KAFKA_GROUP;
@@ -88,6 +88,8 @@ public class AccessThreadManager {
 	@PostConstruct
 	public void initialize() {
 		// Initialize the Kafka Producer
+		KAFKA_HOST = KAFKA_ADDRESS.split(":")[0];
+		KAFKA_PORT = KAFKA_ADDRESS.split(":")[1];
 		producer = KafkaClientFactory.getProducer(KAFKA_HOST, KAFKA_PORT);
 
 		// Initialize the Thread Pool and Map of running Threads

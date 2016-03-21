@@ -64,19 +64,19 @@ public class Deployer {
 	private UUIDFactory uuidFactory;
 	@Autowired
 	private MongoAccessor accessor;
-	@Value("${geoserver.host}")
+	@Value("${vcap.services.pz-geoserver.credentials.host}")
 	private String GEOSERVER_HOST;
-	@Value("${geoserver.port}")
+	@Value("${vcap.services.pz-geoserver.credentials.port}")
 	private String GEOSERVER_PORT;
-	@Value("${geoserver.username}")
+	@Value("${vcap.services.pz-geoserver.credentials.username}")
 	private String GEOSERVER_USERNAME;
-	@Value("${geoserver.password}")
+	@Value("${vcap.services.pz-geoserver.credentials.password}")
 	private String GEOSERVER_PASSWORD;
 	@Value("${geoserver.data.directory}")
 	private String GEOSERVER_DATA_DIRECTORY;
-	@Value("${s3.key.access:}")
+	@Value("${vcap.services.pz-blobstore.credentials.access:}")
 	private String AMAZONS3_ACCESS_KEY;
-	@Value("${s3.key.private:}")
+	@Value("${vcap.services.pz-blobstore.credentials.private:}")
 	private String AMAZONS3_PRIVATE_KEY;
 
 	private static final String HOST_ADDRESS = "http://%s:%s%s";
