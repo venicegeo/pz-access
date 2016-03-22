@@ -20,6 +20,7 @@ import java.io.StringWriter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.lang.StringBuilder;
 
 import model.data.DataResource;
 import model.data.FileRepresentation;
@@ -29,7 +30,6 @@ import model.response.DataResourceResponse;
 import model.response.ErrorResponse;
 import model.response.PiazzaResponse;
 
-import org.elasticsearch.common.lang3.StringUtils;
 import org.geotools.data.DataStore;
 import org.geotools.data.Query;
 import org.geotools.data.simple.SimpleFeatureCollection;
@@ -73,15 +73,15 @@ import access.messaging.AccessThreadManager;
 @RestController
 public class AccessController {
 	
-	@Value("${postgres.host}")
+	@Value("${vcap.services.pz-postgres.credentials.host}")
 	private String POSTGRES_HOST;
-	@Value("${postgres.port}")
+	@Value("${vcap.services.pz-postgres.credentials.port}")
 	private String POSTGRES_PORT;
-	@Value("${postgres.db.name}")
+	@Value("${vcap.services.pz-postgres.credentials.database}")
 	private String POSTGRES_DB_NAME;
-	@Value("${postgres.user}")
+	@Value("${vcap.services.pz-postgres.credentials.username}")
 	private String POSTGRES_USER;
-	@Value("${postgres.password}")
+	@Value("${vcap.services.pz-postgres.credentials.password}")
 	private String POSTGRES_PASSWORD;
 	@Value("${postgres.schema}")
 	private String POSTGRES_SCHEMA;
@@ -118,7 +118,7 @@ public class AccessController {
 			throw new Exception(message);
 		}
 
-		String geoJSON = "";
+		StringBuilder geoJSON = new StringBuilder();
 		if (data.getDataType() instanceof PostGISDataType) {
 			// Connect to POSTGIS and gather geoJSON info
 			DataStore postGisStore = GeoToolsUtil.getPostGisDataStore(POSTGRES_HOST, POSTGRES_PORT, POSTGRES_SCHEMA, POSTGRES_DB_NAME,
@@ -139,7 +139,7 @@ public class AccessController {
 					String json = writer.toString();
 
 					// Append each section
-					geoJSON = StringUtils.isNotEmpty(geoJSON) ? String.format("%s,%s", geoJSON, json) : json;
+					geoJSON.append(json);
 				}
 			} finally {
 				simpleFeatureIterator.close();
@@ -153,7 +153,7 @@ public class AccessController {
 			header.setContentType(MediaType.TEXT_PLAIN);
 			header.set("Content-Disposition", "attachment; filename=" + ((PostGISDataType) data.getDataType()).getTable());
 			header.setContentLength(geoJSON.length());
-			return new ResponseEntity<byte[]>(geoJSON.getBytes(), header, HttpStatus.OK);
+			return new ResponseEntity<byte[]>(geoJSON.toString().getBytes(), header, HttpStatus.OK);
 		} else 
 			if (!(data.getDataType() instanceof FileRepresentation)) {
 			String message = String.format("File download not available for Data ID %s; type is %s", dataId, data.getDataType().getType());
