@@ -92,10 +92,14 @@ public class AccessController {
 	private PiazzaLogger logger;
 	@Autowired
 	private MongoAccessor accessor;
-	@Value("${s3.key.access:}")
+
+	@Value("${vcap.services.pz-blobstore.credentials.access:}")
 	private String AMAZONS3_ACCESS_KEY;
-	@Value("${s3.key.private:}")
+	@Value("${vcap.services.pz-blobstore.credentials.private:}")
 	private String AMAZONS3_PRIVATE_KEY;
+
+	
+	
 
 	private static final String DEFAULT_PAGE_SIZE = "10";
 	private static final String DEFAULT_PAGE = "0";
@@ -121,8 +125,7 @@ public class AccessController {
 		StringBuilder geoJSON = new StringBuilder();
 		if (data.getDataType() instanceof PostGISDataType) {
 			// Connect to POSTGIS and gather geoJSON info
-			DataStore postGisStore = GeoToolsUtil.getPostGisDataStore(POSTGRES_HOST, POSTGRES_PORT, POSTGRES_SCHEMA, POSTGRES_DB_NAME,
-					POSTGRES_USER, POSTGRES_PASSWORD);
+			DataStore postGisStore = GeoToolsUtil.getPostGisDataStore(POSTGRES_HOST, POSTGRES_PORT, POSTGRES_SCHEMA, POSTGRES_DB_NAME, POSTGRES_USER, POSTGRES_PASSWORD);
 
 			PostGISDataType resource = (PostGISDataType) (data.getDataType());
 			SimpleFeatureSource simpleFeatureSource = postGisStore.getFeatureSource(resource.getTable());
