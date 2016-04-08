@@ -20,12 +20,12 @@ import java.io.StringWriter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.lang.StringBuilder;
 
 import model.data.DataResource;
 import model.data.FileRepresentation;
 import model.data.location.FileAccessFactory;
 import model.data.type.PostGISDataType;
+import model.data.type.TextDataType;
 import model.response.DataResourceResponse;
 import model.response.ErrorResponse;
 import model.response.PiazzaResponse;
@@ -72,7 +72,7 @@ import access.messaging.AccessThreadManager;
  */
 @RestController
 public class AccessController {
-	
+
 	@Value("${vcap.services.pz-postgres.credentials.host}")
 	private String POSTGRES_HOST;
 	@Value("${vcap.services.pz-postgres.credentials.port}")
@@ -85,7 +85,7 @@ public class AccessController {
 	private String POSTGRES_PASSWORD;
 	@Value("${postgres.schema}")
 	private String POSTGRES_SCHEMA;
-	
+
 	@Autowired
 	private AccessThreadManager threadManager;
 	@Autowired
@@ -97,9 +97,6 @@ public class AccessController {
 	private String AMAZONS3_ACCESS_KEY;
 	@Value("${vcap.services.pz-blobstore.credentials.private:}")
 	private String AMAZONS3_PRIVATE_KEY;
-
-	
-	
 
 	private static final String DEFAULT_PAGE_SIZE = "10";
 	private static final String DEFAULT_PAGE = "0";
@@ -123,9 +120,18 @@ public class AccessController {
 		}
 
 		StringBuilder geoJSON = new StringBuilder();
-		if (data.getDataType() instanceof PostGISDataType) {
+		if (data.getDataType() instanceof TextDataType) {
+			// Stream the Bytes back
+			TextDataType textData = (TextDataType) data.getDataType();
+			HttpHeaders header = new HttpHeaders();
+			header.setContentType(MediaType.TEXT_PLAIN);
+			header.set("Content-Disposition", "attachment; filename=" + dataId + ".txt");
+			header.setContentLength(textData.getContent().getBytes().length);
+			return new ResponseEntity<byte[]>(textData.getContent().getBytes(), header, HttpStatus.OK);
+		} else if (data.getDataType() instanceof PostGISDataType) {
 			// Connect to POSTGIS and gather geoJSON info
-			DataStore postGisStore = GeoToolsUtil.getPostGisDataStore(POSTGRES_HOST, POSTGRES_PORT, POSTGRES_SCHEMA, POSTGRES_DB_NAME, POSTGRES_USER, POSTGRES_PASSWORD);
+			DataStore postGisStore = GeoToolsUtil.getPostGisDataStore(POSTGRES_HOST, POSTGRES_PORT, POSTGRES_SCHEMA,
+					POSTGRES_DB_NAME, POSTGRES_USER, POSTGRES_PASSWORD);
 
 			PostGISDataType resource = (PostGISDataType) (data.getDataType());
 			SimpleFeatureSource simpleFeatureSource = postGisStore.getFeatureSource(resource.getTable());
@@ -149,17 +155,19 @@ public class AccessController {
 			}
 
 			// Log the Request
-			logger.log(String.format("Returning Bytes for %s of length %s", dataId, geoJSON.length()), PiazzaLogger.INFO);
+			logger.log(String.format("Returning Bytes for %s of length %s", dataId, geoJSON.length()),
+					PiazzaLogger.INFO);
 
 			// Stream the Bytes back
 			HttpHeaders header = new HttpHeaders();
 			header.setContentType(MediaType.TEXT_PLAIN);
-			header.set("Content-Disposition", "attachment; filename=" + ((PostGISDataType) data.getDataType()).getTable());
+			header.set("Content-Disposition",
+					"attachment; filename=" + ((PostGISDataType) data.getDataType()).getTable());
 			header.setContentLength(geoJSON.length());
 			return new ResponseEntity<byte[]>(geoJSON.toString().getBytes(), header, HttpStatus.OK);
-		} else 
-			if (!(data.getDataType() instanceof FileRepresentation)) {
-			String message = String.format("File download not available for Data ID %s; type is %s", dataId, data.getDataType().getType());
+		} else if (!(data.getDataType() instanceof FileRepresentation)) {
+			String message = String.format("File download not available for Data ID %s; type is %s", dataId, data
+					.getDataType().getType());
 			logger.log(message, PiazzaLogger.WARNING);
 			throw new Exception(message);
 		} else {
@@ -270,5 +278,5 @@ public class AccessController {
 		// Return information on the jobs currently being processed
 		stats.put("jobs", threadManager.getRunningJobIDs());
 		return new ResponseEntity<Map<String, Object>>(stats, HttpStatus.OK);
-}
+	}
 }
