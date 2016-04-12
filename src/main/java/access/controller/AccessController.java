@@ -179,11 +179,11 @@ public class AccessController {
 			// Log the Request
 			logger.log(String.format("Returning Bytes for %s of length %s", dataId, bytes.length), PiazzaLogger.INFO);
 
-			// Get the file name, and for the return file - remove the Data ID
-			// from the path.
+			// Get the file name.
 			String fileName = ((FileRepresentation) data.getDataType()).getLocation().getFileName();
-			if (fileName.contains(dataId)) {
-				fileName = fileName.replace(dataId + "-", "");
+			// Strip out the Job ID GUID in the file name.
+			if (fileName.length() > 37) {
+				fileName = fileName.substring(37, fileName.length());
 			}
 
 			// Stream the Bytes back
