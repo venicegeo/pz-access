@@ -179,11 +179,17 @@ public class AccessController {
 			// Log the Request
 			logger.log(String.format("Returning Bytes for %s of length %s", dataId, bytes.length), PiazzaLogger.INFO);
 
+			// Get the file name, and for the return file - remove the Data ID
+			// from the path.
+			String fileName = ((FileRepresentation) data.getDataType()).getLocation().getFileName();
+			if (fileName.contains(dataId)) {
+				fileName = fileName.replace(dataId + "-", "");
+			}
+
 			// Stream the Bytes back
 			HttpHeaders header = new HttpHeaders();
 			header.setContentType(MediaType.APPLICATION_OCTET_STREAM);
-			header.set("Content-Disposition", "attachment; filename="
-					+ ((FileRepresentation) data.getDataType()).getLocation().getFileName());
+			header.set("Content-Disposition", "attachment; filename=" + fileName);
 			header.setContentLength(bytes.length);
 			return new ResponseEntity<byte[]>(bytes, header, HttpStatus.OK);
 		}
