@@ -23,11 +23,13 @@ import java.util.Map;
 
 import model.data.DataResource;
 import model.data.FileRepresentation;
+import model.data.deployment.Deployment;
 import model.data.location.FileAccessFactory;
 import model.data.type.PostGISDataType;
 import model.data.type.TextDataType;
 import model.response.DataResourceListResponse;
 import model.response.DataResourceResponse;
+import model.response.DeploymentResponse;
 import model.response.ErrorResponse;
 import model.response.Pagination;
 import model.response.PiazzaResponse;
@@ -225,6 +227,43 @@ public class AccessController {
 			exception.printStackTrace();
 			logger.log(String.format("Error fetching Data %s: %s", dataId, exception.getMessage()), PiazzaLogger.ERROR);
 			return new ErrorResponse(null, "Error fetching Data: " + exception.getMessage(), "Access");
+		}
+	}
+
+	/**
+	 * Gets Deployment information for an active deployment, including URL and
+	 * Data ID.
+	 * 
+	 * @see http://pz-swagger.stage.geointservices.io/#!/Deployment/
+	 *      get_deployment_deploymentId
+	 * 
+	 * @param deploymentId
+	 *            The ID of the deployment to fetch
+	 * @return The deployment information, or an ErrorResponse if exceptions
+	 *         occur
+	 */
+	@RequestMapping(value = "/deployment/{deploymentId}", method = RequestMethod.GET)
+	public PiazzaResponse getDeployment(@PathVariable(value = "deploymentId") String deploymentId) {
+		try {
+			if (deploymentId.isEmpty()) {
+				throw new Exception("No Deployment ID specified.");
+			}
+			// Query for the Data ID
+			Deployment deployment = accessor.getDeployment(deploymentId);
+			if (deployment == null) {
+				logger.log(String.format("Deployment not found for requested ID %s", deploymentId),
+						PiazzaLogger.WARNING);
+				return new ErrorResponse(null, String.format("Deployment not found: %s", deploymentId), "Access");
+			}
+
+			// Return the Data Resource item
+			logger.log(String.format("Returning Deployment Metadata for %s", deploymentId), PiazzaLogger.INFO);
+			return new DeploymentResponse(deployment);
+		} catch (Exception exception) {
+			exception.printStackTrace();
+			logger.log(String.format("Error fetching Deployment %s: %s", deploymentId, exception.getMessage()),
+					PiazzaLogger.ERROR);
+			return new ErrorResponse(null, "Error fetching Deployment: " + exception.getMessage(), "Access");
 		}
 	}
 
