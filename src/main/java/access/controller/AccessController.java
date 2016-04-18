@@ -239,18 +239,23 @@ public class AccessController {
 	 * @return The list of all data held by the system.
 	 */
 	@RequestMapping(value = "/data", method = RequestMethod.GET)
-	public DataResourceListResponse getAllData(
+	public PiazzaResponse getAllData(
 			@RequestParam(value = "page", required = false, defaultValue = DEFAULT_PAGE) Integer page,
 			@RequestParam(value = "per_page", required = false, defaultValue = DEFAULT_PAGE_SIZE) Integer pageSize) {
-		// Get a DB Cursor to the query for general data
-		DBCursor<DataResource> cursor = accessor.getDataResourceCollection().find();
-		Integer size = new Integer(cursor.size());
-		// Filter the data by pages
-		List<DataResource> data = cursor.skip(page * pageSize).limit(pageSize).toArray();
-		// Attach pagination information
-		Pagination pagination = new Pagination(size, page, pageSize);
-		// Create the Response and send back
-		return new DataResourceListResponse(data, pagination);
+		try {
+			// Get a DB Cursor to the query for general data
+			DBCursor<DataResource> cursor = accessor.getDataResourceCollection().find();
+			Integer size = new Integer(cursor.size());
+			// Filter the data by pages
+			List<DataResource> data = cursor.skip(page * pageSize).limit(pageSize).toArray();
+			// Attach pagination information
+			Pagination pagination = new Pagination(size, page, pageSize);
+			// Create the Response and send back
+			return new DataResourceListResponse(data, pagination);
+		} catch (Exception exception) {
+			logger.log(String.format("Error Querying Data: %s", exception.getMessage()), PiazzaLogger.ERROR);
+			return new ErrorResponse(null, "Error Querying Data: " + exception.getMessage(), "Access");
+		}
 	}
 
 	/**
