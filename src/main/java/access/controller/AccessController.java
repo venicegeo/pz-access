@@ -26,8 +26,10 @@ import model.data.FileRepresentation;
 import model.data.location.FileAccessFactory;
 import model.data.type.PostGISDataType;
 import model.data.type.TextDataType;
+import model.response.DataResourceListResponse;
 import model.response.DataResourceResponse;
 import model.response.ErrorResponse;
+import model.response.Pagination;
 import model.response.PiazzaResponse;
 
 import org.geotools.data.DataStore;
@@ -36,6 +38,7 @@ import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureIterator;
 import org.geotools.data.simple.SimpleFeatureSource;
 import org.geotools.geojson.feature.FeatureJSON;
+import org.mongojack.DBCursor;
 import org.opengis.feature.simple.SimpleFeature;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -236,11 +239,18 @@ public class AccessController {
 	 * @return The list of all data held by the system.
 	 */
 	@RequestMapping(value = "/data", method = RequestMethod.GET)
-	public List<DataResource> getAllData(
-			@RequestParam(value = "page", required = false, defaultValue = DEFAULT_PAGE) String page,
-			@RequestParam(value = "pageSize", required = false, defaultValue = DEFAULT_PAGE_SIZE) String pageSize) {
-		return accessor.getDataResourceCollection().find().skip(Integer.parseInt(page) * Integer.parseInt(pageSize))
-				.limit(Integer.parseInt(pageSize)).toArray();
+	public DataResourceListResponse getAllData(
+			@RequestParam(value = "page", required = false, defaultValue = DEFAULT_PAGE) Integer page,
+			@RequestParam(value = "per_page", required = false, defaultValue = DEFAULT_PAGE_SIZE) Integer pageSize) {
+		// Get a DB Cursor to the query for general data
+		DBCursor<DataResource> cursor = accessor.getDataResourceCollection().find();
+		Integer size = new Integer(cursor.size());
+		// Filter the data by pages
+		List<DataResource> data = cursor.skip(page * pageSize).limit(pageSize).toArray();
+		// Attach pagination information
+		Pagination pagination = new Pagination(size, page, pageSize);
+		// Create the Response and send back
+		return new DataResourceListResponse(data, pagination);
 	}
 
 	/**
