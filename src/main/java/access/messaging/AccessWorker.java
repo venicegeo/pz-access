@@ -57,25 +57,22 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  */
 @Component
 public class AccessWorker {
-
 	@Autowired
 	private Deployer deployer;
-
 	@Autowired
 	private MongoAccessor mongoAccessor;
-	
 	@Autowired
 	private Leaser leaser;
-	
 	@Autowired
 	private PiazzaLogger logger;
-	
+
 	/**
 	 * Listens for Kafka Access messages for creating Deployments for Access of
 	 * Resources
 	 */
 	@Async
-	public Future<AccessJob> run(ConsumerRecord<String, String> consumerRecord, Producer<String, String> producer, WorkerCallback callback) {
+	public Future<AccessJob> run(ConsumerRecord<String, String> consumerRecord, Producer<String, String> producer,
+			WorkerCallback callback) {
 		AccessJob accessJob = null;
 		try {
 			// Parse Job information from Kafka
@@ -94,54 +91,57 @@ public class AccessWorker {
 			// Depending on how the user wants to Access the Resource
 			switch (accessJob.getDeploymentType()) {
 
-				case AccessJob.ACCESS_TYPE_FILE:
-					// Return the URL that the user can use to acquire the file
-					statusUpdate = new StatusUpdate(StatusUpdate.STATUS_SUCCESS);
-					statusUpdate.setResult(new FileResult(accessJob.getDataId()));
-					producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate));
-	
-					// Console Logging
-					logger.log(String.format("GeoServer File Request successul for Resource %s", accessJob.getDataId()), PiazzaLogger.INFO);
-					System.out.println("Deployment File Request Returned for Resource " + accessJob.getDataId());
-					break;
+			case AccessJob.ACCESS_TYPE_FILE:
+				// Return the URL that the user can use to acquire the file
+				statusUpdate = new StatusUpdate(StatusUpdate.STATUS_SUCCESS);
+				statusUpdate.setResult(new FileResult(accessJob.getDataId()));
+				producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate));
 
-				case AccessJob.ACCESS_TYPE_GEOSERVER:
-					Deployment deployment = null;
+				// Console Logging
+				logger.log(String.format("GeoServer File Request successul for Resource %s", accessJob.getDataId()),
+						PiazzaLogger.INFO);
+				System.out.println("Deployment File Request Returned for Resource " + accessJob.getDataId());
+				break;
 
-					// Check if a Deployment already exists
-					boolean exists = deployer.doesDeploymentExist(accessJob.getDataId());
-					if (exists) {
-						System.out.println("Renewing Deployment Lease for " + accessJob.getDataId());
-						// If it does, then renew the Lease on the
-						// existing deployment.
-						deployment = mongoAccessor.getDeploymentByDataId(accessJob.getDataId());
-						leaser.renewDeploymentLease(deployment);
-					} else {
-						System.out.println("Creating a new Deployment and lease for " + accessJob.getDataId());
-						// Obtain the Data to be deployed
-						DataResource dataToDeploy = mongoAccessor.getData(accessJob.getDataId());
-						// Create the Deployment
-						deployment = deployer.createDeployment(dataToDeploy);
-						// Create a new Lease for this Deployment
-						leaser.createDeploymentLease(deployment);
-					}
+			case AccessJob.ACCESS_TYPE_GEOSERVER:
+				Deployment deployment = null;
 
-					// Update Job Status to complete for this Job.
-					statusUpdate = new StatusUpdate(StatusUpdate.STATUS_SUCCESS);
-					statusUpdate.setResult(new DeploymentResult(deployment));
-					producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate));
-	
-					// Console Logging
-					logger.log(String.format("GeoServer Deployment successul for Resource %s", accessJob.getDataId()), PiazzaLogger.INFO);
-					System.out.println("Deployment Successfully Returned for Resource " + accessJob.getDataId());
-					break;
+				// Check if a Deployment already exists
+				boolean exists = deployer.doesDeploymentExist(accessJob.getDataId());
+				if (exists) {
+					System.out.println("Renewing Deployment Lease for " + accessJob.getDataId());
+					// If it does, then renew the Lease on the
+					// existing deployment.
+					deployment = mongoAccessor.getDeploymentByDataId(accessJob.getDataId());
+					leaser.renewDeploymentLease(deployment);
+				} else {
+					System.out.println("Creating a new Deployment and lease for " + accessJob.getDataId());
+					// Obtain the Data to be deployed
+					DataResource dataToDeploy = mongoAccessor.getData(accessJob.getDataId());
+					// Create the Deployment
+					deployment = deployer.createDeployment(dataToDeploy);
+					// Create a new Lease for this Deployment
+					leaser.createDeploymentLease(deployment);
+				}
 
-				default:
-					throw new Exception("Unknown Deployment Type: " + accessJob.getDeploymentType());
+				// Update Job Status to complete for this Job.
+				statusUpdate = new StatusUpdate(StatusUpdate.STATUS_SUCCESS);
+				statusUpdate.setResult(new DeploymentResult(deployment));
+				producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate));
+
+				// Console Logging
+				logger.log(String.format("GeoServer Deployment successul for Resource %s", accessJob.getDataId()),
+						PiazzaLogger.INFO);
+				System.out.println("Deployment Successfully Returned for Resource " + accessJob.getDataId());
+				break;
+
+			default:
+				throw new Exception("Unknown Deployment Type: " + accessJob.getDeploymentType());
 			}
 		} catch (Exception exception) {
-			logger.log(String.format("Error Accessing Data under Job %s with Error: %s", consumerRecord.key(), exception.getMessage()),
-					PiazzaLogger.ERROR);
+			logger.log(
+					String.format("Error Accessing Data under Job %s with Error: %s", consumerRecord.key(),
+							exception.getMessage()), PiazzaLogger.ERROR);
 			exception.printStackTrace();
 			try {
 				// Send the failure message to the Job Manager.
@@ -151,14 +151,15 @@ public class AccessWorker {
 			} catch (JsonProcessingException jsonException) {
 				// If the Kafka message fails to send, at least log
 				// something in the console.
-				System.out.println("Could update Job Manager with failure event in Ingest Worker. Error creating message: "
-						+ jsonException.getMessage());
+				System.out
+						.println("Could update Job Manager with failure event in Ingest Worker. Error creating message: "
+								+ jsonException.getMessage());
 				jsonException.printStackTrace();
 			}
 		} finally {
 			callback.onComplete(consumerRecord.key());
 		}
-		
+
 		return new AsyncResult<AccessJob>(accessJob);
 	}
 }

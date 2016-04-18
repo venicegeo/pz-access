@@ -52,18 +52,15 @@ import util.PiazzaLogger;
 @Component
 public class AccessThreadManager {
 	private static final String ACCESS_TOPIC_NAME = "access";
-	
 	@Autowired
 	private PiazzaLogger logger;
-	
 	@Autowired
 	AccessWorker accessWorker;
-	
+
 	@Value("${vcap.services.pz-kafka.credentials.host}")
 	private String KAFKA_ADDRESS;
 	private String KAFKA_HOST;
 	private String KAFKA_PORT;
-	
 	@Value("${kafka.group}")
 	private String KAFKA_GROUP;
 
@@ -109,7 +106,8 @@ public class AccessThreadManager {
 	}
 
 	/**
-	 * Opens up a Kafka Consumer to poll for all Access Jobs that should be processed by this component.
+	 * Opens up a Kafka Consumer to poll for all Access Jobs that should be
+	 * processed by this component.
 	 */
 	public void pollAccessJobs() {
 		try {
@@ -123,7 +121,8 @@ public class AccessThreadManager {
 			};
 
 			// Create the General Group Consumer
-			Consumer<String, String> generalConsumer = KafkaClientFactory.getConsumer(KAFKA_HOST, KAFKA_PORT, KAFKA_GROUP);
+			Consumer<String, String> generalConsumer = KafkaClientFactory.getConsumer(KAFKA_HOST, KAFKA_PORT,
+					KAFKA_GROUP);
 			generalConsumer.subscribe(Arrays.asList(ACCESS_TOPIC_NAME));
 
 			// Poll
@@ -132,7 +131,8 @@ public class AccessThreadManager {
 				// Handle new Messages on this topic.
 				for (ConsumerRecord<String, String> consumerRecord : consumerRecords) {
 
-					// Create a new worker to process this message and add it to the thread pool.
+					// Create a new worker to process this message and add it to
+					// the thread pool.
 					Future<?> workerFuture = accessWorker.run(consumerRecord, producer, callback);
 
 					// Keep track of all Running Jobs
@@ -140,12 +140,14 @@ public class AccessThreadManager {
 				}
 			}
 		} catch (WakeupException exception) {
-			logger.log(String.format("Polling Thread forcefully closed: %s", exception.getMessage()), PiazzaLogger.FATAL);
+			logger.log(String.format("Polling Thread forcefully closed: %s", exception.getMessage()),
+					PiazzaLogger.FATAL);
 		}
 	}
 
 	/**
-	 * Begins listening for Abort Jobs. If a Job is owned by this component, then it will be terminated.
+	 * Begins listening for Abort Jobs. If a Job is owned by this component,
+	 * then it will be terminated.
 	 */
 	public void pollAbortJobs() {
 		try {
@@ -171,12 +173,14 @@ public class AccessThreadManager {
 				}
 			}
 		} catch (WakeupException exception) {
-			logger.log(String.format("Polling Thread forcefully closed: %s", exception.getMessage()), PiazzaLogger.FATAL);
+			logger.log(String.format("Polling Thread forcefully closed: %s", exception.getMessage()),
+					PiazzaLogger.FATAL);
 		}
 	}
 
 	/**
-	 * Returns a list of the Job IDs that are currently being processed by this instance
+	 * Returns a list of the Job IDs that are currently being processed by this
+	 * instance
 	 * 
 	 * @return The list of Job IDs
 	 */
