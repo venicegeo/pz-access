@@ -280,7 +280,7 @@ public class AccessController {
 	@RequestMapping(value = "/data", method = RequestMethod.GET)
 	public PiazzaResponse getAllData(
 			@RequestParam(value = "page", required = false, defaultValue = DEFAULT_PAGE) Integer page,
-			@RequestParam(value = "per_page", required = false, defaultValue = DEFAULT_PAGE_SIZE) Integer pageSize) {
+			@RequestParam(value = "pageSize", required = false, defaultValue = DEFAULT_PAGE_SIZE) Integer pageSize) {
 		try {
 			// Get a DB Cursor to the query for general data
 			DBCursor<DataResource> cursor = accessor.getDataResourceCollection().find();
