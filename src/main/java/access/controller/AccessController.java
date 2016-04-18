@@ -23,11 +23,15 @@ import java.util.Map;
 
 import model.data.DataResource;
 import model.data.FileRepresentation;
+import model.data.deployment.Deployment;
 import model.data.location.FileAccessFactory;
 import model.data.type.PostGISDataType;
 import model.data.type.TextDataType;
+import model.response.DataResourceListResponse;
 import model.response.DataResourceResponse;
+import model.response.DeploymentResponse;
 import model.response.ErrorResponse;
+import model.response.Pagination;
 import model.response.PiazzaResponse;
 
 import org.geotools.data.DataStore;
@@ -36,6 +40,7 @@ import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureIterator;
 import org.geotools.data.simple.SimpleFeatureSource;
 import org.geotools.geojson.feature.FeatureJSON;
+import org.mongojack.DBCursor;
 import org.opengis.feature.simple.SimpleFeature;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -226,6 +231,43 @@ public class AccessController {
 	}
 
 	/**
+	 * Gets Deployment information for an active deployment, including URL and
+	 * Data ID.
+	 * 
+	 * @see http://pz-swagger.stage.geointservices.io/#!/Deployment/
+	 *      get_deployment_deploymentId
+	 * 
+	 * @param deploymentId
+	 *            The ID of the deployment to fetch
+	 * @return The deployment information, or an ErrorResponse if exceptions
+	 *         occur
+	 */
+	@RequestMapping(value = "/deployment/{deploymentId}", method = RequestMethod.GET)
+	public PiazzaResponse getDeployment(@PathVariable(value = "deploymentId") String deploymentId) {
+		try {
+			if (deploymentId.isEmpty()) {
+				throw new Exception("No Deployment ID specified.");
+			}
+			// Query for the Data ID
+			Deployment deployment = accessor.getDeployment(deploymentId);
+			if (deployment == null) {
+				logger.log(String.format("Deployment not found for requested ID %s", deploymentId),
+						PiazzaLogger.WARNING);
+				return new ErrorResponse(null, String.format("Deployment not found: %s", deploymentId), "Access");
+			}
+
+			// Return the Data Resource item
+			logger.log(String.format("Returning Deployment Metadata for %s", deploymentId), PiazzaLogger.INFO);
+			return new DeploymentResponse(deployment);
+		} catch (Exception exception) {
+			exception.printStackTrace();
+			logger.log(String.format("Error fetching Deployment %s: %s", deploymentId, exception.getMessage()),
+					PiazzaLogger.ERROR);
+			return new ErrorResponse(null, "Error fetching Deployment: " + exception.getMessage(), "Access");
+		}
+	}
+
+	/**
 	 * Returns all Data held by the Piazza Ingest/Access components. This
 	 * corresponds with the items in the Mongo db.Resources collection.
 	 * 
@@ -236,11 +278,23 @@ public class AccessController {
 	 * @return The list of all data held by the system.
 	 */
 	@RequestMapping(value = "/data", method = RequestMethod.GET)
-	public List<DataResource> getAllData(
-			@RequestParam(value = "page", required = false, defaultValue = DEFAULT_PAGE) String page,
-			@RequestParam(value = "pageSize", required = false, defaultValue = DEFAULT_PAGE_SIZE) String pageSize) {
-		return accessor.getDataResourceCollection().find().skip(Integer.parseInt(page) * Integer.parseInt(pageSize))
-				.limit(Integer.parseInt(pageSize)).toArray();
+	public PiazzaResponse getAllData(
+			@RequestParam(value = "page", required = false, defaultValue = DEFAULT_PAGE) Integer page,
+			@RequestParam(value = "pageSize", required = false, defaultValue = DEFAULT_PAGE_SIZE) Integer pageSize) {
+		try {
+			// Get a DB Cursor to the query for general data
+			DBCursor<DataResource> cursor = accessor.getDataResourceCollection().find();
+			Integer size = new Integer(cursor.size());
+			// Filter the data by pages
+			List<DataResource> data = cursor.skip(page * pageSize).limit(pageSize).toArray();
+			// Attach pagination information
+			Pagination pagination = new Pagination(size, page, pageSize);
+			// Create the Response and send back
+			return new DataResourceListResponse(data, pagination);
+		} catch (Exception exception) {
+			logger.log(String.format("Error Querying Data: %s", exception.getMessage()), PiazzaLogger.ERROR);
+			return new ErrorResponse(null, "Error Querying Data: " + exception.getMessage(), "Access");
+		}
 	}
 
 	/**

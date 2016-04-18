@@ -154,6 +154,28 @@ public class MongoAccessor {
 	}
 
 	/**
+	 * Gets a Deployment by its unique ID.
+	 * 
+	 * @param deploymentId
+	 *            The deployment ID
+	 * @return The Deployment
+	 */
+	public Deployment getDeployment(String deploymentId) {
+		BasicDBObject query = new BasicDBObject("id", deploymentId);
+		Deployment deployment;
+
+		try {
+			if ((deployment = getDeploymentCollection().findOne(query)) == null) {
+				return null;
+			}
+		} catch (MongoTimeoutException mte) {
+			throw new MongoException("MongoDB instance not available.");
+		}
+
+		return deployment;
+	}
+
+	/**
 	 * Updates the Expiration date for the Lease.
 	 * 
 	 * @param leaseId
