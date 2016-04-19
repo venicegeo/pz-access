@@ -21,9 +21,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.annotation.PostConstruct;
@@ -42,9 +40,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import util.PiazzaLogger;
-import access.database.MongoAccessor;
-import access.deploy.Deployer;
-import access.deploy.Leaser;
 
 /**
  * Manager class for Access Jobs. Handles an incoming Access Job request by
@@ -60,19 +55,16 @@ public class AccessThreadManager {
 	@Autowired
 	private PiazzaLogger logger;
 	@Autowired
-	private Deployer deployer;
-	@Autowired
-	private Leaser leaser;
-	@Autowired
-	private MongoAccessor accessor;
+	AccessWorker accessWorker;
+
 	@Value("${vcap.services.pz-kafka.credentials.host}")
 	private String KAFKA_ADDRESS;
 	private String KAFKA_HOST;
 	private String KAFKA_PORT;
 	@Value("${kafka.group}")
 	private String KAFKA_GROUP;
+
 	private Producer<String, String> producer;
-	private ThreadPoolExecutor executor;
 	private Map<String, Future<?>> runningJobs;
 	private final AtomicBoolean closed = new AtomicBoolean(false);
 
@@ -92,12 +84,11 @@ public class AccessThreadManager {
 		KAFKA_PORT = KAFKA_ADDRESS.split(":")[1];
 		producer = KafkaClientFactory.getProducer(KAFKA_HOST, KAFKA_PORT);
 
-		// Initialize the Thread Pool and Map of running Threads
-		executor = (ThreadPoolExecutor) Executors.newCachedThreadPool();
+		// Initialize the Map of running Threads
 		runningJobs = new HashMap<String, Future<?>>();
 
-		// Start polling for Kafka Jobs on the Group Consumer.. This occurs on a
-		// separate Thread so as not to block Spring.
+		// Start polling for Kafka Jobs on the Group Consumer.
+		// Occurs on a separate Thread to not block Spring.
 		Thread accessJobsThread = new Thread() {
 			public void run() {
 				pollAccessJobs();
@@ -139,11 +130,10 @@ public class AccessThreadManager {
 				ConsumerRecords<String, String> consumerRecords = generalConsumer.poll(1000);
 				// Handle new Messages on this topic.
 				for (ConsumerRecord<String, String> consumerRecord : consumerRecords) {
+
 					// Create a new worker to process this message and add it to
 					// the thread pool.
-					AccessWorker accessWorker = new AccessWorker(consumerRecord, producer, accessor, deployer, leaser,
-							callback, logger);
-					Future<?> workerFuture = executor.submit(accessWorker);
+					Future<?> workerFuture = accessWorker.run(consumerRecord, producer, callback);
 
 					// Keep track of all Running Jobs
 					runningJobs.put(consumerRecord.key(), workerFuture);
