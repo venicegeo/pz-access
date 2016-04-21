@@ -63,6 +63,8 @@ public class AccessThreadManager {
 	private String KAFKA_PORT;
 	@Value("${kafka.group}")
 	private String KAFKA_GROUP;
+	@Value("${space}")
+	private String space;
 
 	private Producer<String, String> producer;
 	private Map<String, Future<?>> runningJobs;
@@ -123,7 +125,7 @@ public class AccessThreadManager {
 			// Create the General Group Consumer
 			Consumer<String, String> generalConsumer = KafkaClientFactory.getConsumer(KAFKA_HOST, KAFKA_PORT,
 					KAFKA_GROUP);
-			generalConsumer.subscribe(Arrays.asList(ACCESS_TOPIC_NAME));
+			generalConsumer.subscribe(Arrays.asList(String.format("%s-%s", ACCESS_TOPIC_NAME, space)));
 
 			// Poll
 			while (!closed.get()) {
@@ -154,7 +156,8 @@ public class AccessThreadManager {
 			// Create the Unique Consumer
 			Consumer<String, String> uniqueConsumer = KafkaClientFactory.getConsumer(KAFKA_HOST, KAFKA_PORT,
 					String.format("%s-%s", KAFKA_GROUP, UUID.randomUUID().toString()));
-			uniqueConsumer.subscribe(Arrays.asList(JobMessageFactory.ABORT_JOB_TOPIC_NAME));
+			uniqueConsumer.subscribe(Arrays.asList(String
+					.format("%s-%s", JobMessageFactory.ABORT_JOB_TOPIC_NAME, space)));
 
 			// Poll
 			while (!closed.get()) {
