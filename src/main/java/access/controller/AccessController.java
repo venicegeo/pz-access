@@ -20,6 +20,7 @@ import java.io.StringWriter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 import model.data.DataResource;
 import model.data.FileRepresentation;
@@ -41,6 +42,7 @@ import org.geotools.data.simple.SimpleFeatureIterator;
 import org.geotools.data.simple.SimpleFeatureSource;
 import org.geotools.geojson.feature.FeatureJSON;
 import org.mongojack.DBCursor;
+import org.mongojack.DBQuery;
 import org.opengis.feature.simple.SimpleFeature;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -280,10 +282,13 @@ public class AccessController {
 	@RequestMapping(value = "/data", method = RequestMethod.GET)
 	public PiazzaResponse getAllData(
 			@RequestParam(value = "page", required = false, defaultValue = DEFAULT_PAGE) Integer page,
-			@RequestParam(value = "pageSize", required = false, defaultValue = DEFAULT_PAGE_SIZE) Integer pageSize) {
+			@RequestParam(value = "pageSize", required = false, defaultValue = DEFAULT_PAGE_SIZE) Integer pageSize,
+			@RequestParam(value = "keyword", required = false) String keyword) {
 		try {
+			Pattern regex = Pattern.compile(String.format("(?i)%s", keyword != null ? keyword : ""));
 			// Get a DB Cursor to the query for general data
-			DBCursor<DataResource> cursor = accessor.getDataResourceCollection().find();
+			DBCursor<DataResource> cursor = accessor.getDataResourceCollection().find()
+					.or(DBQuery.regex("metadata.name", regex), DBQuery.regex("metadata.description", regex));
 			Integer size = new Integer(cursor.size());
 			// Filter the data by pages
 			List<DataResource> data = cursor.skip(page * pageSize).limit(pageSize).toArray();
