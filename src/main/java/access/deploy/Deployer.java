@@ -205,13 +205,7 @@ public class Deployer {
 		}
 		S3FileStore fileStore = (S3FileStore) fileLocation;
 		// Get AWS Client
-		AmazonS3 s3client;
-		if ((AMAZONS3_ACCESS_KEY.isEmpty()) && (AMAZONS3_PRIVATE_KEY.isEmpty())) {
-			s3client = new AmazonS3Client();
-		} else {
-			BasicAWSCredentials credentials = new BasicAWSCredentials(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY);
-			s3client = new AmazonS3Client(credentials);
-		}
+		AmazonS3 s3client = new AmazonS3Client(new BasicAWSCredentials(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY));
 		// Copy the file to the GeoServer S3 Bucket
 		logger.log(
 				String.format(
