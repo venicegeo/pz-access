@@ -76,9 +76,9 @@ public class Deployer {
 	private String GEOSERVER_PASSWORD;
 	@Value("${vcap.services.pz-geoserver.s3.bucket}")
 	private String GEOSERVER_DATA_DIRECTORY;
-	@Value("${vcap.services.pz-geoserver.s3.access_key_id:}")
+	@Value("${vcap.services.pz-geoserver.s3.access_key_id}")
 	private String AMAZONS3_ACCESS_KEY;
-	@Value("${vcap.services.pz-geoserver.s3.secret_access_key:}")
+	@Value("${vcap.services.pz-geoserver.s3.secret_access_key}")
 	private String AMAZONS3_PRIVATE_KEY;
 
 	private static final String HOST_ADDRESS = "http://%s:%s%s";
