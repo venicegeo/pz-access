@@ -15,19 +15,17 @@
  **/
 package access.deploy;
 
-import java.io.File;
 import java.io.IOException;
 
 import model.data.DataResource;
 import model.data.deployment.Deployment;
-import model.data.location.FileAccessFactory;
 import model.data.location.FileLocation;
+import model.data.location.S3FileStore;
 import model.data.type.PostGISDataType;
 import model.data.type.RasterDataType;
 import model.data.type.ShapefileDataType;
 import model.data.type.WfsDataType;
 
-import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.tomcat.util.codec.binary.Base64;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -44,6 +42,10 @@ import org.springframework.web.client.RestTemplate;
 import util.PiazzaLogger;
 import util.UUIDFactory;
 import access.database.MongoAccessor;
+
+import com.amazonaws.auth.BasicAWSCredentials;
+import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.AmazonS3Client;
 
 /**
  * Class that manages the GeoServer Deployments held by this component. This is
@@ -64,15 +66,15 @@ public class Deployer {
 	private UUIDFactory uuidFactory;
 	@Autowired
 	private MongoAccessor accessor;
-	@Value("${vcap.services.pz-geoserver.credentials.host}")
+	@Value("${vcap.services.pz-geoserver.geoserver.host}")
 	private String GEOSERVER_HOST;
-	@Value("${vcap.services.pz-geoserver.credentials.port}")
+	@Value("${vcap.services.pz-geoserver.geoserver.port}")
 	private String GEOSERVER_PORT;
-	@Value("${vcap.services.pz-geoserver.credentials.username}")
+	@Value("${vcap.services.pz-geoserver.geoserver.username}")
 	private String GEOSERVER_USERNAME;
-	@Value("${vcap.services.pz-geoserver.credentials.password}")
+	@Value("${vcap.services.pz-geoserver.geoserver.password}")
 	private String GEOSERVER_PASSWORD;
-	@Value("${geoserver.data.directory}")
+	@Value("${vcap.services.pz-geoserver.s3.bucket}")
 	private String GEOSERVER_DATA_DIRECTORY;
 	@Value("${vcap.services.pz-blobstore.credentials.access:}")
 	private String AMAZONS3_ACCESS_KEY;
@@ -187,7 +189,7 @@ public class Deployer {
 	}
 
 	/**
-	 * Will copy file to geoserver data directory, and return direct path
+	 * Will copy file to geoserver data directory, and return the file name.
 	 * 
 	 * @param fileLocation
 	 *            Interface to get file info from.
@@ -196,20 +198,31 @@ public class Deployer {
 	 * @throws IOException
 	 */
 	private String copyFileToGeoServerData(FileLocation fileLocation) throws IOException, Exception {
-		// Get file stream from AWS S3
-		FileAccessFactory fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY);
-		File file = new File(GEOSERVER_DATA_DIRECTORY, fileLocation.getFileName());
-		FileUtils.copyInputStreamToFile(fileFactory.getFile(fileLocation), file);
-		// Create the Physical File on Disk
-		file.createNewFile();
-
-		return file.getAbsolutePath();
+		// Ensure the FileLocation is an S3 Bucket. Otherwise, we're not able to
+		// deploy.
+		if (fileLocation instanceof S3FileStore == false) {
+			throw new Exception("Cannot deploy this location because it does not reside in S3.");
+		}
+		S3FileStore fileStore = (S3FileStore) fileLocation;
+		// Get AWS Client
+		AmazonS3 s3client;
+		if ((AMAZONS3_ACCESS_KEY.isEmpty()) && (AMAZONS3_PRIVATE_KEY.isEmpty())) {
+			s3client = new AmazonS3Client();
+		} else {
+			BasicAWSCredentials credentials = new BasicAWSCredentials(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY);
+			s3client = new AmazonS3Client(credentials);
+		}
+		// Copy the file to the GeoServer S3 Bucket
+		s3client.copyObject(fileStore.getBucketName(), fileStore.getFileName(), GEOSERVER_DATA_DIRECTORY,
+				fileStore.getFileName());
+		// File name
+		return fileStore.getFileName();
 	}
 
 	/**
 	 * Deploys a GeoTIFF resource to GeoServer. This will create a new GeoServer
 	 * data store and layer. GeoTIFF file assumed to reside under data directory
-	 * of GeoServer
+	 * of GeoServer at this point.
 	 * 
 	 * @param dataResource
 	 *            The DataResource to deploy.
@@ -218,10 +231,10 @@ public class Deployer {
 	private Deployment deployGeoTiff(DataResource dataResource) throws Exception {
 		// Copy GeoTIFF from AWS S3 to Data Directory of GeoServer
 		FileLocation fileLocation = ((RasterDataType) dataResource.getDataType()).getLocation();
-		String dataStoreFileLocation = copyFileToGeoServerData(fileLocation);
+		String dataStoreFileName = copyFileToGeoServerData(fileLocation);
 
 		// Create Data Store in GeoServer for a given resource
-		createGeoTiffDataStore(dataResource, GEOSERVER_DEFAULT_WORKSPACE, dataStoreFileLocation);
+		createGeoTiffDataStore(dataResource, GEOSERVER_DEFAULT_WORKSPACE, dataStoreFileName);
 
 		// Create Layer in GeoServer for a given resource
 		createCoverageLayer(dataResource, GEOSERVER_DEFAULT_WORKSPACE);
@@ -246,20 +259,22 @@ public class Deployer {
 	 *            The description of the new data store
 	 * @param workspace
 	 *            The workspace to use to place data store under
-	 * @param dataStoreFileLocation
-	 *            The path of the raster file to use for data store
+	 * @param dataStoreFileName
+	 *            The file name of the raster file to use for data store
 	 * 
 	 */
-	private void createGeoTiffDataStore(DataResource dataResource, String workspaceName, String dataStoreFileLocation)
+	private void createGeoTiffDataStore(DataResource dataResource, String workspaceName, String dataStoreFileName)
 			throws Exception {
 		// Load template
 		ClassLoader classLoader = getClass().getClassLoader();
 		String dataStoreTemplate = IOUtils.toString(classLoader
 				.getResourceAsStream("templates/coverageStoreTypeRequest.xml"));
 
-		// Inject Metadata from the Data Resource into the Data Store Payload
+		// Inject Metadata from the Data Resource into the Data Store Payload.
+		// Log this to console for traceability.
 		String dataStoreRequestBody = String.format(dataStoreTemplate, dataResource.getDataId(),
-				"piazza generated data store", workspaceName, dataStoreFileLocation);
+				"piazza generated data store", workspaceName, dataStoreFileName);
+		System.out.println(dataStoreRequestBody);
 
 		// Execute the POST to GeoServer to add the data store
 		HttpStatus statusCode = postGeoServerFeatureType(DATA_STORE_ENDPOINT, dataStoreRequestBody);
