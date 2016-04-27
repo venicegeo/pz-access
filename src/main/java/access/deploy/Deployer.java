@@ -66,19 +66,19 @@ public class Deployer {
 	private UUIDFactory uuidFactory;
 	@Autowired
 	private MongoAccessor accessor;
-	@Value("${vcap.services.pz-geoserver.geoserver.host}")
+	@Value("${vcap.services.pz-geoserver.credentials.geoserver.host}")
 	private String GEOSERVER_HOST;
-	@Value("${vcap.services.pz-geoserver.geoserver.port}")
+	@Value("${vcap.services.pz-geoserver.credentials.geoserver.port}")
 	private String GEOSERVER_PORT;
-	@Value("${vcap.services.pz-geoserver.geoserver.username}")
+	@Value("${vcap.services.pz-geoserver.credentials.geoserver.username}")
 	private String GEOSERVER_USERNAME;
-	@Value("${vcap.services.pz-geoserver.geoserver.password}")
+	@Value("${vcap.services.pz-geoserver.credentials.geoserver.password}")
 	private String GEOSERVER_PASSWORD;
-	@Value("${vcap.services.pz-geoserver.s3.bucket}")
+	@Value("${vcap.services.pz-geoserver.credentials.s3.bucket}")
 	private String GEOSERVER_DATA_DIRECTORY;
-	@Value("${vcap.services.pz-geoserver.s3.access_key_id}")
+	@Value("${vcap.services.pz-geoserver.credentials.s3.access_key_id}")
 	private String AMAZONS3_ACCESS_KEY;
-	@Value("${vcap.services.pz-geoserver.s3.secret_access_key}")
+	@Value("${vcap.services.pz-geoserver.credentials.s3.secret_access_key}")
 	private String AMAZONS3_PRIVATE_KEY;
 
 	private static final String HOST_ADDRESS = "http://%s:%s%s";
