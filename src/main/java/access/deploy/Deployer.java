@@ -66,7 +66,7 @@ public class Deployer {
 	private UUIDFactory uuidFactory;
 	@Autowired
 	private MongoAccessor accessor;
-	@Value("${vcap.services.pz-geoserver.credentials.geoserver.host}")
+	@Value("${vcap.services.pz-geoserver.credentials.geoserver.hostname}")
 	private String GEOSERVER_HOST;
 	@Value("${vcap.services.pz-geoserver.credentials.geoserver.port}")
 	private String GEOSERVER_PORT;
