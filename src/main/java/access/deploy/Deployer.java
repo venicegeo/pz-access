@@ -213,6 +213,11 @@ public class Deployer {
 			s3client = new AmazonS3Client(credentials);
 		}
 		// Copy the file to the GeoServer S3 Bucket
+		logger.log(
+				String.format(
+						"Preparing to deploy Raster service. Moving file %s:%s from Piazza bucket into GeoServer bucket at %s:%s",
+						fileStore.getBucketName(), fileStore.getFileName(), GEOSERVER_DATA_DIRECTORY,
+						fileStore.getFileName()), PiazzaLogger.INFO);
 		s3client.copyObject(fileStore.getBucketName(), fileStore.getFileName(), GEOSERVER_DATA_DIRECTORY,
 				fileStore.getFileName());
 		// File name
