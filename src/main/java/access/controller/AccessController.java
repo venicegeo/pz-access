@@ -119,69 +119,39 @@ public class AccessController {
 	 *            be downloaded.
 	 */
 	@RequestMapping(value = "/file/{dataId}", method = RequestMethod.GET)
-	public ResponseEntity<byte[]> accessFile(@PathVariable(value = "dataId") String dataId, @RequestParam(value = "filename", required = false) String name) throws Exception {
+	public ResponseEntity<byte[]> accessFile(@PathVariable(value = "dataId") String dataId,
+			@RequestParam(value = "filename", required = false) String name) throws Exception {
 		// Get the DataResource item
 		DataResource data = accessor.getData(dataId);
-		String fileName = (StringUtils.isNullOrEmpty(name))?(dataId):(name);
-		
+		String fileName = (StringUtils.isNullOrEmpty(name)) ? (dataId) : (name);
+
 		if (data == null) {
 			String message = String.format("Data not found for requested ID %s", dataId);
 			logger.log(message, PiazzaLogger.WARNING);
 			throw new Exception(message);
 		}
 
-		StringBuilder geoJSON = new StringBuilder();
 		if (data.getDataType() instanceof TextDataType) {
+			
 			// Stream the Bytes back
 			TextDataType textData = (TextDataType) data.getDataType();
-			HttpHeaders header = new HttpHeaders();
-			header.setContentType(MediaType.TEXT_PLAIN);
-			header.set("Content-Disposition", "attachment; filename=" + fileName + ".txt");
-			header.setContentLength(textData.getContent().getBytes().length);
-			return new ResponseEntity<byte[]>(textData.getContent().getBytes(), header, HttpStatus.OK);
+			return getResponse(MediaType.TEXT_PLAIN, String.format("%s%s", fileName, ".txt"), textData.getContent().getBytes());
 		} else if (data.getDataType() instanceof PostGISDataType) {
-			// Connect to POSTGIS and gather geoJSON info
-			DataStore postGisStore = GeoToolsUtil.getPostGisDataStore(POSTGRES_HOST, POSTGRES_PORT, POSTGRES_SCHEMA,
-					POSTGRES_DB_NAME, POSTGRES_USER, POSTGRES_PASSWORD);
-
-			PostGISDataType resource = (PostGISDataType) (data.getDataType());
-			SimpleFeatureSource simpleFeatureSource = postGisStore.getFeatureSource(resource.getTable());
-			SimpleFeatureCollection simpleFeatureCollection = simpleFeatureSource.getFeatures(Query.ALL);
-			SimpleFeatureIterator simpleFeatureIterator = simpleFeatureCollection.features();
-
-			try {
-				while (simpleFeatureIterator.hasNext()) {
-					SimpleFeature simpleFeature = simpleFeatureIterator.next();
-					FeatureJSON featureJSON = new FeatureJSON();
-					StringWriter writer = new StringWriter();
-
-					featureJSON.writeFeature(simpleFeature, writer);
-					String json = writer.toString();
-
-					// Append each section
-					geoJSON.append(json);
-				}
-			} finally {
-				simpleFeatureIterator.close();
-			}
-
+			
+			// Obtain geoJSON from postGIS
+			StringBuilder geoJSON = getPostGISGeoJSON(data);
+			
 			// Log the Request
-			logger.log(String.format("Returning Bytes for %s of length %s", dataId, geoJSON.length()),
-					PiazzaLogger.INFO);
+			logger.log(String.format("Returning Bytes for %s of length %s", dataId, geoJSON.length()), PiazzaLogger.INFO);
 
 			// Stream the Bytes back
-			HttpHeaders header = new HttpHeaders();
-			header.setContentType(MediaType.TEXT_PLAIN);
-			header.set("Content-Disposition",
-					"attachment; filename=" + ((PostGISDataType) data.getDataType()).getTable());
-			header.setContentLength(geoJSON.length());
-			return new ResponseEntity<byte[]>(geoJSON.toString().getBytes(), header, HttpStatus.OK);
+			return getResponse(MediaType.TEXT_PLAIN, ((PostGISDataType) data.getDataType()).getTable(), geoJSON.toString().getBytes());
 		} else if (!(data.getDataType() instanceof FileRepresentation)) {
-			String message = String.format("File download not available for Data ID %s; type is %s", dataId, data
-					.getDataType().getType());
+			String message = String.format("File download not available for Data ID %s; type is %s", dataId, data.getDataType().getType());
 			logger.log(message, PiazzaLogger.WARNING);
 			throw new Exception(message);
 		} else {
+			
 			// Get the File Bytes from wherever the File Location
 			FileAccessFactory fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY);
 			InputStream byteStream = fileFactory.getFile(((FileRepresentation) data.getDataType()).getLocation());
@@ -198,14 +168,10 @@ public class AccessController {
 			}
 
 			// Stream the Bytes back
-			HttpHeaders header = new HttpHeaders();
-			header.setContentType(MediaType.APPLICATION_OCTET_STREAM);
-			header.set("Content-Disposition", "attachment; filename=" + fileName);
-			header.setContentLength(bytes.length);
-			return new ResponseEntity<byte[]>(bytes, header, HttpStatus.OK);
+			return getResponse(MediaType.APPLICATION_OCTET_STREAM, fileName, bytes);
 		}
 	}
-
+	
 	/**
 	 * Returns the Data resource object from the Resources collection.
 	 * 
@@ -347,5 +313,58 @@ public class AccessController {
 		// Return information on the jobs currently being processed
 		stats.put("jobs", threadManager.getRunningJobIDs());
 		return new ResponseEntity<Map<String, Object>>(stats, HttpStatus.OK);
+	}
+	
+	/**
+	 * @param type
+	 *            MediaType to set http header content type
+	 * @param fileName
+	 *            file name to set for content disposition
+	 * @param bytes
+	 *            file bytes
+	 * @return ResponseEntity
+	 */
+	private ResponseEntity<byte[]> getResponse(MediaType type, String fileName, byte[] bytes) {
+		HttpHeaders header = new HttpHeaders();
+		header.setContentType(type);
+		header.set("Content-Disposition", "attachment; filename=" + fileName);
+		header.setContentLength(bytes.length);
+		return new ResponseEntity<byte[]>(bytes, header, HttpStatus.OK);
+	}
+
+	/**
+	 * @param data
+	 *            DataResource object
+	 * @return stringbuilder of geojson
+	 * @throws Exception
+	 */
+	private StringBuilder getPostGISGeoJSON(DataResource data) throws Exception {
+		// Connect to POSTGIS and gather geoJSON info
+		DataStore postGisStore = GeoToolsUtil.getPostGisDataStore(POSTGRES_HOST, POSTGRES_PORT, POSTGRES_SCHEMA, POSTGRES_DB_NAME,
+				POSTGRES_USER, POSTGRES_PASSWORD);
+
+		PostGISDataType resource = (PostGISDataType) (data.getDataType());
+		SimpleFeatureSource simpleFeatureSource = postGisStore.getFeatureSource(resource.getTable());
+		SimpleFeatureCollection simpleFeatureCollection = simpleFeatureSource.getFeatures(Query.ALL);
+		SimpleFeatureIterator simpleFeatureIterator = simpleFeatureCollection.features();
+
+		StringBuilder geoJSON = new StringBuilder();
+		try {
+			while (simpleFeatureIterator.hasNext()) {
+				SimpleFeature simpleFeature = simpleFeatureIterator.next();
+				FeatureJSON featureJSON = new FeatureJSON();
+				StringWriter writer = new StringWriter();
+
+				featureJSON.writeFeature(simpleFeature, writer);
+				String json = writer.toString();
+
+				// Append each section
+				geoJSON.append(json);
+			}
+		} finally {
+			simpleFeatureIterator.close();
+		}
+
+		return geoJSON;
 	}
 }
