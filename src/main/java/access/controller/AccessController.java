@@ -57,6 +57,8 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.amazonaws.util.StringUtils;
+
 import util.GeoToolsUtil;
 import util.PiazzaLogger;
 import access.database.MongoAccessor;
@@ -117,9 +119,11 @@ public class AccessController {
 	 *            be downloaded.
 	 */
 	@RequestMapping(value = "/file/{dataId}", method = RequestMethod.GET)
-	public ResponseEntity<byte[]> accessFile(@PathVariable(value = "dataId") String dataId) throws Exception {
+	public ResponseEntity<byte[]> accessFile(@PathVariable(value = "dataId") String dataId, @RequestParam(value = "filename", required = false) String name) throws Exception {
 		// Get the DataResource item
 		DataResource data = accessor.getData(dataId);
+		String fileName = (StringUtils.isNullOrEmpty(name))?(dataId):(name);
+		
 		if (data == null) {
 			String message = String.format("Data not found for requested ID %s", dataId);
 			logger.log(message, PiazzaLogger.WARNING);
@@ -132,7 +136,7 @@ public class AccessController {
 			TextDataType textData = (TextDataType) data.getDataType();
 			HttpHeaders header = new HttpHeaders();
 			header.setContentType(MediaType.TEXT_PLAIN);
-			header.set("Content-Disposition", "attachment; filename=" + dataId + ".txt");
+			header.set("Content-Disposition", "attachment; filename=" + fileName + ".txt");
 			header.setContentLength(textData.getContent().getBytes().length);
 			return new ResponseEntity<byte[]>(textData.getContent().getBytes(), header, HttpStatus.OK);
 		} else if (data.getDataType() instanceof PostGISDataType) {
@@ -187,7 +191,7 @@ public class AccessController {
 			logger.log(String.format("Returning Bytes for %s of length %s", dataId, bytes.length), PiazzaLogger.INFO);
 
 			// Get the file name.
-			String fileName = ((FileRepresentation) data.getDataType()).getLocation().getFileName();
+			fileName = ((FileRepresentation) data.getDataType()).getLocation().getFileName();
 			// Strip out the Job ID GUID in the file name.
 			if (fileName.length() > 37) {
 				fileName = fileName.substring(37, fileName.length());
