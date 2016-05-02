@@ -21,6 +21,7 @@ import model.data.DataResource;
 import model.data.deployment.Deployment;
 import model.data.location.FileLocation;
 import model.data.location.S3FileStore;
+import model.data.type.GeoJsonDataType;
 import model.data.type.PostGISDataType;
 import model.data.type.RasterDataType;
 import model.data.type.ShapefileDataType;
@@ -102,7 +103,8 @@ public class Deployer {
 		Deployment deployment;
 		try {
 			if ((dataResource.getDataType() instanceof ShapefileDataType)
-					|| (dataResource.getDataType() instanceof PostGISDataType)) {
+					|| (dataResource.getDataType() instanceof PostGISDataType)
+					|| (dataResource.getDataType() instanceof GeoJsonDataType)) {
 				// Deploy from an existing PostGIS Table
 				deployment = deployPostGisTable(dataResource);
 			} else if (dataResource.getDataType() instanceof WfsDataType) {
@@ -159,6 +161,8 @@ public class Deployer {
 			tableName = ((ShapefileDataType) dataResource.getDataType()).getDatabaseTableName();
 		} else if (dataResource.getDataType() instanceof PostGISDataType) {
 			tableName = ((PostGISDataType) dataResource.getDataType()).getTable();
+		} else if (dataResource.getDataType() instanceof GeoJsonDataType) {
+			tableName = ((GeoJsonDataType) dataResource.getDataType()).databaseTableName;
 		}
 
 		// Inject the Metadata from the Data Resource into the Payload
