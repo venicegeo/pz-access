@@ -273,11 +273,6 @@ public class AccessController {
 	/**
 	 * Returns all Data held by the Piazza Ingest/Access components. This
 	 * corresponds with the items in the Mongo db.Resources collection.
-	 * 
-	 * This is intended to be used by the Swiss-Army-Knife (SAK) administration
-	 * application for reporting the status of this Job Manager component. It is
-	 * not used in normal function of the Job Manager.
-	 * 
 	 * @return The list of all data held by the system.
 	 */
 	@RequestMapping(value = "/data", method = RequestMethod.GET)
@@ -337,10 +332,6 @@ public class AccessController {
 
 	/**
 	 * Returns the Number of Data Resources in the piazza system.
-	 * 
-	 * This is intended to be used by the Swiss-Army-Knife (SAK) administration
-	 * application for reporting the status of this Job Manager component. It is
-	 * not used in normal function of the Job Manager.
 	 * 
 	 * @return Number of Data items in the system.
 	 */
