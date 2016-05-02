@@ -155,7 +155,7 @@ public class AccessWorker {
 				// If the Kafka message fails to send, at least log
 				// something in the console.
 				System.out
-						.println("Could update Job Manager with failure event in Ingest Worker. Error creating message: "
+						.println("Could not update Job Manager with failure event in Ingest Worker. Error creating message: "
 								+ jsonException.getMessage());
 				jsonException.printStackTrace();
 			}
