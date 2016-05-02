@@ -330,8 +330,8 @@ public class AccessController {
 			// Create the Response and send back
 			return new DeploymentListResponse(data, pagination);
 		} catch (Exception exception) {
-			logger.log(String.format("Error Querying Data: %s", exception.getMessage()), PiazzaLogger.ERROR);
-			return new ErrorResponse(null, "Error Querying Data: " + exception.getMessage(), "Access");
+			logger.log(String.format("Error Querying Deployment: %s", exception.getMessage()), PiazzaLogger.ERROR);
+			return new ErrorResponse(null, "Error Querying Deployment: " + exception.getMessage(), "Access");
 		}
 	}
 
