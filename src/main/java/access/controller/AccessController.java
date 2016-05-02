@@ -30,6 +30,7 @@ import model.data.type.PostGISDataType;
 import model.data.type.TextDataType;
 import model.response.DataResourceListResponse;
 import model.response.DataResourceResponse;
+import model.response.DeploymentListResponse;
 import model.response.DeploymentResponse;
 import model.response.ErrorResponse;
 import model.response.Pagination;
@@ -296,6 +297,38 @@ public class AccessController {
 			Pagination pagination = new Pagination(size, page, pageSize);
 			// Create the Response and send back
 			return new DataResourceListResponse(data, pagination);
+		} catch (Exception exception) {
+			logger.log(String.format("Error Querying Data: %s", exception.getMessage()), PiazzaLogger.ERROR);
+			return new ErrorResponse(null, "Error Querying Data: " + exception.getMessage(), "Access");
+		}
+	}
+
+	/**
+	 * Returns all Deployments held by the Piazza Ingest/Access components. This
+	 * corresponds with the items in the Mongo db.Deployments collection.
+	 * 
+	 * @return The list of all data held by the system.
+	 */
+	@RequestMapping(value = "/deployment", method = RequestMethod.GET)
+	public PiazzaResponse getAllDeployments(
+			@RequestParam(value = "page", required = false, defaultValue = DEFAULT_PAGE) Integer page,
+			@RequestParam(value = "pageSize", required = false, defaultValue = DEFAULT_PAGE_SIZE) Integer pageSize,
+			@RequestParam(value = "keyword", required = false) String keyword) {
+		try {
+			Pattern regex = Pattern.compile(String.format("(?i)%s", keyword != null ? keyword : ""));
+			// Get a DB Cursor to the query for general data
+			DBCursor<Deployment> cursor = accessor
+					.getDeploymentCollection()
+					.find()
+					.or(DBQuery.regex("id", regex), DBQuery.regex("dataId", regex),
+							DBQuery.regex("capabilitiesUrl", regex));
+			Integer size = new Integer(cursor.size());
+			// Filter the data by pages
+			List<Deployment> data = cursor.skip(page * pageSize).limit(pageSize).toArray();
+			// Attach pagination information
+			Pagination pagination = new Pagination(size, page, pageSize);
+			// Create the Response and send back
+			return new DeploymentListResponse(data, pagination);
 		} catch (Exception exception) {
 			logger.log(String.format("Error Querying Data: %s", exception.getMessage()), PiazzaLogger.ERROR);
 			return new ErrorResponse(null, "Error Querying Data: " + exception.getMessage(), "Access");
