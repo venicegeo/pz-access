@@ -81,6 +81,8 @@ public class Deployer {
 	private String AMAZONS3_ACCESS_KEY;
 	@Value("${vcap.services.pz-geoserver.credentials.s3.secret_access_key}")
 	private String AMAZONS3_PRIVATE_KEY;
+	@Value("${vcap.services.pz-blobstore.credentials.bucket}")
+	private String AMAZONS3_BUCKET_NAME;
 
 	private static final String HOST_ADDRESS = "http://%s:%s%s";
 	private static final String GEOSERVER_DEFAULT_WORKSPACE = "piazza";
@@ -197,11 +199,14 @@ public class Deployer {
 	 * 
 	 * @param fileLocation
 	 *            Interface to get file info from.
+	 * @param dataId
+	 *            The Data ID. Used for generating a unique file name, if
+	 *            necessary.
 	 * @return String Path to file
 	 * @throws Exception
 	 * @throws IOException
 	 */
-	private String copyFileToGeoServerData(FileLocation fileLocation) throws IOException, Exception {
+	private String copyFileToGeoServerData(FileLocation fileLocation, String dataId) throws IOException, Exception {
 		// Ensure the FileLocation is an S3 Bucket. Otherwise, we're not able to
 		// deploy.
 		if (fileLocation instanceof S3FileStore == false) {
@@ -210,22 +215,36 @@ public class Deployer {
 		S3FileStore fileStore = (S3FileStore) fileLocation;
 		// Get AWS Client
 		AmazonS3 s3client = new AmazonS3Client(new BasicAWSCredentials(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY));
+
+		// Ensure the destination file name is unique. If the file is hosted
+		// somewhere not referenced by Piazza (where hosted = false) then we can
+		// not guarantee the file name is unique. Therefore, if the file name is
+		// externally hosted, then we will add the Data ID GUID to ensure
+		// uniqueness.
+		String destinationFileName = fileStore.getFileName();
+		if (fileStore.getBucketName().equalsIgnoreCase(AMAZONS3_BUCKET_NAME) == false) {
+			// Hosted file is not in Piazza's bucket. Add in GUID for
+			// uniqueness.
+			destinationFileName = String.format("%s-%s", destinationFileName, dataId);
+		}
+
 		// Copy the file to the GeoServer S3 Bucket
 		logger.log(
 				String.format(
 						"Preparing to deploy Raster service. Moving file %s:%s from Piazza bucket into GeoServer bucket at %s:%s",
 						fileStore.getBucketName(), fileStore.getFileName(), GEOSERVER_DATA_DIRECTORY,
-						fileStore.getFileName()), PiazzaLogger.INFO);
+						destinationFileName), PiazzaLogger.INFO);
+
 		s3client.copyObject(fileStore.getBucketName(), fileStore.getFileName(), GEOSERVER_DATA_DIRECTORY,
-				fileStore.getFileName());
+				destinationFileName);
 		// File name
-		return fileStore.getFileName();
+		return destinationFileName;
 	}
 
 	/**
 	 * Deploys a GeoTIFF resource to GeoServer. This will create a new GeoServer
-	 * data store and layer. GeoTIFF file assumed to reside under data directory
-	 * of GeoServer at this point.
+	 * data store and layer. This will copy the raw raster file from its current
+	 * location to the S3 GeoServer Data store.
 	 * 
 	 * @param dataResource
 	 *            The DataResource to deploy.
@@ -234,7 +253,7 @@ public class Deployer {
 	private Deployment deployGeoTiff(DataResource dataResource) throws Exception {
 		// Copy GeoTIFF from AWS S3 to Data Directory of GeoServer
 		FileLocation fileLocation = ((RasterDataType) dataResource.getDataType()).getLocation();
-		String dataStoreFileName = copyFileToGeoServerData(fileLocation);
+		String dataStoreFileName = copyFileToGeoServerData(fileLocation, dataResource.getDataId());
 
 		// Create Data Store in GeoServer for a given resource
 		createGeoTiffDataStore(dataResource, GEOSERVER_DEFAULT_WORKSPACE, dataStoreFileName);
