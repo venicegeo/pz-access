@@ -387,6 +387,7 @@ public class Deployer {
 
 		// Construct the URL for the Service
 		String url = String.format(HOST_ADDRESS, GEOSERVER_HOST, GEOSERVER_PORT, restURL);
+		System.out.println(String.format("Attempting to push a GeoServer Featuretype %s to URL %s", featureType, url));
 
 		// Create the Request template and execute
 		HttpEntity<String> request = new HttpEntity<String>(featureType, headers);
