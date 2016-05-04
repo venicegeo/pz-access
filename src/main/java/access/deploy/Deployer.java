@@ -398,7 +398,7 @@ public class Deployer {
 			response = restTemplate.exchange(url, HttpMethod.POST, request, String.class);
 		} catch (Exception exception) {
 			String error = String.format("There was an error creating the Coverage Layer to URL %s with error: %s",
-					url, exception.getMessage());
+					url, response.getBody());
 			logger.log(error, PiazzaLogger.ERROR);
 			throw new Exception(error);
 		}
