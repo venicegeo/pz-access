@@ -225,7 +225,7 @@ public class Deployer {
 		if (fileStore.getBucketName().equalsIgnoreCase(AMAZONS3_BUCKET_NAME) == false) {
 			// Hosted file is not in Piazza's bucket. Add in GUID for
 			// uniqueness.
-			destinationFileName = String.format("%s-%s", destinationFileName, dataId);
+			destinationFileName = String.format("%s-%s", dataId, destinationFileName);
 		}
 
 		// Copy the file to the GeoServer S3 Bucket
@@ -397,8 +397,8 @@ public class Deployer {
 		try {
 			response = restTemplate.exchange(url, HttpMethod.POST, request, String.class);
 		} catch (Exception exception) {
-			String error = String.format("There was an error creating the Coverage Layer to URL %s with error: %s",
-					url, response.getBody());
+			String error = String.format("There was an error creating the Coverage Layer to URL %s with errors %s",
+					url, exception.getMessage());
 			logger.log(error, PiazzaLogger.ERROR);
 			throw new Exception(error);
 		}
