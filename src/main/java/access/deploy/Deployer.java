@@ -375,7 +375,7 @@ public class Deployer {
 	 *         response, so the HTTP Status is the best we can do in order to
 	 *         check for success.
 	 */
-	private HttpStatus postGeoServerFeatureType(String restURL, String featureType) {
+	private HttpStatus postGeoServerFeatureType(String restURL, String featureType) throws Exception {
 		// Get the Basic authentication Headers for GeoServer
 		String plainCredentials = String.format("%s:%s", GEOSERVER_USERNAME, GEOSERVER_PASSWORD);
 		byte[] credentialBytes = plainCredentials.getBytes();
@@ -393,7 +393,15 @@ public class Deployer {
 		HttpEntity<String> request = new HttpEntity<String>(featureType, headers);
 
 		RestTemplate restTemplate = new RestTemplate();
-		ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, request, String.class);
+		ResponseEntity<String> response = null;
+		try {
+			response = restTemplate.exchange(url, HttpMethod.POST, request, String.class);
+		} catch (Exception exception) {
+			String error = String.format("There was an error creating the Coverage Layer to URL %s with error: %s",
+					url, exception.getMessage());
+			logger.log(error, PiazzaLogger.ERROR);
+			throw new Exception(error);
+		}
 
 		// Return the HTTP Status
 		return response.getStatusCode();
