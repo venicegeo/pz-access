@@ -365,6 +365,27 @@ public class Deployer {
 	}
 
 	/**
+	 * Deletes a deployment, as specified by its ID.
+	 * 
+	 * @param deploymentId
+	 *            The ID of the deployment.
+	 */
+	public void deleteDeployment(String deploymentId) throws Exception {
+		// Get the Deployment from the Database to delete
+		Deployment deployment = accessor.getDeployment(deploymentId);
+		if (deployment == null) {
+			throw new Exception("Deployment does not exist matching ID " + deploymentId);
+		}
+		// Delete the Deployment from GeoServer
+		RestTemplate restTemplate = new RestTemplate();
+		String url = String.format("http://%s:%s/geoserver/rest/layers/%s", GEOSERVER_HOST, GEOSERVER_PORT,
+				deployment.getLayer());
+		restTemplate.delete(url);
+		// Remove the Deployment from the Database
+		accessor.deleteDeployment(deployment);
+	}
+
+	/**
 	 * Executes the POST request to GeoServer to create the FeatureType as a
 	 * Layer.
 	 * 
@@ -376,21 +397,12 @@ public class Deployer {
 	 *         check for success.
 	 */
 	private HttpStatus postGeoServerFeatureType(String restURL, String featureType) throws Exception {
-		// Get the Basic authentication Headers for GeoServer
-		String plainCredentials = String.format("%s:%s", GEOSERVER_USERNAME, GEOSERVER_PASSWORD);
-		byte[] credentialBytes = plainCredentials.getBytes();
-		byte[] encodedCredentials = Base64.encodeBase64(credentialBytes);
-		String credentials = new String(encodedCredentials);
-		HttpHeaders headers = new HttpHeaders();
-		headers.add("Authorization", "Basic " + credentials);
-		headers.setContentType(MediaType.APPLICATION_XML);
-
 		// Construct the URL for the Service
 		String url = String.format(HOST_ADDRESS, GEOSERVER_HOST, GEOSERVER_PORT, restURL);
 		System.out.println(String.format("Attempting to push a GeoServer Featuretype %s to URL %s", featureType, url));
 
 		// Create the Request template and execute
-		HttpEntity<String> request = new HttpEntity<String>(featureType, headers);
+		HttpEntity<String> request = new HttpEntity<String>(featureType, getGeoServerHeaders());
 
 		RestTemplate restTemplate = new RestTemplate();
 		ResponseEntity<String> response = null;
@@ -405,6 +417,24 @@ public class Deployer {
 
 		// Return the HTTP Status
 		return response.getStatusCode();
+	}
+
+	/**
+	 * Gets the headers for a typical GeoServer request. This include the
+	 * "application/XML" content, and the encoded basic credentials.
+	 * 
+	 * @return
+	 */
+	private HttpHeaders getGeoServerHeaders() {
+		// Get the Basic authentication Headers for GeoServer
+		String plainCredentials = String.format("%s:%s", GEOSERVER_USERNAME, GEOSERVER_PASSWORD);
+		byte[] credentialBytes = plainCredentials.getBytes();
+		byte[] encodedCredentials = Base64.encodeBase64(credentialBytes);
+		String credentials = new String(encodedCredentials);
+		HttpHeaders headers = new HttpHeaders();
+		headers.add("Authorization", "Basic " + credentials);
+		headers.setContentType(MediaType.APPLICATION_XML);
+		return headers;
 	}
 
 	/**

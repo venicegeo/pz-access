@@ -17,6 +17,7 @@ package access.controller;
 
 import java.io.InputStream;
 import java.io.StringWriter;
+import java.security.Principal;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -61,6 +62,7 @@ import org.springframework.web.bind.annotation.RestController;
 import util.GeoToolsUtil;
 import util.PiazzaLogger;
 import access.database.MongoAccessor;
+import access.deploy.Deployer;
 import access.messaging.AccessThreadManager;
 
 /**
@@ -100,6 +102,8 @@ public class AccessController {
 	private PiazzaLogger logger;
 	@Autowired
 	private MongoAccessor accessor;
+	@Autowired
+	private Deployer deployer;
 
 	@Value("${vcap.services.pz-blobstore.credentials.access_key_id}")
 	private String AMAZONS3_ACCESS_KEY;
@@ -273,6 +277,7 @@ public class AccessController {
 	/**
 	 * Returns all Data held by the Piazza Ingest/Access components. This
 	 * corresponds with the items in the Mongo db.Resources collection.
+	 * 
 	 * @return The list of all data held by the system.
 	 */
 	@RequestMapping(value = "/data", method = RequestMethod.GET)
@@ -338,6 +343,31 @@ public class AccessController {
 	@RequestMapping(value = "/data/count", method = RequestMethod.GET)
 	public long getDataCount() {
 		return accessor.getDataResourceCollection().count();
+	}
+
+	/**
+	 * Deletes Deployment information for an active deployment.
+	 * 
+	 * @param deploymentId
+	 *            The ID of the deployment to delete.
+	 * @param user
+	 *            The user requesting the deployment information
+	 * @return OK confirmation if deleted, or an ErrorResponse if exceptions
+	 *         occur
+	 */
+	@RequestMapping(value = "/deployment/{deploymentId}", method = RequestMethod.DELETE)
+	public PiazzaResponse deleteDeployment(@PathVariable(value = "deploymentId") String deploymentId, Principal user) {
+		try {
+			// Delete the Deployment
+			deployer.deleteDeployment(deploymentId);
+			// Return OK
+			return null;
+		} catch (Exception exception) {
+			exception.printStackTrace();
+			String error = String.format("Error Deleting Deployment %s: %s", deploymentId, exception.getMessage());
+			logger.log(error, PiazzaLogger.ERROR);
+			return new ErrorResponse(null, error, "Access");
+		}
 	}
 
 	/**

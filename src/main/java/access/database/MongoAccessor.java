@@ -105,6 +105,10 @@ public class MongoAccessor {
 		return deployment;
 	}
 
+	public void deleteDeployment(Deployment deployment) {
+		getDeploymentCollection().remove(new BasicDBObject("deploymentId", deployment.getId()));
+	}
+
 	/**
 	 * Gets the Lease for the Deployment, if on exists.
 	 * 
