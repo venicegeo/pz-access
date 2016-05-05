@@ -37,6 +37,7 @@ import model.response.ErrorResponse;
 import model.response.Pagination;
 import model.response.PiazzaResponse;
 
+import org.apache.commons.io.FilenameUtils;
 import org.geotools.data.DataStore;
 import org.geotools.data.Query;
 import org.geotools.data.simple.SimpleFeatureCollection;
@@ -58,6 +59,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import com.amazonaws.util.StringUtils;
 
 import util.GeoToolsUtil;
 import util.PiazzaLogger;
@@ -122,61 +125,34 @@ public class AccessController {
 	 *            be downloaded.
 	 */
 	@RequestMapping(value = "/file/{dataId}", method = RequestMethod.GET)
-	public ResponseEntity<byte[]> accessFile(@PathVariable(value = "dataId") String dataId) throws Exception {
+	public ResponseEntity<byte[]> accessFile(@PathVariable(value = "dataId") String dataId,
+			@RequestParam(value = "fileName", required = false) String name) throws Exception {
 		// Get the DataResource item
 		DataResource data = accessor.getData(dataId);
+		String fileName = (StringUtils.isNullOrEmpty(name)) ? (dataId) : (name);
+
 		if (data == null) {
 			String message = String.format("Data not found for requested ID %s", dataId);
 			logger.log(message, PiazzaLogger.WARNING);
 			throw new Exception(message);
 		}
 
-		StringBuilder geoJSON = new StringBuilder();
 		if (data.getDataType() instanceof TextDataType) {
 			// Stream the Bytes back
 			TextDataType textData = (TextDataType) data.getDataType();
-			HttpHeaders header = new HttpHeaders();
-			header.setContentType(MediaType.TEXT_PLAIN);
-			header.set("Content-Disposition", "attachment; filename=" + dataId + ".txt");
-			header.setContentLength(textData.getContent().getBytes().length);
-			return new ResponseEntity<byte[]>(textData.getContent().getBytes(), header, HttpStatus.OK);
+			return getResponse(MediaType.TEXT_PLAIN, String.format("%s%s", fileName, ".txt"), textData.getContent()
+					.getBytes());
 		} else if (data.getDataType() instanceof PostGISDataType) {
-			// Connect to POSTGIS and gather geoJSON info
-			DataStore postGisStore = GeoToolsUtil.getPostGisDataStore(POSTGRES_HOST, POSTGRES_PORT, POSTGRES_SCHEMA,
-					POSTGRES_DB_NAME, POSTGRES_USER, POSTGRES_PASSWORD);
-
-			PostGISDataType resource = (PostGISDataType) (data.getDataType());
-			SimpleFeatureSource simpleFeatureSource = postGisStore.getFeatureSource(resource.getTable());
-			SimpleFeatureCollection simpleFeatureCollection = simpleFeatureSource.getFeatures(Query.ALL);
-			SimpleFeatureIterator simpleFeatureIterator = simpleFeatureCollection.features();
-
-			try {
-				while (simpleFeatureIterator.hasNext()) {
-					SimpleFeature simpleFeature = simpleFeatureIterator.next();
-					FeatureJSON featureJSON = new FeatureJSON();
-					StringWriter writer = new StringWriter();
-
-					featureJSON.writeFeature(simpleFeature, writer);
-					String json = writer.toString();
-
-					// Append each section
-					geoJSON.append(json);
-				}
-			} finally {
-				simpleFeatureIterator.close();
-			}
+			// Obtain geoJSON from postGIS
+			StringBuilder geoJSON = getPostGISGeoJSON(data);
 
 			// Log the Request
 			logger.log(String.format("Returning Bytes for %s of length %s", dataId, geoJSON.length()),
 					PiazzaLogger.INFO);
 
 			// Stream the Bytes back
-			HttpHeaders header = new HttpHeaders();
-			header.setContentType(MediaType.TEXT_PLAIN);
-			header.set("Content-Disposition",
-					"attachment; filename=" + ((PostGISDataType) data.getDataType()).getTable());
-			header.setContentLength(geoJSON.length());
-			return new ResponseEntity<byte[]>(geoJSON.toString().getBytes(), header, HttpStatus.OK);
+			return getResponse(MediaType.TEXT_PLAIN, String.format("%s%s", fileName, ".geojson"), geoJSON.toString()
+					.getBytes());
 		} else if (!(data.getDataType() instanceof FileRepresentation)) {
 			String message = String.format("File download not available for Data ID %s; type is %s", dataId, data
 					.getDataType().getType());
@@ -191,19 +167,12 @@ public class AccessController {
 			// Log the Request
 			logger.log(String.format("Returning Bytes for %s of length %s", dataId, bytes.length), PiazzaLogger.INFO);
 
-			// Get the file name.
-			String fileName = ((FileRepresentation) data.getDataType()).getLocation().getFileName();
-			// Strip out the Job ID GUID in the file name.
-			if (fileName.length() > 37) {
-				fileName = fileName.substring(37, fileName.length());
-			}
+			// Preserve the file extension from the original file.
+			String originalFileName = ((FileRepresentation) data.getDataType()).getLocation().getFileName();
+			String extension = FilenameUtils.getExtension(originalFileName);
 
 			// Stream the Bytes back
-			HttpHeaders header = new HttpHeaders();
-			header.setContentType(MediaType.APPLICATION_OCTET_STREAM);
-			header.set("Content-Disposition", "attachment; filename=" + fileName);
-			header.setContentLength(bytes.length);
-			return new ResponseEntity<byte[]>(bytes, header, HttpStatus.OK);
+			return getResponse(MediaType.APPLICATION_OCTET_STREAM, String.format("%s.%s", fileName, extension), bytes);
 		}
 	}
 
@@ -397,5 +366,61 @@ public class AccessController {
 		// Return information on the jobs currently being processed
 		stats.put("jobs", threadManager.getRunningJobIDs());
 		return new ResponseEntity<Map<String, Object>>(stats, HttpStatus.OK);
+	}
+
+	/**
+	 * @param type
+	 *            MediaType to set http header content type
+	 * @param fileName
+	 *            file name to set for content disposition
+	 * @param bytes
+	 *            file bytes
+	 * @return ResponseEntity
+	 */
+	private ResponseEntity<byte[]> getResponse(MediaType type, String fileName, byte[] bytes) {
+		HttpHeaders header = new HttpHeaders();
+		header.setContentType(type);
+		header.set("Content-Disposition", "attachment; filename=" + fileName);
+		header.setContentLength(bytes.length);
+		return new ResponseEntity<byte[]>(bytes, header, HttpStatus.OK);
+	}
+
+	/**
+	 * Gets the GeoJSON representation of a Data Resource currently stored in
+	 * PostGIS.
+	 * 
+	 * @param data
+	 *            DataResource object
+	 * @return stringbuilder of geojson
+	 * @throws Exception
+	 */
+	private StringBuilder getPostGISGeoJSON(DataResource data) throws Exception {
+		// Connect to POSTGIS and gather geoJSON info
+		DataStore postGisStore = GeoToolsUtil.getPostGisDataStore(POSTGRES_HOST, POSTGRES_PORT, POSTGRES_SCHEMA,
+				POSTGRES_DB_NAME, POSTGRES_USER, POSTGRES_PASSWORD);
+
+		PostGISDataType resource = (PostGISDataType) (data.getDataType());
+		SimpleFeatureSource simpleFeatureSource = postGisStore.getFeatureSource(resource.getTable());
+		SimpleFeatureCollection simpleFeatureCollection = simpleFeatureSource.getFeatures(Query.ALL);
+		SimpleFeatureIterator simpleFeatureIterator = simpleFeatureCollection.features();
+
+		StringBuilder geoJSON = new StringBuilder();
+		try {
+			while (simpleFeatureIterator.hasNext()) {
+				SimpleFeature simpleFeature = simpleFeatureIterator.next();
+				FeatureJSON featureJSON = new FeatureJSON();
+				StringWriter writer = new StringWriter();
+
+				featureJSON.writeFeature(simpleFeature, writer);
+				String json = writer.toString();
+
+				// Append each section
+				geoJSON.append(json);
+			}
+		} finally {
+			simpleFeatureIterator.close();
+		}
+
+		return geoJSON;
 	}
 }
