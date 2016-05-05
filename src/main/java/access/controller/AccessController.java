@@ -35,6 +35,7 @@ import model.response.ErrorResponse;
 import model.response.Pagination;
 import model.response.PiazzaResponse;
 
+import org.apache.commons.io.FilenameUtils;
 import org.geotools.data.DataStore;
 import org.geotools.data.Query;
 import org.geotools.data.simple.SimpleFeatureCollection;
@@ -120,7 +121,7 @@ public class AccessController {
 	 */
 	@RequestMapping(value = "/file/{dataId}", method = RequestMethod.GET)
 	public ResponseEntity<byte[]> accessFile(@PathVariable(value = "dataId") String dataId,
-			@RequestParam(value = "filename", required = false) String name) throws Exception {
+			@RequestParam(value = "fileName", required = false) String name) throws Exception {
 		// Get the DataResource item
 		DataResource data = accessor.getData(dataId);
 		String fileName = (StringUtils.isNullOrEmpty(name)) ? (dataId) : (name);
@@ -132,26 +133,27 @@ public class AccessController {
 		}
 
 		if (data.getDataType() instanceof TextDataType) {
-			
 			// Stream the Bytes back
 			TextDataType textData = (TextDataType) data.getDataType();
-			return getResponse(MediaType.TEXT_PLAIN, String.format("%s%s", fileName, ".txt"), textData.getContent().getBytes());
+			return getResponse(MediaType.TEXT_PLAIN, String.format("%s%s", fileName, ".txt"), textData.getContent()
+					.getBytes());
 		} else if (data.getDataType() instanceof PostGISDataType) {
-			
 			// Obtain geoJSON from postGIS
 			StringBuilder geoJSON = getPostGISGeoJSON(data);
-			
+
 			// Log the Request
-			logger.log(String.format("Returning Bytes for %s of length %s", dataId, geoJSON.length()), PiazzaLogger.INFO);
+			logger.log(String.format("Returning Bytes for %s of length %s", dataId, geoJSON.length()),
+					PiazzaLogger.INFO);
 
 			// Stream the Bytes back
-			return getResponse(MediaType.TEXT_PLAIN, ((PostGISDataType) data.getDataType()).getTable(), geoJSON.toString().getBytes());
+			return getResponse(MediaType.TEXT_PLAIN, String.format("%s%s", fileName, ".geojson"), geoJSON.toString()
+					.getBytes());
 		} else if (!(data.getDataType() instanceof FileRepresentation)) {
-			String message = String.format("File download not available for Data ID %s; type is %s", dataId, data.getDataType().getType());
+			String message = String.format("File download not available for Data ID %s; type is %s", dataId, data
+					.getDataType().getType());
 			logger.log(message, PiazzaLogger.WARNING);
 			throw new Exception(message);
 		} else {
-			
 			// Get the File Bytes from wherever the File Location
 			FileAccessFactory fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY);
 			InputStream byteStream = fileFactory.getFile(((FileRepresentation) data.getDataType()).getLocation());
@@ -160,18 +162,15 @@ public class AccessController {
 			// Log the Request
 			logger.log(String.format("Returning Bytes for %s of length %s", dataId, bytes.length), PiazzaLogger.INFO);
 
-			// Get the file name.
-			fileName = ((FileRepresentation) data.getDataType()).getLocation().getFileName();
-			// Strip out the Job ID GUID in the file name.
-			if (fileName.length() > 37) {
-				fileName = fileName.substring(37, fileName.length());
-			}
+			// Preserve the file extension from the original file.
+			String originalFileName = ((FileRepresentation) data.getDataType()).getLocation().getFileName();
+			String extension = FilenameUtils.getExtension(originalFileName);
 
 			// Stream the Bytes back
-			return getResponse(MediaType.APPLICATION_OCTET_STREAM, fileName, bytes);
+			return getResponse(MediaType.APPLICATION_OCTET_STREAM, String.format("%s.%s", fileName, extension), bytes);
 		}
 	}
-	
+
 	/**
 	 * Returns the Data resource object from the Resources collection.
 	 * 
@@ -314,7 +313,7 @@ public class AccessController {
 		stats.put("jobs", threadManager.getRunningJobIDs());
 		return new ResponseEntity<Map<String, Object>>(stats, HttpStatus.OK);
 	}
-	
+
 	/**
 	 * @param type
 	 *            MediaType to set http header content type
@@ -333,6 +332,9 @@ public class AccessController {
 	}
 
 	/**
+	 * Gets the GeoJSON representation of a Data Resource currently stored in
+	 * PostGIS.
+	 * 
 	 * @param data
 	 *            DataResource object
 	 * @return stringbuilder of geojson
@@ -340,8 +342,8 @@ public class AccessController {
 	 */
 	private StringBuilder getPostGISGeoJSON(DataResource data) throws Exception {
 		// Connect to POSTGIS and gather geoJSON info
-		DataStore postGisStore = GeoToolsUtil.getPostGisDataStore(POSTGRES_HOST, POSTGRES_PORT, POSTGRES_SCHEMA, POSTGRES_DB_NAME,
-				POSTGRES_USER, POSTGRES_PASSWORD);
+		DataStore postGisStore = GeoToolsUtil.getPostGisDataStore(POSTGRES_HOST, POSTGRES_PORT, POSTGRES_SCHEMA,
+				POSTGRES_DB_NAME, POSTGRES_USER, POSTGRES_PASSWORD);
 
 		PostGISDataType resource = (PostGISDataType) (data.getDataType());
 		SimpleFeatureSource simpleFeatureSource = postGisStore.getFeatureSource(resource.getTable());
