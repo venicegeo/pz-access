@@ -15,19 +15,18 @@
  **/
 package access.deploy;
 
-import java.io.File;
 import java.io.IOException;
 
 import model.data.DataResource;
 import model.data.deployment.Deployment;
-import model.data.location.FileAccessFactory;
 import model.data.location.FileLocation;
+import model.data.location.S3FileStore;
+import model.data.type.GeoJsonDataType;
 import model.data.type.PostGISDataType;
 import model.data.type.RasterDataType;
 import model.data.type.ShapefileDataType;
 import model.data.type.WfsDataType;
 
-import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.tomcat.util.codec.binary.Base64;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -44,6 +43,10 @@ import org.springframework.web.client.RestTemplate;
 import util.PiazzaLogger;
 import util.UUIDFactory;
 import access.database.MongoAccessor;
+
+import com.amazonaws.auth.BasicAWSCredentials;
+import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.AmazonS3Client;
 
 /**
  * Class that manages the GeoServer Deployments held by this component. This is
@@ -64,20 +67,22 @@ public class Deployer {
 	private UUIDFactory uuidFactory;
 	@Autowired
 	private MongoAccessor accessor;
-	@Value("${vcap.services.pz-geoserver.credentials.host}")
+	@Value("${vcap.services.pz-geoserver.credentials.geoserver.hostname}")
 	private String GEOSERVER_HOST;
-	@Value("${vcap.services.pz-geoserver.credentials.port}")
+	@Value("${vcap.services.pz-geoserver.credentials.geoserver.port}")
 	private String GEOSERVER_PORT;
-	@Value("${vcap.services.pz-geoserver.credentials.username}")
+	@Value("${vcap.services.pz-geoserver.credentials.geoserver.username}")
 	private String GEOSERVER_USERNAME;
-	@Value("${vcap.services.pz-geoserver.credentials.password}")
+	@Value("${vcap.services.pz-geoserver.credentials.geoserver.password}")
 	private String GEOSERVER_PASSWORD;
-	@Value("${geoserver.data.directory}")
+	@Value("${vcap.services.pz-geoserver.credentials.s3.bucket}")
 	private String GEOSERVER_DATA_DIRECTORY;
-	@Value("${vcap.services.pz-blobstore.credentials.access:}")
+	@Value("${vcap.services.pz-geoserver.credentials.s3.access_key_id}")
 	private String AMAZONS3_ACCESS_KEY;
-	@Value("${vcap.services.pz-blobstore.credentials.private:}")
+	@Value("${vcap.services.pz-geoserver.credentials.s3.secret_access_key}")
 	private String AMAZONS3_PRIVATE_KEY;
+	@Value("${vcap.services.pz-blobstore.credentials.bucket}")
+	private String AMAZONS3_BUCKET_NAME;
 
 	private static final String HOST_ADDRESS = "http://%s:%s%s";
 	private static final String GEOSERVER_DEFAULT_WORKSPACE = "piazza";
@@ -100,7 +105,8 @@ public class Deployer {
 		Deployment deployment;
 		try {
 			if ((dataResource.getDataType() instanceof ShapefileDataType)
-					|| (dataResource.getDataType() instanceof PostGISDataType)) {
+					|| (dataResource.getDataType() instanceof PostGISDataType)
+					|| (dataResource.getDataType() instanceof GeoJsonDataType)) {
 				// Deploy from an existing PostGIS Table
 				deployment = deployPostGisTable(dataResource);
 			} else if (dataResource.getDataType() instanceof WfsDataType) {
@@ -157,6 +163,8 @@ public class Deployer {
 			tableName = ((ShapefileDataType) dataResource.getDataType()).getDatabaseTableName();
 		} else if (dataResource.getDataType() instanceof PostGISDataType) {
 			tableName = ((PostGISDataType) dataResource.getDataType()).getTable();
+		} else if (dataResource.getDataType() instanceof GeoJsonDataType) {
+			tableName = ((GeoJsonDataType) dataResource.getDataType()).databaseTableName;
 		}
 
 		// Inject the Metadata from the Data Resource into the Payload
@@ -187,29 +195,56 @@ public class Deployer {
 	}
 
 	/**
-	 * Will copy file to geoserver data directory, and return direct path
+	 * Will copy file to geoserver data directory, and return the file name.
 	 * 
 	 * @param fileLocation
 	 *            Interface to get file info from.
+	 * @param dataId
+	 *            The Data ID. Used for generating a unique file name, if
+	 *            necessary.
 	 * @return String Path to file
 	 * @throws Exception
 	 * @throws IOException
 	 */
-	private String copyFileToGeoServerData(FileLocation fileLocation) throws IOException, Exception {
-		// Get file stream from AWS S3
-		FileAccessFactory fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY);
-		File file = new File(GEOSERVER_DATA_DIRECTORY, fileLocation.getFileName());
-		FileUtils.copyInputStreamToFile(fileFactory.getFile(fileLocation), file);
-		// Create the Physical File on Disk
-		file.createNewFile();
+	private String copyFileToGeoServerData(FileLocation fileLocation, String dataId) throws IOException, Exception {
+		// Ensure the FileLocation is an S3 Bucket. Otherwise, we're not able to
+		// deploy.
+		if (fileLocation instanceof S3FileStore == false) {
+			throw new Exception("Cannot deploy this location because it does not reside in S3.");
+		}
+		S3FileStore fileStore = (S3FileStore) fileLocation;
+		// Get AWS Client
+		AmazonS3 s3client = new AmazonS3Client(new BasicAWSCredentials(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY));
 
-		return file.getAbsolutePath();
+		// Ensure the destination file name is unique. If the file is hosted
+		// somewhere not referenced by Piazza (where hosted = false) then we can
+		// not guarantee the file name is unique. Therefore, if the file name is
+		// externally hosted, then we will add the Data ID GUID to ensure
+		// uniqueness.
+		String destinationFileName = fileStore.getFileName();
+		if (fileStore.getBucketName().equalsIgnoreCase(AMAZONS3_BUCKET_NAME) == false) {
+			// Hosted file is not in Piazza's bucket. Add in GUID for
+			// uniqueness.
+			destinationFileName = String.format("%s-%s", dataId, destinationFileName);
+		}
+
+		// Copy the file to the GeoServer S3 Bucket
+		logger.log(
+				String.format(
+						"Preparing to deploy Raster service. Moving file %s:%s from Piazza bucket into GeoServer bucket at %s:%s",
+						fileStore.getBucketName(), fileStore.getFileName(), GEOSERVER_DATA_DIRECTORY,
+						destinationFileName), PiazzaLogger.INFO);
+
+		s3client.copyObject(fileStore.getBucketName(), fileStore.getFileName(), GEOSERVER_DATA_DIRECTORY,
+				destinationFileName);
+		// File name
+		return destinationFileName;
 	}
 
 	/**
 	 * Deploys a GeoTIFF resource to GeoServer. This will create a new GeoServer
-	 * data store and layer. GeoTIFF file assumed to reside under data directory
-	 * of GeoServer
+	 * data store and layer. This will copy the raw raster file from its current
+	 * location to the S3 GeoServer Data store.
 	 * 
 	 * @param dataResource
 	 *            The DataResource to deploy.
@@ -218,10 +253,10 @@ public class Deployer {
 	private Deployment deployGeoTiff(DataResource dataResource) throws Exception {
 		// Copy GeoTIFF from AWS S3 to Data Directory of GeoServer
 		FileLocation fileLocation = ((RasterDataType) dataResource.getDataType()).getLocation();
-		String dataStoreFileLocation = copyFileToGeoServerData(fileLocation);
+		String dataStoreFileName = copyFileToGeoServerData(fileLocation, dataResource.getDataId());
 
 		// Create Data Store in GeoServer for a given resource
-		createGeoTiffDataStore(dataResource, GEOSERVER_DEFAULT_WORKSPACE, dataStoreFileLocation);
+		createGeoTiffDataStore(dataResource, GEOSERVER_DEFAULT_WORKSPACE, dataStoreFileName);
 
 		// Create Layer in GeoServer for a given resource
 		createCoverageLayer(dataResource, GEOSERVER_DEFAULT_WORKSPACE);
@@ -246,20 +281,22 @@ public class Deployer {
 	 *            The description of the new data store
 	 * @param workspace
 	 *            The workspace to use to place data store under
-	 * @param dataStoreFileLocation
-	 *            The path of the raster file to use for data store
+	 * @param dataStoreFileName
+	 *            The file name of the raster file to use for data store
 	 * 
 	 */
-	private void createGeoTiffDataStore(DataResource dataResource, String workspaceName, String dataStoreFileLocation)
+	private void createGeoTiffDataStore(DataResource dataResource, String workspaceName, String dataStoreFileName)
 			throws Exception {
 		// Load template
 		ClassLoader classLoader = getClass().getClassLoader();
 		String dataStoreTemplate = IOUtils.toString(classLoader
 				.getResourceAsStream("templates/coverageStoreTypeRequest.xml"));
 
-		// Inject Metadata from the Data Resource into the Data Store Payload
+		// Inject Metadata from the Data Resource into the Data Store Payload.
+		// Log this to console for traceability.
 		String dataStoreRequestBody = String.format(dataStoreTemplate, dataResource.getDataId(),
-				"piazza generated data store", workspaceName, dataStoreFileLocation);
+				"piazza generated data store", workspaceName, dataStoreFileName);
+		System.out.println(dataStoreRequestBody);
 
 		// Execute the POST to GeoServer to add the data store
 		HttpStatus statusCode = postGeoServerFeatureType(DATA_STORE_ENDPOINT, dataStoreRequestBody);
@@ -328,6 +365,27 @@ public class Deployer {
 	}
 
 	/**
+	 * Deletes a deployment, as specified by its ID.
+	 * 
+	 * @param deploymentId
+	 *            The ID of the deployment.
+	 */
+	public void deleteDeployment(String deploymentId) throws Exception {
+		// Get the Deployment from the Database to delete
+		Deployment deployment = accessor.getDeployment(deploymentId);
+		if (deployment == null) {
+			throw new Exception("Deployment does not exist matching ID " + deploymentId);
+		}
+		// Delete the Deployment from GeoServer
+		RestTemplate restTemplate = new RestTemplate();
+		String url = String.format("http://%s:%s/geoserver/rest/layers/%s", GEOSERVER_HOST, GEOSERVER_PORT,
+				deployment.getLayer());
+		restTemplate.delete(url);
+		// Remove the Deployment from the Database
+		accessor.deleteDeployment(deployment);
+	}
+
+	/**
 	 * Executes the POST request to GeoServer to create the FeatureType as a
 	 * Layer.
 	 * 
@@ -338,7 +396,36 @@ public class Deployer {
 	 *         response, so the HTTP Status is the best we can do in order to
 	 *         check for success.
 	 */
-	private HttpStatus postGeoServerFeatureType(String restURL, String featureType) {
+	private HttpStatus postGeoServerFeatureType(String restURL, String featureType) throws Exception {
+		// Construct the URL for the Service
+		String url = String.format(HOST_ADDRESS, GEOSERVER_HOST, GEOSERVER_PORT, restURL);
+		System.out.println(String.format("Attempting to push a GeoServer Featuretype %s to URL %s", featureType, url));
+
+		// Create the Request template and execute
+		HttpEntity<String> request = new HttpEntity<String>(featureType, getGeoServerHeaders());
+
+		RestTemplate restTemplate = new RestTemplate();
+		ResponseEntity<String> response = null;
+		try {
+			response = restTemplate.exchange(url, HttpMethod.POST, request, String.class);
+		} catch (Exception exception) {
+			String error = String.format("There was an error creating the Coverage Layer to URL %s with errors %s",
+					url, exception.getMessage());
+			logger.log(error, PiazzaLogger.ERROR);
+			throw new Exception(error);
+		}
+
+		// Return the HTTP Status
+		return response.getStatusCode();
+	}
+
+	/**
+	 * Gets the headers for a typical GeoServer request. This include the
+	 * "application/XML" content, and the encoded basic credentials.
+	 * 
+	 * @return
+	 */
+	private HttpHeaders getGeoServerHeaders() {
 		// Get the Basic authentication Headers for GeoServer
 		String plainCredentials = String.format("%s:%s", GEOSERVER_USERNAME, GEOSERVER_PASSWORD);
 		byte[] credentialBytes = plainCredentials.getBytes();
@@ -347,18 +434,7 @@ public class Deployer {
 		HttpHeaders headers = new HttpHeaders();
 		headers.add("Authorization", "Basic " + credentials);
 		headers.setContentType(MediaType.APPLICATION_XML);
-
-		// Construct the URL for the Service
-		String url = String.format(HOST_ADDRESS, GEOSERVER_HOST, GEOSERVER_PORT, restURL);
-
-		// Create the Request template and execute
-		HttpEntity<String> request = new HttpEntity<String>(featureType, headers);
-
-		RestTemplate restTemplate = new RestTemplate();
-		ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, request, String.class);
-
-		// Return the HTTP Status
-		return response.getStatusCode();
+		return headers;
 	}
 
 	/**

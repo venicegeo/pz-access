@@ -17,6 +17,7 @@ package access.controller;
 
 import java.io.InputStream;
 import java.io.StringWriter;
+import java.security.Principal;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -30,6 +31,7 @@ import model.data.type.PostGISDataType;
 import model.data.type.TextDataType;
 import model.response.DataResourceListResponse;
 import model.response.DataResourceResponse;
+import model.response.DeploymentListResponse;
 import model.response.DeploymentResponse;
 import model.response.ErrorResponse;
 import model.response.Pagination;
@@ -63,6 +65,7 @@ import com.amazonaws.util.StringUtils;
 import util.GeoToolsUtil;
 import util.PiazzaLogger;
 import access.database.MongoAccessor;
+import access.deploy.Deployer;
 import access.messaging.AccessThreadManager;
 
 /**
@@ -83,15 +86,15 @@ import access.messaging.AccessThreadManager;
 @RestController
 public class AccessController {
 
-	@Value("${vcap.services.pz-postgres.credentials.host}")
+	@Value("${vcap.services.pz-geoserver.credentials.postgres.hostname}")
 	private String POSTGRES_HOST;
-	@Value("${vcap.services.pz-postgres.credentials.port}")
+	@Value("${vcap.services.pz-geoserver.credentials.postgres.port}")
 	private String POSTGRES_PORT;
-	@Value("${vcap.services.pz-postgres.credentials.database}")
+	@Value("${vcap.services.pz-geoserver.credentials.postgres.database}")
 	private String POSTGRES_DB_NAME;
-	@Value("${vcap.services.pz-postgres.credentials.username}")
+	@Value("${vcap.services.pz-geoserver.credentials.postgres.username}")
 	private String POSTGRES_USER;
-	@Value("${vcap.services.pz-postgres.credentials.password}")
+	@Value("${vcap.services.pz-geoserver.credentials.postgres.password}")
 	private String POSTGRES_PASSWORD;
 	@Value("${postgres.schema}")
 	private String POSTGRES_SCHEMA;
@@ -102,10 +105,12 @@ public class AccessController {
 	private PiazzaLogger logger;
 	@Autowired
 	private MongoAccessor accessor;
+	@Autowired
+	private Deployer deployer;
 
-	@Value("${vcap.services.pz-blobstore.credentials.access:}")
+	@Value("${vcap.services.pz-blobstore.credentials.access_key_id}")
 	private String AMAZONS3_ACCESS_KEY;
-	@Value("${vcap.services.pz-blobstore.credentials.private:}")
+	@Value("${vcap.services.pz-blobstore.credentials.secret_access_key}")
 	private String AMAZONS3_PRIVATE_KEY;
 
 	private static final String DEFAULT_PAGE_SIZE = "10";
@@ -242,10 +247,6 @@ public class AccessController {
 	 * Returns all Data held by the Piazza Ingest/Access components. This
 	 * corresponds with the items in the Mongo db.Resources collection.
 	 * 
-	 * This is intended to be used by the Swiss-Army-Knife (SAK) administration
-	 * application for reporting the status of this Job Manager component. It is
-	 * not used in normal function of the Job Manager.
-	 * 
 	 * @return The list of all data held by the system.
 	 */
 	@RequestMapping(value = "/data", method = RequestMethod.GET)
@@ -272,17 +273,70 @@ public class AccessController {
 	}
 
 	/**
-	 * Returns the Number of Data Resources in the piazza system.
+	 * Returns all Deployments held by the Piazza Ingest/Access components. This
+	 * corresponds with the items in the Mongo db.Deployments collection.
 	 * 
-	 * This is intended to be used by the Swiss-Army-Knife (SAK) administration
-	 * application for reporting the status of this Job Manager component. It is
-	 * not used in normal function of the Job Manager.
+	 * @return The list of all data held by the system.
+	 */
+	@RequestMapping(value = "/deployment", method = RequestMethod.GET)
+	public PiazzaResponse getAllDeployments(
+			@RequestParam(value = "page", required = false, defaultValue = DEFAULT_PAGE) Integer page,
+			@RequestParam(value = "pageSize", required = false, defaultValue = DEFAULT_PAGE_SIZE) Integer pageSize,
+			@RequestParam(value = "keyword", required = false) String keyword) {
+		try {
+			Pattern regex = Pattern.compile(String.format("(?i)%s", keyword != null ? keyword : ""));
+			// Get a DB Cursor to the query for general data
+			DBCursor<Deployment> cursor = accessor
+					.getDeploymentCollection()
+					.find()
+					.or(DBQuery.regex("id", regex), DBQuery.regex("dataId", regex),
+							DBQuery.regex("capabilitiesUrl", regex));
+			Integer size = new Integer(cursor.size());
+			// Filter the data by pages
+			List<Deployment> data = cursor.skip(page * pageSize).limit(pageSize).toArray();
+			// Attach pagination information
+			Pagination pagination = new Pagination(size, page, pageSize);
+			// Create the Response and send back
+			return new DeploymentListResponse(data, pagination);
+		} catch (Exception exception) {
+			logger.log(String.format("Error Querying Deployment: %s", exception.getMessage()), PiazzaLogger.ERROR);
+			return new ErrorResponse(null, "Error Querying Deployment: " + exception.getMessage(), "Access");
+		}
+	}
+
+	/**
+	 * Returns the Number of Data Resources in the piazza system.
 	 * 
 	 * @return Number of Data items in the system.
 	 */
 	@RequestMapping(value = "/data/count", method = RequestMethod.GET)
 	public long getDataCount() {
 		return accessor.getDataResourceCollection().count();
+	}
+
+	/**
+	 * Deletes Deployment information for an active deployment.
+	 * 
+	 * @param deploymentId
+	 *            The ID of the deployment to delete.
+	 * @param user
+	 *            The user requesting the deployment information
+	 * @return OK confirmation if deleted, or an ErrorResponse if exceptions
+	 *         occur
+	 */
+	@RequestMapping(value = "/deployment/{deploymentId}", method = RequestMethod.DELETE)
+	public PiazzaResponse deleteDeployment(@PathVariable(value = "deploymentId") String deploymentId, Principal user) {
+		try {
+			// Delete the Deployment
+			deployer.deleteDeployment(deploymentId);
+			// Return OK
+			return null;
+		} catch (Exception exception) {
+			exception.printStackTrace();
+			String error = String.format("Error Deleting Deployment %s: %s", deploymentId, exception.getMessage());
+			logger.log(error, PiazzaLogger.ERROR);
+			return new ErrorResponse(null, error, "Access");
+		}
 	}
 
 	/**

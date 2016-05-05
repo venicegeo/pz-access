@@ -10,7 +10,6 @@ applications:
   services:
     - pz-kafka
     - pz-blobstore
-    - pz-postgres
     - pz-geoserver
     - pz-mongodb
   env:
