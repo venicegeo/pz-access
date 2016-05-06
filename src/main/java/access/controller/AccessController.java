@@ -117,6 +117,16 @@ public class AccessController {
 	private static final String DEFAULT_PAGE = "0";
 
 	/**
+	 * Healthcheck required for all Piazza Core Services
+	 * 
+	 * @return String
+	 */
+	@RequestMapping(value = "/", method = RequestMethod.GET)
+	public String getHealthCheck() {
+		return "Hello, Health Check here for pz-access.";
+	}
+	
+	/**
 	 * Requests a file download that has been prepared by this Access component.
 	 * This will return the raw bytes of the resource.
 	 * 
