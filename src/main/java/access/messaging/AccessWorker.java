@@ -66,8 +66,8 @@ public class AccessWorker {
 	private Leaser leaser;
 	@Autowired
 	private PiazzaLogger logger;
-	@Value("${space}")
-	private String space;
+	@Value("${SPACE}")
+	private String SPACE;
 
 	/**
 	 * Listens for Kafka Access messages for creating Deployments for Access of
@@ -89,7 +89,7 @@ public class AccessWorker {
 
 			// Update Status that this Job is being processed
 			StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_RUNNING);
-			producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate, space));
+			producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate, SPACE));
 
 			// Depending on how the user wants to Access the Resource
 			switch (accessJob.getDeploymentType()) {
@@ -98,7 +98,7 @@ public class AccessWorker {
 				// Return the URL that the user can use to acquire the file
 				statusUpdate = new StatusUpdate(StatusUpdate.STATUS_SUCCESS);
 				statusUpdate.setResult(new FileResult(accessJob.getDataId()));
-				producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate, space));
+				producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate, SPACE));
 
 				// Console Logging
 				logger.log(String.format("GeoServer File Request successul for Resource %s", accessJob.getDataId()),
@@ -130,7 +130,7 @@ public class AccessWorker {
 				// Update Job Status to complete for this Job.
 				statusUpdate = new StatusUpdate(StatusUpdate.STATUS_SUCCESS);
 				statusUpdate.setResult(new DeploymentResult(deployment));
-				producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate, space));
+				producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate, SPACE));
 
 				// Console Logging
 				logger.log(String.format("GeoServer Deployment successul for Resource %s", accessJob.getDataId()),
@@ -150,7 +150,7 @@ public class AccessWorker {
 				// Send the failure message to the Job Manager.
 				StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_ERROR);
 				statusUpdate.setResult(new ErrorResult("Could not Deploy Data", exception.getMessage()));
-				producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate, space));
+				producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate, SPACE));
 			} catch (JsonProcessingException jsonException) {
 				// If the Kafka message fails to send, at least log
 				// something in the console.
