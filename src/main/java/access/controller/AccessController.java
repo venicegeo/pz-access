@@ -338,7 +338,7 @@ public class AccessController {
 	public PiazzaResponse deleteDeployment(@PathVariable(value = "deploymentId") String deploymentId, Principal user) {
 		try {
 			// Delete the Deployment
-			deployer.deleteDeployment(deploymentId);
+			deployer.undeploy(deploymentId);
 			// Return OK
 			return null;
 		} catch (Exception exception) {

@@ -109,7 +109,13 @@ public class MongoAccessor {
 	 * Deletes a deployment entirely from the database.
 	 * 
 	 * <p>
-	 * If a lease exists for this deployment, then it is also terminated.
+	 * If a lease exists for this deployment, then it is also removed from the
+	 * database.
+	 * </p>
+	 * 
+	 * <p>
+	 * Note that this is only for database collections only. This does not
+	 * actually remove the data from GeoServer. This is handled in the Deployer.
 	 * </p>
 	 * 
 	 * @param deployment
@@ -128,10 +134,15 @@ public class MongoAccessor {
 	/**
 	 * Deletes a lease from the database.
 	 * 
+	 * <p>
+	 * Note that this is only for database collections only. This does not
+	 * actually remove the data from GeoServer. This is handled in the Deployer.
+	 * </p>
+	 * 
 	 * @param lease
 	 *            The lease to delete.
 	 */
-	public void deleteLease(Lease lease) {
+	private void deleteLease(Lease lease) {
 		getLeaseCollection().remove(new BasicDBObject("id", lease.getId()));
 	}
 

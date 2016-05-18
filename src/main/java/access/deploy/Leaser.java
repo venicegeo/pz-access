@@ -44,6 +44,8 @@ import com.mongodb.BasicDBObject;
 @Component
 public class Leaser {
 	@Autowired
+	private Deployer deployer;
+	@Autowired
 	private PiazzaLogger logger;
 	@Autowired
 	private UUIDFactory uuidFactory;
@@ -139,9 +141,7 @@ public class Leaser {
 			do {
 				Lease expiredLease = cursor.next();
 				try {
-					Deployment deployment = accessor.getDeployment(expiredLease.getDeploymentId());
-					// Remove the deployment. This will also remove the Lease.
-					accessor.deleteDeployment(deployment);
+					deployer.undeploy(expiredLease.getDeploymentId());
 					// Log the removal
 					logger.log(String.format(
 							"Expired Lease with ID %s with expiration date %s for Deployment %s has been removed.",
