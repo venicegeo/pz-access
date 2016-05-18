@@ -60,13 +60,14 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.amazonaws.util.StringUtils;
-
 import util.GeoToolsUtil;
 import util.PiazzaLogger;
 import access.database.MongoAccessor;
 import access.deploy.Deployer;
+import access.deploy.Leaser;
 import access.messaging.AccessThreadManager;
+
+import com.amazonaws.util.StringUtils;
 
 /**
  * Allows for synchronous fetching of Resource Data from the Mongo Resource
@@ -107,6 +108,8 @@ public class AccessController {
 	private MongoAccessor accessor;
 	@Autowired
 	private Deployer deployer;
+	@Autowired
+	private Leaser leaser;
 
 	@Value("${vcap.services.pz-blobstore.credentials.access_key_id}")
 	private String AMAZONS3_ACCESS_KEY;
@@ -125,7 +128,7 @@ public class AccessController {
 	public String getHealthCheck() {
 		return "Hello, Health Check here for pz-access.";
 	}
-	
+
 	/**
 	 * Requests a file download that has been prepared by this Access component.
 	 * This will return the raw bytes of the resource.
@@ -363,6 +366,16 @@ public class AccessController {
 		} else {
 			return "You're not serious.";
 		}
+	}
+
+	/**
+	 * Forces a check of all expired leases for reaping. Reaping will normally
+	 * occur automatically every night. However, this endpoint provides a way to
+	 * trigger at will.
+	 */
+	@RequestMapping(value = "/reap", method = RequestMethod.GET)
+	public void forceReap() {
+		leaser.reapExpiredLeases();
 	}
 
 	/**
