@@ -19,6 +19,7 @@ import model.data.deployment.Deployment;
 import model.data.deployment.Lease;
 
 import org.joda.time.DateTime;
+import org.mongojack.DBCursor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -26,6 +27,8 @@ import org.springframework.stereotype.Component;
 import util.PiazzaLogger;
 import util.UUIDFactory;
 import access.database.MongoAccessor;
+
+import com.mongodb.BasicDBObject;
 
 /**
  * Handles the leasing of deployments of Resources. When a Resource is deployed,
@@ -46,7 +49,7 @@ public class Leaser {
 	private UUIDFactory uuidFactory;
 	@Autowired
 	private MongoAccessor accessor;
-	private static final int DEFAULT_LEASE_PERIOD_DAYS = 7;
+	private static final int DEFAULT_LEASE_PERIOD_DAYS = 21;
 
 	/**
 	 * Renews the existing Deployment. This Deployment must exist in the
@@ -122,6 +125,39 @@ public class Leaser {
 	 */
 	@Scheduled(cron = "0 0 3 * * ?")
 	public void reapExpiredLeases() {
-		
+		// Log the initiation of reaping.
+		logger.log("Running scheduled daily reaping of expired Deployment Leases.", PiazzaLogger.INFO);
+
+		// Determine if GeoServer is reaching capacity of its resources.
+		// TODO
+
+		// Query for all leases that have gone past their expiration date.
+		BasicDBObject query = new BasicDBObject("expirationDate", new BasicDBObject("$lt", DateTime.now().toString()));
+		DBCursor<Lease> cursor = accessor.getLeaseCollection().find(query);
+		if (cursor.size() > 0) {
+			// There are leases with expired deployments. Remove them.
+			do {
+				Lease expiredLease = cursor.next();
+				try {
+					Deployment deployment = accessor.getDeployment(expiredLease.getDeploymentId());
+					// Remove the deployment. This will also remove the Lease.
+					accessor.deleteDeployment(deployment);
+					// Log the removal
+					logger.log(String.format(
+							"Expired Lease with ID %s with expiration date %s for Deployment %s has been removed.",
+							expiredLease.getId(), expiredLease.getExpirationDate(), expiredLease.getDeploymentId()),
+							PiazzaLogger.INFO);
+				} catch (Exception exception) {
+					exception.printStackTrace();
+					logger.log(String.format(
+							"Error reaping Expired Lease with ID %s: %s. This expired lease may still persist.",
+							expiredLease.getId(), exception.getMessage()), PiazzaLogger.INFO);
+				}
+			} while (cursor.hasNext());
+		} else {
+			// Nothing to do
+			logger.log("There were no expired Deployment Leases to reap.", PiazzaLogger.INFO);
+		}
+
 	}
 }
