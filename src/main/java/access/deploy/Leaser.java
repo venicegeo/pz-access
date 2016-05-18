@@ -20,6 +20,7 @@ import model.data.deployment.Lease;
 
 import org.joda.time.DateTime;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import util.PiazzaLogger;
@@ -99,5 +100,28 @@ public class Leaser {
 		logger.log(String.format("Creating Deployment Lease for Deployment %s on host %s for %s", deployment.getId(),
 				deployment.getHost(), deployment.getDataId()), PiazzaLogger.INFO);
 		return lease;
+	}
+
+	/**
+	 * <p>
+	 * This method is scheduled to run periodically and look for leases that are
+	 * expired. If a lease is found to be expired, and GeoServer resources are
+	 * limited, then the lease will be terminated.
+	 * </p>
+	 * 
+	 * <p>
+	 * Leases might not be terminated if they are expired, if GeoServer has more
+	 * than adequate resources available. This is configurable, but ultimately
+	 * the goal is to create a friendly user experience while not bogging down
+	 * GeoServer with lots of old, unused deployments.
+	 * </p>
+	 * 
+	 * <p>
+	 * This will currently run every day at 3:00am.
+	 * </p>
+	 */
+	@Scheduled(cron = "0 0 3 * * ?")
+	public void reapExpiredLeases() {
+		
 	}
 }

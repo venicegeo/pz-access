@@ -371,7 +371,9 @@ public class Deployer {
 	 *            The ID of the deployment.
 	 */
 	public void deleteDeployment(String deploymentId) throws Exception {
-		// Get the Deployment from the Database to delete
+		// Get the Deployment from the Database to delete. If the Deployment had
+		// a lease, then the lease is automatically removed when the deployment
+		// is deleted.
 		Deployment deployment = accessor.getDeployment(deploymentId);
 		if (deployment == null) {
 			throw new Exception("Deployment does not exist matching ID " + deploymentId);
