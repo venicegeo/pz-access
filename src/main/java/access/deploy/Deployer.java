@@ -382,9 +382,10 @@ public class Deployer {
 		}
 		// Delete the Deployment from GeoServer
 		RestTemplate restTemplate = new RestTemplate();
+		HttpEntity<String> request = new HttpEntity<String>(getGeoServerHeaders());
 		String url = String.format("http://%s:%s/geoserver/rest/layers/%s", GEOSERVER_HOST, GEOSERVER_PORT,
 				deployment.getLayer());
-		restTemplate.delete(url);
+		restTemplate.exchange(url, HttpMethod.DELETE, request, String.class);
 		// Remove the Deployment from the Database
 		accessor.deleteDeployment(deployment);
 	}

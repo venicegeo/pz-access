@@ -151,7 +151,7 @@ public class Leaser {
 					exception.printStackTrace();
 					logger.log(String.format(
 							"Error reaping Expired Lease with ID %s: %s. This expired lease may still persist.",
-							expiredLease.getId(), exception.getMessage()), PiazzaLogger.INFO);
+							expiredLease.getId(), exception.getMessage()), PiazzaLogger.ERROR);
 				}
 			} while (cursor.hasNext());
 		} else {
