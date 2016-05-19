@@ -38,6 +38,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
 import util.PiazzaLogger;
@@ -385,7 +386,21 @@ public class Deployer {
 		HttpEntity<String> request = new HttpEntity<String>(getGeoServerHeaders());
 		String url = String.format("http://%s:%s/geoserver/rest/layers/%s", GEOSERVER_HOST, GEOSERVER_PORT,
 				deployment.getLayer());
-		restTemplate.exchange(url, HttpMethod.DELETE, request, String.class);
+		try {
+			restTemplate.exchange(url, HttpMethod.DELETE, request, String.class);
+		} catch (HttpClientErrorException exception) {
+			// Check the status code. If it's a 404, then the layer has likely
+			// already been deleted by some other means.
+			if (exception.getStatusCode() == HttpStatus.NOT_FOUND) {
+				logger.log(
+						String.format(
+								"Attempted to undeploy GeoServer layer %s while deleting the Deployment ID %s, but the layer was already deleted from GeoServer. This layer may have been removed by some other means.",
+								deployment.getLayer(), deploymentId), PiazzaLogger.WARNING);
+			} else {
+				// Some other exception occurred. Bubble it up.
+				throw exception;
+			}
+		}
 		// Remove the Deployment from the Database
 		accessor.deleteDeployment(deployment);
 	}
