@@ -365,13 +365,17 @@ public class Deployer {
 	}
 
 	/**
-	 * Deletes a deployment, as specified by its ID.
+	 * Deletes a deployment, as specified by its ID. This will remove the
+	 * Deployment from GeoServer, delete the lease and the deployment from the
+	 * Database.
 	 * 
 	 * @param deploymentId
 	 *            The ID of the deployment.
 	 */
-	public void deleteDeployment(String deploymentId) throws Exception {
-		// Get the Deployment from the Database to delete
+	public void undeploy(String deploymentId) throws Exception {
+		// Get the Deployment from the Database to delete. If the Deployment had
+		// a lease, then the lease is automatically removed when the deployment
+		// is deleted.
 		Deployment deployment = accessor.getDeployment(deploymentId);
 		if (deployment == null) {
 			throw new Exception("Deployment does not exist matching ID " + deploymentId);

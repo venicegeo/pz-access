@@ -105,8 +105,45 @@ public class MongoAccessor {
 		return deployment;
 	}
 
+	/**
+	 * Deletes a deployment entirely from the database.
+	 * 
+	 * <p>
+	 * If a lease exists for this deployment, then it is also removed from the
+	 * database.
+	 * </p>
+	 * 
+	 * <p>
+	 * Note that this is only for database collections only. This does not
+	 * actually remove the data from GeoServer. This is handled in the Deployer.
+	 * </p>
+	 * 
+	 * @param deployment
+	 *            The deployment to delete
+	 */
 	public void deleteDeployment(Deployment deployment) {
-		getDeploymentCollection().remove(new BasicDBObject("deploymentId", deployment.getId()));
+		// Delete the deployment
+		getDeploymentCollection().remove(new BasicDBObject("id", deployment.getId()));
+		// If the deployment had a lease, then delete that too.
+		Lease lease = getDeploymentLease(deployment);
+		if (lease != null) {
+			deleteLease(lease);
+		}
+	}
+
+	/**
+	 * Deletes a lease from the database.
+	 * 
+	 * <p>
+	 * Note that this is only for database collections only. This does not
+	 * actually remove the data from GeoServer. This is handled in the Deployer.
+	 * </p>
+	 * 
+	 * @param lease
+	 *            The lease to delete.
+	 */
+	private void deleteLease(Lease lease) {
+		getLeaseCollection().remove(new BasicDBObject("id", lease.getId()));
 	}
 
 	/**
