@@ -84,7 +84,7 @@ public class AccessWorker {
 			accessJob = (AccessJob) job.jobType;
 
 			// Logging
-			logger.log(String.format("Received Request to Access Data %s of Type %s under Job ID",
+			logger.log(String.format("Received Request to Access Data %s of Type %s under Job ID %s",
 					accessJob.getDataId(), accessJob.getDeploymentType(), job.getJobId()), PiazzaLogger.INFO);
 
 			// Update Status that this Job is being processed
