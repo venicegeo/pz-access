@@ -266,12 +266,16 @@ public class AccessController {
 	public PiazzaResponse getAllData(
 			@RequestParam(value = "page", required = false, defaultValue = DEFAULT_PAGE) Integer page,
 			@RequestParam(value = "pageSize", required = false, defaultValue = DEFAULT_PAGE_SIZE) Integer pageSize,
-			@RequestParam(value = "keyword", required = false) String keyword) {
+			@RequestParam(value = "keyword", required = false) String keyword,
+			@RequestParam(value = "userName", required = false) String userName) {
 		try {
 			Pattern regex = Pattern.compile(String.format("(?i)%s", keyword != null ? keyword : ""));
 			// Get a DB Cursor to the query for general data
 			DBCursor<DataResource> cursor = accessor.getDataResourceCollection().find()
 					.or(DBQuery.regex("metadata.name", regex), DBQuery.regex("metadata.description", regex));
+			if ((userName != null) && !(userName.isEmpty())) {
+				cursor.and(DBQuery.is("metadata.createdBy", userName));
+			}
 			Integer size = new Integer(cursor.size());
 			// Filter the data by pages
 			List<DataResource> data = cursor.skip(page * pageSize).limit(pageSize).toArray();
