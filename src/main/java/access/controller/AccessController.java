@@ -111,6 +111,8 @@ public class AccessController {
 	@Autowired
 	private Leaser leaser;
 
+	private GeoToolsUtil geoToolsUtil;
+
 	@Value("${vcap.services.pz-blobstore.credentials.access_key_id}")
 	private String AMAZONS3_ACCESS_KEY;
 	@Value("${vcap.services.pz-blobstore.credentials.secret_access_key}")
@@ -421,9 +423,10 @@ public class AccessController {
 	 * @return stringbuilder of geojson
 	 * @throws Exception
 	 */
+	@SuppressWarnings("static-access")
 	private StringBuilder getPostGISGeoJSON(DataResource data) throws Exception {
 		// Connect to POSTGIS and gather geoJSON info
-		DataStore postGisStore = GeoToolsUtil.getPostGisDataStore(POSTGRES_HOST, POSTGRES_PORT, POSTGRES_SCHEMA,
+		DataStore postGisStore = geoToolsUtil.getPostGisDataStore(POSTGRES_HOST, POSTGRES_PORT, POSTGRES_SCHEMA,
 				POSTGRES_DB_NAME, POSTGRES_USER, POSTGRES_PASSWORD);
 
 		PostGISDataType resource = (PostGISDataType) (data.getDataType());
