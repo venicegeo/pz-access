@@ -43,7 +43,7 @@ import org.springframework.web.client.RestTemplate;
 
 import util.PiazzaLogger;
 import util.UUIDFactory;
-import access.database.MongoAccessor;
+import access.database.Accessor;
 
 import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.services.s3.AmazonS3;
@@ -67,7 +67,7 @@ public class Deployer {
 	@Autowired
 	private UUIDFactory uuidFactory;
 	@Autowired
-	private MongoAccessor accessor;
+	private Accessor accessor;
 	@Value("${vcap.services.pz-geoserver.credentials.geoserver.hostname}")
 	private String GEOSERVER_HOST;
 	@Value("${vcap.services.pz-geoserver.credentials.geoserver.port}")

@@ -24,11 +24,14 @@ import model.data.DataResource;
 import model.data.deployment.Deployment;
 import model.data.deployment.Lease;
 
+import org.geotools.data.DataStore;
 import org.mongojack.DBQuery;
 import org.mongojack.DBUpdate;
 import org.mongojack.JacksonDBCollection;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+
+import util.GeoToolsUtil;
 
 import com.mongodb.BasicDBObject;
 import com.mongodb.DBCollection;
@@ -41,6 +44,8 @@ import com.mongodb.MongoTimeoutException;
  * Handles Mongo access for the Deployer and the Leaser, and for the Resource
  * collection which stores the Ingested Resource metadata.
  * 
+ * Also abstracts out some PostGIS accessor methods.
+ * 
  * Deployments and leases have their own collections, and are managed by this
  * Access component.
  * 
@@ -48,7 +53,7 @@ import com.mongodb.MongoTimeoutException;
  * 
  */
 @Component
-public class MongoAccessor {
+public class Accessor {
 	@Value("${vcap.services.pz-mongodb.credentials.uri}")
 	private String DATABASE_URI;
 	@Value("${vcap.services.pz-mongodb.credentials.database}")
@@ -83,6 +88,16 @@ public class MongoAccessor {
 	 */
 	public MongoClient getClient() {
 		return mongoClient;
+	}
+
+	/**
+	 * Gets the PostGIS data store for GeoTools.
+	 * 
+	 * @return Data Store.
+	 */
+	public DataStore getPostGisDataStore(String host, String port, String schema, String dbName, String user,
+			String password) throws Exception {
+		return GeoToolsUtil.getPostGisDataStore(host, port, schema, dbName, user, password);
 	}
 
 	/**

@@ -37,7 +37,7 @@ import org.springframework.scheduling.annotation.AsyncResult;
 import org.springframework.stereotype.Component;
 
 import util.PiazzaLogger;
-import access.database.MongoAccessor;
+import access.database.Accessor;
 import access.deploy.Deployer;
 import access.deploy.Leaser;
 
@@ -61,7 +61,7 @@ public class AccessWorker {
 	@Autowired
 	private Deployer deployer;
 	@Autowired
-	private MongoAccessor mongoAccessor;
+	private Accessor mongoAccessor;
 	@Autowired
 	private Leaser leaser;
 	@Autowired

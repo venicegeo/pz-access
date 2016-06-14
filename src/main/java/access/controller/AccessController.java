@@ -62,7 +62,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import util.GeoToolsUtil;
 import util.PiazzaLogger;
-import access.database.MongoAccessor;
+import access.database.Accessor;
 import access.deploy.Deployer;
 import access.deploy.Leaser;
 import access.messaging.AccessThreadManager;
@@ -105,13 +105,11 @@ public class AccessController {
 	@Autowired
 	private PiazzaLogger logger;
 	@Autowired
-	private MongoAccessor accessor;
+	private Accessor accessor;
 	@Autowired
 	private Deployer deployer;
 	@Autowired
 	private Leaser leaser;
-
-	private GeoToolsUtil geoToolsUtil;
 
 	@Value("${vcap.services.pz-blobstore.credentials.access_key_id}")
 	private String AMAZONS3_ACCESS_KEY;
@@ -423,10 +421,9 @@ public class AccessController {
 	 * @return stringbuilder of geojson
 	 * @throws Exception
 	 */
-	@SuppressWarnings("static-access")
 	private StringBuilder getPostGISGeoJSON(DataResource data) throws Exception {
 		// Connect to POSTGIS and gather geoJSON info
-		DataStore postGisStore = geoToolsUtil.getPostGisDataStore(POSTGRES_HOST, POSTGRES_PORT, POSTGRES_SCHEMA,
+		DataStore postGisStore = accessor.getPostGisDataStore(POSTGRES_HOST, POSTGRES_PORT, POSTGRES_SCHEMA,
 				POSTGRES_DB_NAME, POSTGRES_USER, POSTGRES_PASSWORD);
 
 		PostGISDataType resource = (PostGISDataType) (data.getDataType());

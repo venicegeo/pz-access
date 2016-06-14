@@ -26,7 +26,7 @@ import org.springframework.stereotype.Component;
 
 import util.PiazzaLogger;
 import util.UUIDFactory;
-import access.database.MongoAccessor;
+import access.database.Accessor;
 
 import com.mongodb.BasicDBObject;
 
@@ -50,7 +50,7 @@ public class Leaser {
 	@Autowired
 	private UUIDFactory uuidFactory;
 	@Autowired
-	private MongoAccessor accessor;
+	private Accessor accessor;
 	private static final int DEFAULT_LEASE_PERIOD_DAYS = 21;
 
 	/**
