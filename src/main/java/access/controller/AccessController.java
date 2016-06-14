@@ -19,9 +19,7 @@ import java.io.InputStream;
 import java.io.StringWriter;
 import java.security.Principal;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.regex.Pattern;
 
 import model.data.DataResource;
 import model.data.FileRepresentation;
@@ -29,12 +27,9 @@ import model.data.deployment.Deployment;
 import model.data.location.FileAccessFactory;
 import model.data.type.PostGISDataType;
 import model.data.type.TextDataType;
-import model.response.DataResourceListResponse;
 import model.response.DataResourceResponse;
-import model.response.DeploymentListResponse;
 import model.response.DeploymentResponse;
 import model.response.ErrorResponse;
-import model.response.Pagination;
 import model.response.PiazzaResponse;
 
 import org.apache.commons.io.FilenameUtils;
@@ -44,8 +39,6 @@ import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureIterator;
 import org.geotools.data.simple.SimpleFeatureSource;
 import org.geotools.geojson.feature.FeatureJSON;
-import org.mongojack.DBCursor;
-import org.mongojack.DBQuery;
 import org.opengis.feature.simple.SimpleFeature;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -60,7 +53,6 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import util.GeoToolsUtil;
 import util.PiazzaLogger;
 import access.database.Accessor;
 import access.deploy.Deployer;
@@ -269,20 +261,7 @@ public class AccessController {
 			@RequestParam(value = "keyword", required = false) String keyword,
 			@RequestParam(value = "userName", required = false) String userName) {
 		try {
-			Pattern regex = Pattern.compile(String.format("(?i)%s", keyword != null ? keyword : ""));
-			// Get a DB Cursor to the query for general data
-			DBCursor<DataResource> cursor = accessor.getDataResourceCollection().find()
-					.or(DBQuery.regex("metadata.name", regex), DBQuery.regex("metadata.description", regex));
-			if ((userName != null) && !(userName.isEmpty())) {
-				cursor.and(DBQuery.is("metadata.createdBy", userName));
-			}
-			Integer size = new Integer(cursor.size());
-			// Filter the data by pages
-			List<DataResource> data = cursor.skip(page * pageSize).limit(pageSize).toArray();
-			// Attach pagination information
-			Pagination pagination = new Pagination(size, page, pageSize);
-			// Create the Response and send back
-			return new DataResourceListResponse(data, pagination);
+			return accessor.getDataList(page, pageSize, keyword, userName);
 		} catch (Exception exception) {
 			logger.log(String.format("Error Querying Data: %s", exception.getMessage()), PiazzaLogger.ERROR);
 			return new ErrorResponse(null, "Error Querying Data: " + exception.getMessage(), "Access");
@@ -301,20 +280,7 @@ public class AccessController {
 			@RequestParam(value = "pageSize", required = false, defaultValue = DEFAULT_PAGE_SIZE) Integer pageSize,
 			@RequestParam(value = "keyword", required = false) String keyword) {
 		try {
-			Pattern regex = Pattern.compile(String.format("(?i)%s", keyword != null ? keyword : ""));
-			// Get a DB Cursor to the query for general data
-			DBCursor<Deployment> cursor = accessor
-					.getDeploymentCollection()
-					.find()
-					.or(DBQuery.regex("id", regex), DBQuery.regex("dataId", regex),
-							DBQuery.regex("capabilitiesUrl", regex));
-			Integer size = new Integer(cursor.size());
-			// Filter the data by pages
-			List<Deployment> data = cursor.skip(page * pageSize).limit(pageSize).toArray();
-			// Attach pagination information
-			Pagination pagination = new Pagination(size, page, pageSize);
-			// Create the Response and send back
-			return new DeploymentListResponse(data, pagination);
+			return accessor.getDeploymentList(page, pageSize, keyword);
 		} catch (Exception exception) {
 			logger.log(String.format("Error Querying Deployment: %s", exception.getMessage()), PiazzaLogger.ERROR);
 			return new ErrorResponse(null, "Error Querying Deployment: " + exception.getMessage(), "Access");
@@ -328,7 +294,7 @@ public class AccessController {
 	 */
 	@RequestMapping(value = "/data/count", method = RequestMethod.GET)
 	public long getDataCount() {
-		return accessor.getDataResourceCollection().count();
+		return accessor.getDataCount();
 	}
 
 	/**
@@ -353,22 +319,6 @@ public class AccessController {
 			String error = String.format("Error Deleting Deployment %s: %s", deploymentId, exception.getMessage());
 			logger.log(error, PiazzaLogger.ERROR);
 			return new ErrorResponse(null, error, "Access");
-		}
-	}
-
-	/**
-	 * Drops the Mongo collections. This is for internal development use only.
-	 * We should probably remove this in the future. Don't use this.
-	 */
-	@RequestMapping(value = "/drop")
-	public String dropAllTables(@RequestParam(value = "serious", required = false) Boolean serious) {
-		if ((serious != null) && (serious.booleanValue())) {
-			accessor.getDataResourceCollection().drop();
-			accessor.getLeaseCollection().drop();
-			accessor.getDeploymentCollection().drop();
-			return "Collections dropped.";
-		} else {
-			return "You're not serious.";
 		}
 	}
 

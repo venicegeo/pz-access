@@ -8,12 +8,21 @@ import static org.mockito.Mockito.when;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import model.data.DataResource;
+import model.data.deployment.Deployment;
 import model.data.location.FolderShare;
+import model.data.type.GeoJsonDataType;
 import model.data.type.PostGISDataType;
 import model.data.type.RasterDataType;
 import model.data.type.TextDataType;
+import model.response.DataResourceListResponse;
+import model.response.DataResourceResponse;
+import model.response.DeploymentListResponse;
+import model.response.DeploymentResponse;
+import model.response.ErrorResponse;
+import model.response.PiazzaResponse;
 
 import org.geotools.data.DataUtilities;
 import org.geotools.data.memory.MemoryDataStore;
@@ -23,13 +32,13 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.simple.SimpleFeatureType;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
-import util.GeoToolsUtil;
 import util.PiazzaLogger;
 import access.controller.AccessController;
 import access.database.Accessor;
@@ -155,6 +164,153 @@ public class ControllerTests {
 		// Verify
 		assertTrue(response.getStatusCode().equals(HttpStatus.OK));
 		assertTrue(response.getBody().length == 90074);
+	}
 
+	/**
+	 * Tests GET /data/{dataId}
+	 */
+	@Test
+	public void testGetData() {
+		// Mock no data ID
+		PiazzaResponse response = accessController.getData("");
+		assertTrue(response instanceof ErrorResponse);
+
+		// Mock no data
+		when(accessor.getData(eq("123456"))).thenReturn(null);
+		response = accessController.getData("123456");
+		assertTrue(response instanceof ErrorResponse);
+
+		// Proper mock
+		DataResource mockData = new DataResource();
+		mockData.setDataId("123456");
+		mockData.dataType = new GeoJsonDataType();
+		when(accessor.getData(eq("123456"))).thenReturn(mockData);
+
+		// Test
+		response = accessController.getData("123456");
+
+		// Verify
+		assertTrue(response instanceof DataResourceResponse);
+		assertTrue(((DataResourceResponse) response).data.getDataId().equals("123456"));
+	}
+
+	/**
+	 * Tests GET /deployment/{deploymentId}
+	 */
+	@Test
+	public void testGetDeployment() {
+		// Mock no deployment ID
+		PiazzaResponse response = accessController.getDeployment("");
+		assertTrue(response instanceof ErrorResponse);
+
+		// Mock no deployment
+		when(accessor.getDeployment(eq("123456"))).thenReturn(null);
+		response = accessController.getDeployment("123456");
+		assertTrue(response instanceof ErrorResponse);
+
+		// Proper mock
+		Deployment deployment = new Deployment();
+		deployment.setId("123456");
+		when(accessor.getDeployment(eq("123456"))).thenReturn(deployment);
+
+		// Test
+		response = accessController.getDeployment("123456");
+
+		// Verify
+		assertTrue(response instanceof DeploymentResponse);
+		assertTrue(((DeploymentResponse) response).deployment.getId().equals("123456"));
+	}
+
+	/**
+	 * Tests GET /data
+	 */
+	@Test
+	public void testGetDataList() throws Exception {
+		// Mock
+		DataResourceListResponse mockResponse = new DataResourceListResponse();
+		mockResponse.data = new ArrayList<DataResource>();
+		mockResponse.data.add(new DataResource());
+		when(accessor.getDataList(eq(0), eq(10), eq("Raster"), eq("Test User"))).thenReturn(mockResponse);
+
+		// Test
+		PiazzaResponse response = accessController.getAllData(0, 10, "Raster", "Test User");
+
+		// Verify
+		assertTrue(response instanceof DataResourceListResponse);
+		assertTrue(((DataResourceListResponse) response).data.size() == 1);
+
+		// Test Exception
+		Mockito.doThrow(new Exception()).when(accessor).getDataList(eq(0), eq(10), eq("Raster"), eq("Test User"));
+		response = accessController.getAllData(0, 10, "Raster", "Test User");
+		assertTrue(response instanceof ErrorResponse);
+	}
+
+	/**
+	 * Tests GET /deployment
+	 */
+	@Test
+	public void testDeploymentList() throws Exception {
+		// Mock
+		DeploymentListResponse mockResponse = new DeploymentListResponse();
+		mockResponse.data = new ArrayList<Deployment>();
+		mockResponse.data.add(new Deployment());
+		when(accessor.getDeploymentList(eq(0), eq(10), eq("WFS"))).thenReturn(mockResponse);
+
+		// Test
+		PiazzaResponse response = accessController.getAllDeployments(0, 10, "WFS");
+
+		// Verify
+		assertTrue(response instanceof DeploymentListResponse);
+		assertTrue(((DeploymentListResponse) response).data.size() == 1);
+
+		// Test Exception
+		Mockito.doThrow(new Exception()).when(accessor).getDeploymentList(eq(0), eq(10), eq("WFS"));
+		response = accessController.getAllDeployments(0, 10, "WFS");
+		assertTrue(response instanceof ErrorResponse);
+	}
+
+	/**
+	 * Tests GET /data
+	 */
+	@Test
+	public void testDataCount() {
+		// Mock
+		when(accessor.getDataCount()).thenReturn((long) 5000);
+		// Test
+		long count = accessController.getDataCount();
+		// Verify
+		assertTrue(count == 5000);
+	}
+
+	/**
+	 * Test DELETE /deployment/{deploymentId} and /reap
+	 */
+	@Test
+	public void testUndeploy() throws Exception {
+		// Test undeploying
+		PiazzaResponse response = accessController.deleteDeployment("123456", null);
+		assertTrue(response == null);
+
+		// Test Exception
+		Mockito.doThrow(new Exception()).when(deployer).undeploy(eq("123456"));
+		response = accessController.deleteDeployment("123456", null);
+		assertTrue(response instanceof ErrorResponse);
+
+		// Test reaping
+		accessController.forceReap();
+	}
+
+	/**
+	 * Test GET /admin/stats
+	 */
+	@Test
+	public void testAdminStats() {
+		// Test
+		ResponseEntity<Map<String, Object>> response = accessController.getAdminStats();
+		Map<String, Object> stats = response.getBody();
+
+		// Verify
+		assertTrue(stats != null);
+		assertTrue(stats.keySet().contains("jobs"));
 	}
 }

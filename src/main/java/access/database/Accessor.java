@@ -16,6 +16,8 @@
 package access.database;
 
 import java.net.UnknownHostException;
+import java.util.List;
+import java.util.regex.Pattern;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
@@ -23,8 +25,12 @@ import javax.annotation.PreDestroy;
 import model.data.DataResource;
 import model.data.deployment.Deployment;
 import model.data.deployment.Lease;
+import model.response.DataResourceListResponse;
+import model.response.DeploymentListResponse;
+import model.response.Pagination;
 
 import org.geotools.data.DataStore;
+import org.mongojack.DBCursor;
 import org.mongojack.DBQuery;
 import org.mongojack.DBUpdate;
 import org.mongojack.JacksonDBCollection;
@@ -271,6 +277,71 @@ public class Accessor {
 	public JacksonDBCollection<DataResource, String> getDataResourceCollection() {
 		DBCollection collection = mongoClient.getDB(DATABASE_NAME).getCollection(RESOURCE_COLLECTION_NAME);
 		return JacksonDBCollection.wrap(collection, DataResource.class, String.class);
+	}
+
+	/**
+	 * Gets a list of data from the database
+	 * 
+	 * @param page
+	 *            The page number to start at
+	 * @param pageSize
+	 *            The number of results per page
+	 * @param keyword
+	 *            Keyword filtering
+	 * @param userName
+	 *            Username filtering
+	 * @return List of Data items
+	 */
+	public DataResourceListResponse getDataList(Integer page, Integer pageSize, String keyword, String userName)
+			throws Exception {
+		Pattern regex = Pattern.compile(String.format("(?i)%s", keyword != null ? keyword : ""));
+		// Get a DB Cursor to the query for general data
+		DBCursor<DataResource> cursor = getDataResourceCollection().find().or(DBQuery.regex("metadata.name", regex),
+				DBQuery.regex("metadata.description", regex));
+		if ((userName != null) && !(userName.isEmpty())) {
+			cursor.and(DBQuery.is("metadata.createdBy", userName));
+		}
+		Integer size = new Integer(cursor.size());
+		// Filter the data by pages
+		List<DataResource> data = cursor.skip(page * pageSize).limit(pageSize).toArray();
+		// Attach pagination information
+		Pagination pagination = new Pagination(size, page, pageSize);
+		// Create the Response and send back
+		return new DataResourceListResponse(data, pagination);
+	}
+
+	/**
+	 * Returns the number of items in the database for Data Resources
+	 * 
+	 * @return number of Data Resources in the database
+	 */
+	public long getDataCount() {
+		return getDataResourceCollection().count();
+	}
+
+	/**
+	 * Gets a list of deployments from the database
+	 * 
+	 * @param page
+	 *            The page number to start
+	 * @param pageSize
+	 *            The number of results per page
+	 * @param keyword
+	 *            Keyword filtering
+	 * @return List of deployments
+	 */
+	public DeploymentListResponse getDeploymentList(Integer page, Integer pageSize, String keyword) throws Exception {
+		Pattern regex = Pattern.compile(String.format("(?i)%s", keyword != null ? keyword : ""));
+		// Get a DB Cursor to the query for general data
+		DBCursor<Deployment> cursor = getDeploymentCollection().find().or(DBQuery.regex("id", regex),
+				DBQuery.regex("dataId", regex), DBQuery.regex("capabilitiesUrl", regex));
+		Integer size = new Integer(cursor.size());
+		// Filter the data by pages
+		List<Deployment> data = cursor.skip(page * pageSize).limit(pageSize).toArray();
+		// Attach pagination information
+		Pagination pagination = new Pagination(size, page, pageSize);
+		// Create the Response and send back
+		return new DeploymentListResponse(data, pagination);
 	}
 
 	/**
