@@ -24,7 +24,6 @@ import model.data.deployment.Deployment;
 import model.job.Job;
 import model.job.result.type.DeploymentResult;
 import model.job.result.type.ErrorResult;
-import model.job.result.type.FileResult;
 import model.job.type.AccessJob;
 import model.status.StatusUpdate;
 
@@ -37,7 +36,7 @@ import org.springframework.scheduling.annotation.AsyncResult;
 import org.springframework.stereotype.Component;
 
 import util.PiazzaLogger;
-import access.database.MongoAccessor;
+import access.database.Accessor;
 import access.deploy.Deployer;
 import access.deploy.Leaser;
 
@@ -61,7 +60,7 @@ public class AccessWorker {
 	@Autowired
 	private Deployer deployer;
 	@Autowired
-	private MongoAccessor mongoAccessor;
+	private Accessor mongoAccessor;
 	@Autowired
 	private Leaser leaser;
 	@Autowired
@@ -84,8 +83,9 @@ public class AccessWorker {
 			accessJob = (AccessJob) job.jobType;
 
 			// Logging
-			logger.log(String.format("Received Request to Access Data %s of Type %s under Job ID %s",
-					accessJob.getDataId(), accessJob.getDeploymentType(), job.getJobId()), PiazzaLogger.INFO);
+			logger.log(
+					String.format("Received Request to Access Data %s of Type %s under Job ID %s",
+							accessJob.getDataId(), accessJob.getDeploymentType(), job.getJobId()), PiazzaLogger.INFO);
 
 			// Update Status that this Job is being processed
 			StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_RUNNING);
@@ -93,19 +93,6 @@ public class AccessWorker {
 
 			// Depending on how the user wants to Access the Resource
 			switch (accessJob.getDeploymentType()) {
-
-			case AccessJob.ACCESS_TYPE_FILE:
-				// Return the URL that the user can use to acquire the file
-				statusUpdate = new StatusUpdate(StatusUpdate.STATUS_SUCCESS);
-				statusUpdate.setResult(new FileResult(accessJob.getDataId()));
-				producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate, SPACE));
-
-				// Console Logging
-				logger.log(String.format("GeoServer File Request successul for Resource %s", accessJob.getDataId()),
-						PiazzaLogger.INFO);
-				System.out.println("Deployment File Request Returned for Resource " + accessJob.getDataId());
-				break;
-
 			case AccessJob.ACCESS_TYPE_GEOSERVER:
 				Deployment deployment = null;
 
@@ -137,7 +124,6 @@ public class AccessWorker {
 						PiazzaLogger.INFO);
 				System.out.println("Deployment Successfully Returned for Resource " + accessJob.getDataId());
 				break;
-
 			default:
 				throw new Exception("Unknown Deployment Type: " + accessJob.getDeploymentType());
 			}
@@ -160,7 +146,9 @@ public class AccessWorker {
 				jsonException.printStackTrace();
 			}
 		} finally {
-			callback.onComplete(consumerRecord.key());
+			if (callback != null) {
+				callback.onComplete(consumerRecord.key());
+			}
 		}
 
 		return new AsyncResult<AccessJob>(accessJob);

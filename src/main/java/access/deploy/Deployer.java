@@ -15,6 +15,7 @@
  **/
 package access.deploy;
 
+import java.io.File;
 import java.io.IOException;
 
 import model.data.DataResource;
@@ -25,7 +26,6 @@ import model.data.type.GeoJsonDataType;
 import model.data.type.PostGISDataType;
 import model.data.type.RasterDataType;
 import model.data.type.ShapefileDataType;
-import model.data.type.WfsDataType;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.tomcat.util.codec.binary.Base64;
@@ -43,11 +43,8 @@ import org.springframework.web.client.RestTemplate;
 
 import util.PiazzaLogger;
 import util.UUIDFactory;
-import access.database.MongoAccessor;
-
-import com.amazonaws.auth.BasicAWSCredentials;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3Client;
+import access.database.Accessor;
+import access.util.AccessUtilities;
 
 /**
  * Class that manages the GeoServer Deployments held by this component. This is
@@ -67,7 +64,9 @@ public class Deployer {
 	@Autowired
 	private UUIDFactory uuidFactory;
 	@Autowired
-	private MongoAccessor accessor;
+	private AccessUtilities accessUtilities;
+	@Autowired
+	private Accessor accessor;
 	@Value("${vcap.services.pz-geoserver.credentials.geoserver.hostname}")
 	private String GEOSERVER_HOST;
 	@Value("${vcap.services.pz-geoserver.credentials.geoserver.port}")
@@ -76,14 +75,10 @@ public class Deployer {
 	private String GEOSERVER_USERNAME;
 	@Value("${vcap.services.pz-geoserver.credentials.geoserver.password}")
 	private String GEOSERVER_PASSWORD;
-	@Value("${vcap.services.pz-geoserver.credentials.s3.bucket}")
-	private String GEOSERVER_DATA_DIRECTORY;
-	@Value("${vcap.services.pz-geoserver.credentials.s3.access_key_id}")
-	private String AMAZONS3_ACCESS_KEY;
-	@Value("${vcap.services.pz-geoserver.credentials.s3.secret_access_key}")
-	private String AMAZONS3_PRIVATE_KEY;
 	@Value("${vcap.services.pz-blobstore.credentials.bucket}")
 	private String AMAZONS3_BUCKET_NAME;
+
+	private RestTemplate restTemplate = new RestTemplate();
 
 	private static final String HOST_ADDRESS = "http://%s:%s%s";
 	private static final String GEOSERVER_DEFAULT_WORKSPACE = "piazza";
@@ -110,12 +105,6 @@ public class Deployer {
 					|| (dataResource.getDataType() instanceof GeoJsonDataType)) {
 				// Deploy from an existing PostGIS Table
 				deployment = deployPostGisTable(dataResource);
-			} else if (dataResource.getDataType() instanceof WfsDataType) {
-				// User has requested to deploy a WFS type resource. In this
-				// case, there's nothing to deploy since the WFS is already
-				// accessible by design? Just return the WFS information back to
-				// them? Or return an error?
-				deployment = null;
 			} else if (dataResource.getDataType() instanceof RasterDataType) {
 				// Deploy a GeoTIFF to GeoServer
 				deployment = deployGeoTiff(dataResource);
@@ -155,8 +144,8 @@ public class Deployer {
 	private Deployment deployPostGisTable(DataResource dataResource) throws Exception {
 		// Create the JSON Payload for the Layer request to GeoServer
 		ClassLoader classLoader = getClass().getClassLoader();
-		String featureTypeRequestBody = IOUtils.toString(classLoader
-				.getResourceAsStream("templates/featureTypeRequest.xml"));
+		String featureTypeRequestBody = IOUtils.toString(classLoader.getResourceAsStream("templates" + File.separator
+				+ "featureTypeRequest.xml"));
 
 		// Get the appropriate Table Name from the DataResource
 		String tableName = null;
@@ -214,8 +203,6 @@ public class Deployer {
 			throw new Exception("Cannot deploy this location because it does not reside in S3.");
 		}
 		S3FileStore fileStore = (S3FileStore) fileLocation;
-		// Get AWS Client
-		AmazonS3 s3client = new AmazonS3Client(new BasicAWSCredentials(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY));
 
 		// Ensure the destination file name is unique. If the file is hosted
 		// somewhere not referenced by Piazza (where hosted = false) then we can
@@ -229,15 +216,9 @@ public class Deployer {
 			destinationFileName = String.format("%s-%s", dataId, destinationFileName);
 		}
 
-		// Copy the file to the GeoServer S3 Bucket
-		logger.log(
-				String.format(
-						"Preparing to deploy Raster service. Moving file %s:%s from Piazza bucket into GeoServer bucket at %s:%s",
-						fileStore.getBucketName(), fileStore.getFileName(), GEOSERVER_DATA_DIRECTORY,
-						destinationFileName), PiazzaLogger.INFO);
+		// Copy
+		accessUtilities.copyS3FileStoreToGeserver(fileStore, destinationFileName);
 
-		s3client.copyObject(fileStore.getBucketName(), fileStore.getFileName(), GEOSERVER_DATA_DIRECTORY,
-				destinationFileName);
 		// File name
 		return destinationFileName;
 	}
@@ -290,8 +271,8 @@ public class Deployer {
 			throws Exception {
 		// Load template
 		ClassLoader classLoader = getClass().getClassLoader();
-		String dataStoreTemplate = IOUtils.toString(classLoader
-				.getResourceAsStream("templates/coverageStoreTypeRequest.xml"));
+		String dataStoreTemplate = IOUtils.toString(classLoader.getResourceAsStream("templates" + File.separator
+				+ "coverageStoreTypeRequest.xml"));
 
 		// Inject Metadata from the Data Resource into the Data Store Payload.
 		// Log this to console for traceability.
@@ -382,7 +363,6 @@ public class Deployer {
 			throw new Exception("Deployment does not exist matching ID " + deploymentId);
 		}
 		// Delete the Deployment from GeoServer
-		RestTemplate restTemplate = new RestTemplate();
 		HttpEntity<String> request = new HttpEntity<String>(getGeoServerHeaders());
 		String url = String.format("http://%s:%s/geoserver/rest/layers/%s", GEOSERVER_HOST, GEOSERVER_PORT,
 				deployment.getLayer());
@@ -424,7 +404,6 @@ public class Deployer {
 		// Create the Request template and execute
 		HttpEntity<String> request = new HttpEntity<String>(featureType, getGeoServerHeaders());
 
-		RestTemplate restTemplate = new RestTemplate();
 		ResponseEntity<String> response = null;
 		try {
 			response = restTemplate.exchange(url, HttpMethod.POST, request, String.class);
