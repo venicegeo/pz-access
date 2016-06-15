@@ -182,6 +182,13 @@ public class AccessThreadManager {
 	}
 
 	/**
+	 * Stops all polling
+	 */
+	public void stopPolling() {
+		this.closed.set(true);
+	}
+
+	/**
 	 * Returns a list of the Job IDs that are currently being processed by this
 	 * instance
 	 * 
