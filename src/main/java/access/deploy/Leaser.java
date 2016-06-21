@@ -132,6 +132,9 @@ public class Leaser {
 
 		// Determine if GeoServer is reaching capacity of its resources.
 		// TODO: Not sure if this is needed just yet.
+		if (true) {
+			logger.log("GeoServer not at capacity. No reaping of resources required.", PiazzaLogger.INFO);
+		}
 
 		// Query for all leases that have gone past their expiration date.
 		BasicDBObject query = new BasicDBObject("expirationDate", new BasicDBObject("$lt", DateTime.now().toString()));
