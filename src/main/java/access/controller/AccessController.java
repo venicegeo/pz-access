@@ -20,6 +20,7 @@ import java.io.StringWriter;
 import java.security.Principal;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.NoSuchElementException;
 
 import model.data.DataResource;
 import model.data.FileRepresentation;
@@ -130,23 +131,23 @@ public class AccessController {
 	 *            be downloaded.
 	 */
 	@RequestMapping(value = "/file/{dataId}", method = RequestMethod.GET)
-	public ResponseEntity<byte[]> accessFile(@PathVariable(value = "dataId") String dataId,
+	public ResponseEntity<?> accessFile(@PathVariable(value = "dataId") String dataId,
 			@RequestParam(value = "fileName", required = false) String name) throws Exception {
 		// Get the DataResource item
 		DataResource data = accessor.getData(dataId);
 		String fileName = (StringUtils.isNullOrEmpty(name)) ? (dataId) : (name);
 
 		if (data == null) {
-			String message = String.format("Data not found for requested ID %s", dataId);
+			String message = String.format("File not found for requested ID %s", dataId);
 			logger.log(message, PiazzaLogger.WARNING);
-			throw new Exception(message);
+			return getResponse(MediaType.APPLICATION_JSON, message, new byte[0], true);
 		}
 
 		if (data.getDataType() instanceof TextDataType) {
 			// Stream the Bytes back
 			TextDataType textData = (TextDataType) data.getDataType();
 			return getResponse(MediaType.TEXT_PLAIN, String.format("%s%s", fileName, ".txt"), textData.getContent()
-					.getBytes());
+					.getBytes(), false);
 		} else if (data.getDataType() instanceof PostGISDataType) {
 			// Obtain geoJSON from postGIS
 			StringBuilder geoJSON = getPostGISGeoJSON(data);
@@ -157,7 +158,7 @@ public class AccessController {
 
 			// Stream the Bytes back
 			return getResponse(MediaType.TEXT_PLAIN, String.format("%s%s", fileName, ".geojson"), geoJSON.toString()
-					.getBytes());
+					.getBytes(), false);
 		} else if (!(data.getDataType() instanceof FileRepresentation)) {
 			String message = String.format("File download not available for Data ID %s; type is %s", dataId, data
 					.getDataType().getType());
@@ -177,7 +178,7 @@ public class AccessController {
 			String extension = FilenameUtils.getExtension(originalFileName);
 
 			// Stream the Bytes back
-			return getResponse(MediaType.APPLICATION_OCTET_STREAM, String.format("%s.%s", fileName, extension), bytes);
+			return getResponse(MediaType.APPLICATION_OCTET_STREAM, String.format("%s.%s", fileName, extension), bytes, false);
 		}
 	}
 
@@ -354,11 +355,14 @@ public class AccessController {
 	 *            file bytes
 	 * @return ResponseEntity
 	 */
-	private ResponseEntity<byte[]> getResponse(MediaType type, String fileName, byte[] bytes) {
+	private ResponseEntity<byte[]> getResponse(MediaType type, String fileName, byte[] bytes, boolean empty) {
 		HttpHeaders header = new HttpHeaders();
 		header.setContentType(type);
 		header.set("Content-Disposition", "attachment; filename=" + fileName);
 		header.setContentLength(bytes.length);
+		if (empty) {
+			return new ResponseEntity<byte[]>(null, header, HttpStatus.NO_CONTENT);
+		}
 		return new ResponseEntity<byte[]>(bytes, header, HttpStatus.OK);
 	}
 
