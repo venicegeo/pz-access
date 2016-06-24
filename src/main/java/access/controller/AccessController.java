@@ -198,7 +198,7 @@ public class AccessController {
 			DataResource data = accessor.getData(dataId);
 			if (data == null) {
 				logger.log(String.format("Data not found for requested ID %s", dataId), PiazzaLogger.WARNING);
-				return new ErrorResponse(null, String.format("Data not found: %s", dataId), "Access");
+				return new ErrorResponse(String.format("Data not found: %s", dataId), "Access");
 			}
 
 			// Return the Data Resource item
@@ -207,7 +207,7 @@ public class AccessController {
 		} catch (Exception exception) {
 			exception.printStackTrace();
 			logger.log(String.format("Error fetching Data %s: %s", dataId, exception.getMessage()), PiazzaLogger.ERROR);
-			return new ErrorResponse(null, "Error fetching Data: " + exception.getMessage(), "Access");
+			return new ErrorResponse("Error fetching Data: " + exception.getMessage(), "Access");
 		}
 	}
 
@@ -234,7 +234,7 @@ public class AccessController {
 			if (deployment == null) {
 				logger.log(String.format("Deployment not found for requested ID %s", deploymentId),
 						PiazzaLogger.WARNING);
-				return new ErrorResponse(null, String.format("Deployment not found: %s", deploymentId), "Access");
+				return new ErrorResponse(String.format("Deployment not found: %s", deploymentId), "Access");
 			}
 
 			// Return the Data Resource item
@@ -244,7 +244,7 @@ public class AccessController {
 			exception.printStackTrace();
 			logger.log(String.format("Error fetching Deployment %s: %s", deploymentId, exception.getMessage()),
 					PiazzaLogger.ERROR);
-			return new ErrorResponse(null, "Error fetching Deployment: " + exception.getMessage(), "Access");
+			return new ErrorResponse("Error fetching Deployment: " + exception.getMessage(), "Access");
 		}
 	}
 
@@ -264,7 +264,7 @@ public class AccessController {
 			return accessor.getDataList(page, pageSize, keyword, userName);
 		} catch (Exception exception) {
 			logger.log(String.format("Error Querying Data: %s", exception.getMessage()), PiazzaLogger.ERROR);
-			return new ErrorResponse(null, "Error Querying Data: " + exception.getMessage(), "Access");
+			return new ErrorResponse("Error Querying Data: " + exception.getMessage(), "Access");
 		}
 	}
 
@@ -283,7 +283,7 @@ public class AccessController {
 			return accessor.getDeploymentList(page, pageSize, keyword);
 		} catch (Exception exception) {
 			logger.log(String.format("Error Querying Deployment: %s", exception.getMessage()), PiazzaLogger.ERROR);
-			return new ErrorResponse(null, "Error Querying Deployment: " + exception.getMessage(), "Access");
+			return new ErrorResponse("Error Querying Deployment: " + exception.getMessage(), "Access");
 		}
 	}
 
@@ -318,7 +318,7 @@ public class AccessController {
 			exception.printStackTrace();
 			String error = String.format("Error Deleting Deployment %s: %s", deploymentId, exception.getMessage());
 			logger.log(error, PiazzaLogger.ERROR);
-			return new ErrorResponse(null, error, "Access");
+			return new ErrorResponse(error, "Access");
 		}
 	}
 
