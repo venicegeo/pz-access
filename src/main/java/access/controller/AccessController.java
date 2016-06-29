@@ -140,14 +140,15 @@ public class AccessController {
 		if (data == null) {
 			String message = String.format("File not found for requested ID %s", dataId);
 			logger.log(message, PiazzaLogger.WARNING);
-			return getResponse(MediaType.APPLICATION_JSON, message, new byte[0], true);
+			
+			HttpHeaders header = new HttpHeaders();
+			return new ResponseEntity<byte[]>(message.getBytes(), header, HttpStatus.NO_CONTENT);
 		}
 
 		if (data.getDataType() instanceof TextDataType) {
 			// Stream the Bytes back
 			TextDataType textData = (TextDataType) data.getDataType();
-			return getResponse(MediaType.TEXT_PLAIN, String.format("%s%s", fileName, ".txt"), textData.getContent()
-					.getBytes(), false);
+			return getResponse(MediaType.TEXT_PLAIN, String.format("%s%s", fileName, ".txt"), textData.getContent().getBytes());
 		} else if (data.getDataType() instanceof PostGISDataType) {
 			// Obtain geoJSON from postGIS
 			StringBuilder geoJSON = getPostGISGeoJSON(data);
@@ -157,8 +158,7 @@ public class AccessController {
 					PiazzaLogger.INFO);
 
 			// Stream the Bytes back
-			return getResponse(MediaType.TEXT_PLAIN, String.format("%s%s", fileName, ".geojson"), geoJSON.toString()
-					.getBytes(), false);
+			return getResponse(MediaType.TEXT_PLAIN, String.format("%s%s", fileName, ".geojson"), geoJSON.toString().getBytes());
 		} else if (!(data.getDataType() instanceof FileRepresentation)) {
 			String message = String.format("File download not available for Data ID %s; type is %s", dataId, data
 					.getDataType().getType());
@@ -178,7 +178,7 @@ public class AccessController {
 			String extension = FilenameUtils.getExtension(originalFileName);
 
 			// Stream the Bytes back
-			return getResponse(MediaType.APPLICATION_OCTET_STREAM, String.format("%s.%s", fileName, extension), bytes, false);
+			return getResponse(MediaType.APPLICATION_OCTET_STREAM, String.format("%s.%s", fileName, extension), bytes);
 		}
 	}
 
@@ -355,14 +355,11 @@ public class AccessController {
 	 *            file bytes
 	 * @return ResponseEntity
 	 */
-	private ResponseEntity<byte[]> getResponse(MediaType type, String fileName, byte[] bytes, boolean empty) {
+	private ResponseEntity<byte[]> getResponse(MediaType type, String fileName, byte[] bytes) {
 		HttpHeaders header = new HttpHeaders();
 		header.setContentType(type);
 		header.set("Content-Disposition", "attachment; filename=" + fileName);
 		header.setContentLength(bytes.length);
-		if (empty) {
-			return new ResponseEntity<byte[]>(null, header, HttpStatus.NO_CONTENT);
-		}
 		return new ResponseEntity<byte[]>(bytes, header, HttpStatus.OK);
 	}
 
