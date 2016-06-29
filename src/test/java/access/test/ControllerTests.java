@@ -109,13 +109,14 @@ public class ControllerTests {
 	/**
 	 * Test an exception
 	 */
-	@Test(expected = Exception.class)
+	@Test
 	public void testDownloadError() throws Exception {
 		// Mock no data being found
 		when(accessor.getData(eq("123456"))).thenReturn(null);
 
 		// Test
-		accessController.accessFile("123456", "file.file");
+		ResponseEntity<?> response = accessController.accessFile("123456", "file.file");
+		assertTrue(response.getStatusCode().equals(HttpStatus.NO_CONTENT));
 	}
 
 	/**
@@ -129,7 +130,7 @@ public class ControllerTests {
 		mockData.dataType = new TextDataType();
 		((TextDataType) mockData.dataType).content = "This is a test";
 		when(accessor.getData(eq("123456"))).thenReturn(mockData);
-		ResponseEntity<byte[]> response = accessController.accessFile("123456", "file.txt");
+		ResponseEntity<byte[]> response = (ResponseEntity<byte[]>) accessController.accessFile("123456", "file.txt");
 
 		// Verify
 		assertTrue(response.getStatusCode().equals(HttpStatus.OK));
@@ -142,7 +143,7 @@ public class ControllerTests {
 		when(accessor.getData(eq("123456"))).thenReturn(mockData);
 		when(accessor.getPostGisDataStore(anyString(), anyString(), anyString(), anyString(), anyString(), anyString()))
 				.thenReturn(mockDataStore);
-		response = accessController.accessFile("123456", "file.geojson");
+		response = (ResponseEntity<byte[]>) accessController.accessFile("123456", "file.geojson");
 
 		// Verify
 		assertTrue(response.getStatusCode().equals(HttpStatus.OK));
@@ -159,7 +160,7 @@ public class ControllerTests {
 				+ "elevation.tif";
 		((RasterDataType) mockData.dataType).location = location;
 		when(accessor.getData(eq("123456"))).thenReturn(mockData);
-		response = accessController.accessFile("123456", "file.tif");
+		response = (ResponseEntity<byte[]>) accessController.accessFile("123456", "file.tif");
 
 		// Verify
 		assertTrue(response.getStatusCode().equals(HttpStatus.OK));
