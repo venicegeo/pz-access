@@ -230,18 +230,20 @@ public class ControllerTests {
 		DataResourceListResponse mockResponse = new DataResourceListResponse();
 		mockResponse.data = new ArrayList<DataResource>();
 		mockResponse.data.add(new DataResource());
-		when(accessor.getDataList(eq(0), eq(10), eq("Raster"), eq("Test User"))).thenReturn(mockResponse);
+		when(accessor.getDataList(eq(0), eq(10), eq("dataId"), eq("asc"), eq("Raster"), eq("Test User"))).thenReturn(
+				mockResponse);
 
 		// Test
-		PiazzaResponse response = accessController.getAllData(0, 10, "Raster", "Test User");
+		PiazzaResponse response = accessController.getAllData(0, 10, "dataId", "asc", "Raster", "Test User");
 
 		// Verify
 		assertTrue(response instanceof DataResourceListResponse);
 		assertTrue(((DataResourceListResponse) response).data.size() == 1);
 
 		// Test Exception
-		Mockito.doThrow(new Exception()).when(accessor).getDataList(eq(0), eq(10), eq("Raster"), eq("Test User"));
-		response = accessController.getAllData(0, 10, "Raster", "Test User");
+		Mockito.doThrow(new Exception()).when(accessor)
+				.getDataList(eq(0), eq(10), eq("dataId"), eq("asc"), eq("Raster"), eq("Test User"));
+		response = accessController.getAllData(0, 10, "dataId", "asc", "Raster", "Test User");
 		assertTrue(response instanceof ErrorResponse);
 	}
 
@@ -254,18 +256,19 @@ public class ControllerTests {
 		DeploymentListResponse mockResponse = new DeploymentListResponse();
 		mockResponse.data = new ArrayList<Deployment>();
 		mockResponse.data.add(new Deployment());
-		when(accessor.getDeploymentList(eq(0), eq(10), eq("WFS"))).thenReturn(mockResponse);
+		when(accessor.getDeploymentList(eq(0), eq(10), eq("dataId"), eq("asc"), eq("WFS"))).thenReturn(mockResponse);
 
 		// Test
-		PiazzaResponse response = accessController.getAllDeployments(0, 10, "WFS");
+		PiazzaResponse response = accessController.getAllDeployments(0, 10, "dataId", "asc", "WFS");
 
 		// Verify
 		assertTrue(response instanceof DeploymentListResponse);
 		assertTrue(((DeploymentListResponse) response).data.size() == 1);
 
 		// Test Exception
-		Mockito.doThrow(new Exception()).when(accessor).getDeploymentList(eq(0), eq(10), eq("WFS"));
-		response = accessController.getAllDeployments(0, 10, "WFS");
+		Mockito.doThrow(new Exception()).when(accessor)
+				.getDeploymentList(eq(0), eq(10), eq("dataId"), eq("asc"), eq("WFS"));
+		response = accessController.getAllDeployments(0, 10, "dataId", "asc", "WFS");
 		assertTrue(response instanceof ErrorResponse);
 	}
 
