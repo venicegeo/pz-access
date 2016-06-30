@@ -266,7 +266,7 @@ public class AccessController {
 			@RequestParam(value = "userName", required = false) String userName) {
 		try {
 			// Don't allow for invalid orders
-			if (!(order.equalsIgnoreCase("asc")) && !(order.equalsIgnoreCase("asc"))) {
+			if (!(order.equalsIgnoreCase("asc")) && !(order.equalsIgnoreCase("desc"))) {
 				order = "asc";
 			}
 			return accessor.getDataList(page, pageSize, sortBy, order, keyword, userName);
@@ -291,7 +291,7 @@ public class AccessController {
 			@RequestParam(value = "keyword", required = false) String keyword) {
 		try {
 			// Don't allow for invalid orders
-			if (!(order.equalsIgnoreCase("asc")) && !(order.equalsIgnoreCase("asc"))) {
+			if (!(order.equalsIgnoreCase("asc")) && !(order.equalsIgnoreCase("desc"))) {
 				order = "asc";
 			}
 			return accessor.getDeploymentList(page, perPage, sortBy, order, keyword);
