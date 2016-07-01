@@ -110,6 +110,8 @@ public class AccessController {
 
 	private static final String DEFAULT_PAGE_SIZE = "10";
 	private static final String DEFAULT_PAGE = "0";
+	private static final String DEFAULT_SORTBY = "dataId";
+	private static final String DEFAULT_ORDER = "asc";
 
 	/**
 	 * Healthcheck required for all Piazza Core Services
@@ -257,11 +259,17 @@ public class AccessController {
 	@RequestMapping(value = "/data", method = RequestMethod.GET)
 	public PiazzaResponse getAllData(
 			@RequestParam(value = "page", required = false, defaultValue = DEFAULT_PAGE) Integer page,
-			@RequestParam(value = "pageSize", required = false, defaultValue = DEFAULT_PAGE_SIZE) Integer pageSize,
+			@RequestParam(value = "perPage", required = false, defaultValue = DEFAULT_PAGE_SIZE) Integer pageSize,
+			@RequestParam(value = "sortBy", required = false, defaultValue = DEFAULT_SORTBY) String sortBy,
+			@RequestParam(value = "order", required = false, defaultValue = DEFAULT_ORDER) String order,
 			@RequestParam(value = "keyword", required = false) String keyword,
 			@RequestParam(value = "userName", required = false) String userName) {
 		try {
-			return accessor.getDataList(page, pageSize, keyword, userName);
+			// Don't allow for invalid orders
+			if (!(order.equalsIgnoreCase("asc")) && !(order.equalsIgnoreCase("desc"))) {
+				order = "asc";
+			}
+			return accessor.getDataList(page, pageSize, sortBy, order, keyword, userName);
 		} catch (Exception exception) {
 			logger.log(String.format("Error Querying Data: %s", exception.getMessage()), PiazzaLogger.ERROR);
 			return new ErrorResponse("Error Querying Data: " + exception.getMessage(), "Access");
@@ -277,10 +285,16 @@ public class AccessController {
 	@RequestMapping(value = "/deployment", method = RequestMethod.GET)
 	public PiazzaResponse getAllDeployments(
 			@RequestParam(value = "page", required = false, defaultValue = DEFAULT_PAGE) Integer page,
-			@RequestParam(value = "pageSize", required = false, defaultValue = DEFAULT_PAGE_SIZE) Integer pageSize,
+			@RequestParam(value = "perPage", required = false, defaultValue = DEFAULT_PAGE_SIZE) Integer perPage,
+			@RequestParam(value = "sortBy", required = false, defaultValue = DEFAULT_SORTBY) String sortBy,
+			@RequestParam(value = "order", required = false, defaultValue = DEFAULT_ORDER) String order,
 			@RequestParam(value = "keyword", required = false) String keyword) {
 		try {
-			return accessor.getDeploymentList(page, pageSize, keyword);
+			// Don't allow for invalid orders
+			if (!(order.equalsIgnoreCase("asc")) && !(order.equalsIgnoreCase("desc"))) {
+				order = "asc";
+			}
+			return accessor.getDeploymentList(page, perPage, sortBy, order, keyword);
 		} catch (Exception exception) {
 			logger.log(String.format("Error Querying Deployment: %s", exception.getMessage()), PiazzaLogger.ERROR);
 			return new ErrorResponse("Error Querying Deployment: " + exception.getMessage(), "Access");

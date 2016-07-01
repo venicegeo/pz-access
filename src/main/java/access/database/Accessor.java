@@ -32,6 +32,7 @@ import model.response.Pagination;
 import org.geotools.data.DataStore;
 import org.mongojack.DBCursor;
 import org.mongojack.DBQuery;
+import org.mongojack.DBSort;
 import org.mongojack.DBUpdate;
 import org.mongojack.JacksonDBCollection;
 import org.springframework.beans.factory.annotation.Value;
@@ -144,7 +145,7 @@ public class Accessor {
 	 */
 	public void deleteDeployment(Deployment deployment) {
 		// Delete the deployment
-		getDeploymentCollection().remove(new BasicDBObject("id", deployment.getId()));
+		getDeploymentCollection().remove(new BasicDBObject("id", deployment.getDeploymentId()));
 		// If the deployment had a lease, then delete that too.
 		Lease lease = getDeploymentLease(deployment);
 		if (lease != null) {
@@ -164,7 +165,7 @@ public class Accessor {
 	 *            The lease to delete.
 	 */
 	private void deleteLease(Lease lease) {
-		getLeaseCollection().remove(new BasicDBObject("id", lease.getId()));
+		getLeaseCollection().remove(new BasicDBObject("id", lease.getLeaseId()));
 	}
 
 	/**
@@ -175,7 +176,7 @@ public class Accessor {
 	 * @return The Lease for the Deployment, if it exists. Null if not.
 	 */
 	public Lease getDeploymentLease(Deployment deployment) {
-		BasicDBObject query = new BasicDBObject("deploymentId", deployment.getId());
+		BasicDBObject query = new BasicDBObject("deploymentId", deployment.getDeploymentId());
 		Lease lease;
 
 		try {
@@ -286,14 +287,18 @@ public class Accessor {
 	 *            The page number to start at
 	 * @param pageSize
 	 *            The number of results per page
+	 * @param sortBy
+	 *            The field to sort by
+	 * @param order
+	 *            The order "asc" or "desc"
 	 * @param keyword
 	 *            Keyword filtering
 	 * @param userName
 	 *            Username filtering
 	 * @return List of Data items
 	 */
-	public DataResourceListResponse getDataList(Integer page, Integer pageSize, String keyword, String userName)
-			throws Exception {
+	public DataResourceListResponse getDataList(Integer page, Integer pageSize, String sortBy, String order,
+			String keyword, String userName) throws Exception {
 		Pattern regex = Pattern.compile(String.format("(?i)%s", keyword != null ? keyword : ""));
 		// Get a DB Cursor to the query for general data
 		DBCursor<DataResource> cursor = getDataResourceCollection().find().or(DBQuery.regex("metadata.name", regex),
@@ -301,11 +306,19 @@ public class Accessor {
 		if ((userName != null) && !(userName.isEmpty())) {
 			cursor.and(DBQuery.is("metadata.createdBy", userName));
 		}
+
+		// Sort and order
+		if (order.equalsIgnoreCase("asc")) {
+			cursor = cursor.sort(DBSort.asc(sortBy));
+		} else if (order.equalsIgnoreCase("desc")) {
+			cursor = cursor.sort(DBSort.desc(sortBy));
+		}
+
 		Integer size = new Integer(cursor.size());
 		// Filter the data by pages
 		List<DataResource> data = cursor.skip(page * pageSize).limit(pageSize).toArray();
 		// Attach pagination information
-		Pagination pagination = new Pagination(size, page, pageSize);
+		Pagination pagination = new Pagination(size, page, pageSize, sortBy, order);
 		// Create the Response and send back
 		return new DataResourceListResponse(data, pagination);
 	}
@@ -326,20 +339,33 @@ public class Accessor {
 	 *            The page number to start
 	 * @param pageSize
 	 *            The number of results per page
+	 * @param sortBy
+	 *            The field to sort by
+	 * @param order
+	 *            The order "asc" or "desc"
 	 * @param keyword
 	 *            Keyword filtering
 	 * @return List of deployments
 	 */
-	public DeploymentListResponse getDeploymentList(Integer page, Integer pageSize, String keyword) throws Exception {
+	public DeploymentListResponse getDeploymentList(Integer page, Integer pageSize, String sortBy, String order,
+			String keyword) throws Exception {
 		Pattern regex = Pattern.compile(String.format("(?i)%s", keyword != null ? keyword : ""));
 		// Get a DB Cursor to the query for general data
 		DBCursor<Deployment> cursor = getDeploymentCollection().find().or(DBQuery.regex("id", regex),
 				DBQuery.regex("dataId", regex), DBQuery.regex("capabilitiesUrl", regex));
+
+		// Sort and order
+		if (order.equalsIgnoreCase("asc")) {
+			cursor = cursor.sort(DBSort.asc(sortBy));
+		} else if (order.equalsIgnoreCase("desc")) {
+			cursor = cursor.sort(DBSort.desc(sortBy));
+		}
+
 		Integer size = new Integer(cursor.size());
 		// Filter the data by pages
 		List<Deployment> data = cursor.skip(page * pageSize).limit(pageSize).toArray();
 		// Attach pagination information
-		Pagination pagination = new Pagination(size, page, pageSize);
+		Pagination pagination = new Pagination(size, page, pageSize, sortBy, order);
 		// Create the Response and send back
 		return new DeploymentListResponse(data, pagination);
 	}
