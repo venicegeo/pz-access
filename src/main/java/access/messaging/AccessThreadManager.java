@@ -29,6 +29,7 @@ import javax.annotation.PostConstruct;
 import messaging.job.JobMessageFactory;
 import messaging.job.KafkaClientFactory;
 import messaging.job.WorkerCallback;
+import model.job.type.AccessJob;
 
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -51,7 +52,7 @@ import util.PiazzaLogger;
  */
 @Component
 public class AccessThreadManager {
-	private static final String ACCESS_TOPIC_NAME = "access";
+	private static final String ACCESS_TOPIC_NAME = AccessJob.class.getSimpleName();
 	@Autowired
 	private PiazzaLogger logger;
 	@Autowired
