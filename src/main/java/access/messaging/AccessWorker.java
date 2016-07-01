@@ -44,7 +44,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
- * Worker class that handles Access Jobs being passed in through the Dispatcher.
+ * Worker class that handles Access Jobs being passed in through the Kafka.
  * Handles the Access Jobs by standing up services, retrieving files, or other
  * various forms of Access for data.
  * 
