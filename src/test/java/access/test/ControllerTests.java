@@ -210,7 +210,7 @@ public class ControllerTests {
 
 		// Proper mock
 		Deployment deployment = new Deployment();
-		deployment.setId("123456");
+		deployment.setDeploymentId("123456");
 		when(accessor.getDeployment(eq("123456"))).thenReturn(deployment);
 
 		// Test
@@ -218,7 +218,7 @@ public class ControllerTests {
 
 		// Verify
 		assertTrue(response instanceof DeploymentResponse);
-		assertTrue(((DeploymentResponse) response).deployment.getId().equals("123456"));
+		assertTrue(((DeploymentResponse) response).deployment.getDeploymentId().equals("123456"));
 	}
 
 	/**

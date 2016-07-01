@@ -145,7 +145,7 @@ public class Accessor {
 	 */
 	public void deleteDeployment(Deployment deployment) {
 		// Delete the deployment
-		getDeploymentCollection().remove(new BasicDBObject("id", deployment.getId()));
+		getDeploymentCollection().remove(new BasicDBObject("id", deployment.getDeploymentId()));
 		// If the deployment had a lease, then delete that too.
 		Lease lease = getDeploymentLease(deployment);
 		if (lease != null) {
@@ -165,7 +165,7 @@ public class Accessor {
 	 *            The lease to delete.
 	 */
 	private void deleteLease(Lease lease) {
-		getLeaseCollection().remove(new BasicDBObject("id", lease.getId()));
+		getLeaseCollection().remove(new BasicDBObject("id", lease.getLeaseId()));
 	}
 
 	/**
@@ -176,7 +176,7 @@ public class Accessor {
 	 * @return The Lease for the Deployment, if it exists. Null if not.
 	 */
 	public Lease getDeploymentLease(Deployment deployment) {
-		BasicDBObject query = new BasicDBObject("deploymentId", deployment.getId());
+		BasicDBObject query = new BasicDBObject("deploymentId", deployment.getDeploymentId());
 		Lease lease;
 
 		try {
