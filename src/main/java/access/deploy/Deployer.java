@@ -110,8 +110,8 @@ public class Deployer {
 				deployment = deployGeoTiff(dataResource);
 			} else {
 				// Unsupported Data type has been specified.
-				throw new UnsupportedOperationException("Cannot the following Data Type to GeoServer: "
-						+ dataResource.getDataType().getType());
+				throw new UnsupportedOperationException("Cannot deploy the following Data Type to GeoServer: "
+						+ dataResource.getDataType().getClass().getSimpleName());
 			}
 		} catch (Exception exception) {
 			exception.printStackTrace();
