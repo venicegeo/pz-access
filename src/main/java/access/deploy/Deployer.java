@@ -123,7 +123,7 @@ public class Deployer {
 
 		// Log information
 		logger.log(
-				String.format("Created Deployment %s for Data %s on host %s", deployment.getId(),
+				String.format("Created Deployment %s for Data %s on host %s", deployment.getDeploymentId(),
 						deployment.getDataId(), deployment.getHost()), PiazzaLogger.INFO);
 
 		// Return Deployment reference

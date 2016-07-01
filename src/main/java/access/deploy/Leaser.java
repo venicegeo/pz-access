@@ -72,11 +72,12 @@ public class Leaser {
 			if (expirationDate.isBeforeNow()) {
 				// If the Lease has expired, then the Lease will be extended for
 				// the default Lease period.
-				accessor.updateLeaseExpirationDate(lease.getId(), DateTime.now().plusDays(DEFAULT_LEASE_PERIOD_DAYS)
-						.toString());
+				accessor.updateLeaseExpirationDate(lease.getLeaseId(),
+						DateTime.now().plusDays(DEFAULT_LEASE_PERIOD_DAYS).toString());
 				logger.log(
 						String.format("Updating Deployment Lease for Deployment %s on host %s for %s",
-								deployment.getId(), deployment.getHost(), deployment.getDataId()), PiazzaLogger.INFO);
+								deployment.getDeploymentId(), deployment.getHost(), deployment.getDataId()),
+						PiazzaLogger.INFO);
 			} else {
 				// If the Lease has not expired, then the Lease will not be
 				// extended. It will simply be reused.
@@ -95,15 +96,16 @@ public class Leaser {
 	public Lease createDeploymentLease(Deployment deployment) {
 		// Create the Lease
 		String leaseId = uuidFactory.getUUID();
-		Lease lease = new Lease(leaseId, deployment.getId(), DateTime.now().plusDays(DEFAULT_LEASE_PERIOD_DAYS)
-				.toString());
+		Lease lease = new Lease(leaseId, deployment.getDeploymentId(), DateTime.now()
+				.plusDays(DEFAULT_LEASE_PERIOD_DAYS).toString());
 
 		// Commit the Lease to the Database
 		accessor.insertLease(lease);
 
 		// Return reference
-		logger.log(String.format("Creating Deployment Lease for Deployment %s on host %s for %s", deployment.getId(),
-				deployment.getHost(), deployment.getDataId()), PiazzaLogger.INFO);
+		logger.log(
+				String.format("Creating Deployment Lease for Deployment %s on host %s for %s",
+						deployment.getDeploymentId(), deployment.getHost(), deployment.getDataId()), PiazzaLogger.INFO);
 		return lease;
 	}
 
@@ -146,15 +148,16 @@ public class Leaser {
 				try {
 					deployer.undeploy(expiredLease.getDeploymentId());
 					// Log the removal
-					logger.log(String.format(
-							"Expired Lease with ID %s with expiration date %s for Deployment %s has been removed.",
-							expiredLease.getId(), expiredLease.getExpirationDate(), expiredLease.getDeploymentId()),
-							PiazzaLogger.INFO);
+					logger.log(
+							String.format(
+									"Expired Lease with ID %s with expiration date %s for Deployment %s has been removed.",
+									expiredLease.getLeaseId(), expiredLease.getExpirationDate(),
+									expiredLease.getDeploymentId()), PiazzaLogger.INFO);
 				} catch (Exception exception) {
 					exception.printStackTrace();
 					logger.log(String.format(
 							"Error reaping Expired Lease with ID %s: %s. This expired lease may still persist.",
-							expiredLease.getId(), exception.getMessage()), PiazzaLogger.ERROR);
+							expiredLease.getLeaseId(), exception.getMessage()), PiazzaLogger.ERROR);
 				}
 			} while (cursor.hasNext());
 		} else {

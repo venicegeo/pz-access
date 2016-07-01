@@ -129,13 +129,13 @@ public class DeployerTests {
 		Deployment deployment = deployer.createDeployment(geoJsonData);
 		assertTrue(deployment != null);
 		assertTrue(deployment.getDataId().equals("123456"));
-		assertTrue(deployment.getId().equals("123456"));
+		assertTrue(deployment.getDeploymentId().equals("123456"));
 
 		// Raster
 		deployment = deployer.createDeployment(rasterData);
 		assertTrue(deployment != null);
 		assertTrue(deployment.getDataId().equals("123456"));
-		assertTrue(deployment.getId().equals("123456"));
+		assertTrue(deployment.getDeploymentId().equals("123456"));
 	}
 
 	/**
