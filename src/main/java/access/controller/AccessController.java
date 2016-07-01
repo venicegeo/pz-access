@@ -162,7 +162,7 @@ public class AccessController {
 					.getBytes());
 		} else if (!(data.getDataType() instanceof FileRepresentation)) {
 			String message = String.format("File download not available for Data ID %s; type is %s", dataId, data
-					.getDataType().getType());
+					.getDataType().getClass().getSimpleName());
 			logger.log(message, PiazzaLogger.WARNING);
 			throw new Exception(message);
 		} else {
