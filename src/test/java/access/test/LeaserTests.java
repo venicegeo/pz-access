@@ -81,6 +81,6 @@ public class LeaserTests {
 		lease = leaser.renewDeploymentLease(mockDeployment);
 		assertTrue(lease != null);
 		assertTrue(lease.getLeaseId().equals("654321"));
-		assertTrue(new DateTime(lease.getExpirationDate()).isAfter(new DateTime().plusDays(20)));
+		assertTrue(new DateTime(lease.getExpiresOn()).isAfter(new DateTime().plusDays(20)));
 	}
 }

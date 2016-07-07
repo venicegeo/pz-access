@@ -96,8 +96,8 @@ public class WorkerTests {
 		// Mock
 		Job mockJob = new Job();
 		mockJob.jobId = "123456";
-		mockJob.submitted = new DateTime();
-		mockJob.submitterUserName = "Test User";
+		mockJob.createdOn = new DateTime();
+		mockJob.createdBy = "Test User";
 		AccessJob accessJob = new AccessJob("123456");
 		accessJob.deploymentType = AccessJob.ACCESS_TYPE_GEOSERVER;
 		accessJob.dataId = "123456";
