@@ -68,7 +68,7 @@ public class Leaser {
 		if (lease == null) {
 			lease = createDeploymentLease(deployment);
 		} else {
-			DateTime expirationDate = new DateTime(lease.getExpirationDate());
+			DateTime expirationDate = new DateTime(lease.getExpiresOn());
 			if (expirationDate.isBeforeNow()) {
 				// If the Lease has expired, then the Lease will be extended for
 				// the default Lease period.
@@ -151,7 +151,7 @@ public class Leaser {
 					logger.log(
 							String.format(
 									"Expired Lease with ID %s with expiration date %s for Deployment %s has been removed.",
-									expiredLease.getLeaseId(), expiredLease.getExpirationDate(),
+									expiredLease.getLeaseId(), expiredLease.getExpiresOn(),
 									expiredLease.getDeploymentId()), PiazzaLogger.INFO);
 				} catch (Exception exception) {
 					exception.printStackTrace();
