@@ -191,7 +191,7 @@ public class AccessController {
 	 *            ID of the Resource
 	 * @return The resource matching the specified ID
 	 */
-	@RequestMapping(value = "/data/{dataId}", method = RequestMethod.GET, produces = "application/json")
+	@RequestMapping(value = "/data/{dataId}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<PiazzaResponse> getData(@PathVariable(value = "dataId") String dataId) {
 		try {
 			if (dataId.isEmpty()) {
@@ -226,7 +226,7 @@ public class AccessController {
 	 * @return The deployment information, or an ErrorResponse if exceptions
 	 *         occur
 	 */
-	@RequestMapping(value = "/deployment/{deploymentId}", method = RequestMethod.GET, produces = "application/json")
+	@RequestMapping(value = "/deployment/{deploymentId}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<PiazzaResponse> getDeployment(@PathVariable(value = "deploymentId") String deploymentId) {
 		try {
 			if (deploymentId.isEmpty()) {
@@ -257,7 +257,7 @@ public class AccessController {
 	 * 
 	 * @return The list of all data held by the system.
 	 */
-	@RequestMapping(value = "/data", method = RequestMethod.GET, produces = "application/json")
+	@RequestMapping(value = "/data", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<PiazzaResponse> getAllData(
 			@RequestParam(value = "page", required = false, defaultValue = DEFAULT_PAGE) Integer page,
 			@RequestParam(value = "perPage", required = false, defaultValue = DEFAULT_PAGE_SIZE) Integer pageSize,
@@ -283,7 +283,7 @@ public class AccessController {
 	 * 
 	 * @return The list of all data held by the system.
 	 */
-	@RequestMapping(value = "/deployment", method = RequestMethod.GET, produces = "application/json")
+	@RequestMapping(value = "/deployment", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<PiazzaResponse> getAllDeployments(
 			@RequestParam(value = "page", required = false, defaultValue = DEFAULT_PAGE) Integer page,
 			@RequestParam(value = "perPage", required = false, defaultValue = DEFAULT_PAGE_SIZE) Integer perPage,
@@ -322,7 +322,7 @@ public class AccessController {
 	 * @return OK confirmation if deleted, or an ErrorResponse if exceptions
 	 *         occur
 	 */
-	@RequestMapping(value = "/deployment/{deploymentId}", method = RequestMethod.DELETE, produces = "application/json")
+	@RequestMapping(value = "/deployment/{deploymentId}", method = RequestMethod.DELETE, produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<PiazzaResponse> deleteDeployment(@PathVariable(value = "deploymentId") String deploymentId, Principal user) {
 		try {
 			// Delete the Deployment
