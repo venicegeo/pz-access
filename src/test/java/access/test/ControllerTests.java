@@ -291,13 +291,13 @@ public class ControllerTests {
 	@Test
 	public void testUndeploy() throws Exception {
 		// Test undeploying
-		PiazzaResponse response = accessController.deleteDeployment("123456", null).getBody();
-		assertTrue(response == null);
+		ResponseEntity<PiazzaResponse> response = accessController.deleteDeployment("123456", null);
+		assertTrue(response.getStatusCode().compareTo(HttpStatus.OK) == 0);
 
 		// Test Exception
 		Mockito.doThrow(new Exception()).when(deployer).undeploy(eq("123456"));
-		response = accessController.deleteDeployment("123456", null).getBody();
-		assertTrue(response instanceof ErrorResponse);
+		response = accessController.deleteDeployment("123456", null);
+		assertTrue(response.getBody() instanceof ErrorResponse);
 
 		// Test reaping
 		accessController.forceReap();
