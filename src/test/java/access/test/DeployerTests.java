@@ -132,6 +132,9 @@ public class DeployerTests {
 		assertTrue(deployment.getDeploymentId().equals("123456"));
 
 		// Raster
+		Mockito.doReturn(new ResponseEntity<String>("OK", HttpStatus.CREATED)).when(restTemplate)
+				.exchange(anyString(), eq(HttpMethod.PUT), any(HttpEntity.class), eq(String.class));
+		Mockito.doReturn(new byte[100]).when(accessUtilities).getBytesForDataResource(any(DataResource.class));
 		deployment = deployer.createDeployment(rasterData);
 		assertTrue(deployment != null);
 		assertTrue(deployment.getDataId().equals("123456"));
