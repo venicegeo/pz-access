@@ -15,8 +15,13 @@
  **/
 package access.util;
 
+import model.data.DataResource;
+import model.data.location.FileAccessFactory;
+import model.data.location.FileLocation;
 import model.data.location.S3FileStore;
+import model.data.type.RasterDataType;
 
+import org.apache.commons.io.IOUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -66,5 +71,19 @@ public class AccessUtilities {
 
 		s3client.copyObject(fileStore.getBucketName(), fileStore.getFileName(), GEOSERVER_DATA_DIRECTORY,
 				destinationFileName);
+	}
+
+	/**
+	 * Gets the Bytes for a Data Resource
+	 * 
+	 * @param dataResource
+	 *            The Data Resource
+	 * @return The byte array for the file
+	 */
+	public byte[] getBytesForDataResource(DataResource dataResource) throws Exception {
+		FileLocation fileLocation = ((RasterDataType) dataResource.getDataType()).getLocation();
+		FileAccessFactory fileAccessFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY);
+		byte[] fileBytes = IOUtils.toByteArray(fileAccessFactory.getFile(fileLocation));
+		return fileBytes;
 	}
 }
