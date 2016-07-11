@@ -72,8 +72,6 @@ public class Deployer {
 	private String GEOSERVER_USERNAME;
 	@Value("${vcap.services.pz-geoserver.credentials.geoserver.password}")
 	private String GEOSERVER_PASSWORD;
-	@Value("${vcap.services.pz-blobstore.credentials.bucket}")
-	private String AMAZONS3_BUCKET_NAME;
 
 	private RestTemplate restTemplate = new RestTemplate();
 
