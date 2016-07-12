@@ -24,6 +24,7 @@ import javax.annotation.PreDestroy;
 
 import model.data.DataResource;
 import model.data.deployment.Deployment;
+import model.data.deployment.DeploymentGroup;
 import model.data.deployment.Lease;
 import model.response.DataResourceListResponse;
 import model.response.DeploymentListResponse;
@@ -69,6 +70,8 @@ public class Accessor {
 	private String RESOURCE_COLLECTION_NAME;
 	@Value("${mongo.db.collection.deployments}")
 	private String DEPLOYMENT_COLLECTION_NAME;
+	@Value("${mongo.db.collection.deployment.groups}")
+	private String DEPLOYMENT_GROUP_COLLECTION_NAME;
 	@Value("${mongo.db.collection.leases}")
 	private String LEASE_COLLECTION_NAME;
 	private MongoClient mongoClient;
@@ -261,6 +264,16 @@ public class Accessor {
 	}
 
 	/**
+	 * Creates a new Deployment Group entry in the database.
+	 * 
+	 * @param deploymentGroup
+	 *            Deployment Group to insert
+	 */
+	public void insertDeploymentGroup(DeploymentGroup deploymentGroup) {
+		getDeploymentGroupCollection().insert(deploymentGroup);
+	}
+
+	/**
 	 * Creates a new Lease entry in the database.
 	 * 
 	 * @param lease
@@ -379,6 +392,17 @@ public class Accessor {
 	public JacksonDBCollection<Deployment, String> getDeploymentCollection() {
 		DBCollection collection = mongoClient.getDB(DATABASE_NAME).getCollection(DEPLOYMENT_COLLECTION_NAME);
 		return JacksonDBCollection.wrap(collection, Deployment.class, String.class);
+	}
+
+	/**
+	 * Gets the Mongo Collection of all Deployment Groups currently referenced
+	 * within Piazza.
+	 * 
+	 * @return Mongo collection for Deployment Groups
+	 */
+	public JacksonDBCollection<DeploymentGroup, String> getDeploymentGroupCollection() {
+		DBCollection collection = mongoClient.getDB(DATABASE_NAME).getCollection(DEPLOYMENT_GROUP_COLLECTION_NAME);
+		return JacksonDBCollection.wrap(collection, DeploymentGroup.class, String.class);
 	}
 
 	/**
