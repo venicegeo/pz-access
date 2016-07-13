@@ -104,8 +104,8 @@ public class GroupDeployer {
 	 *         reference.
 	 */
 	public DeploymentGroup createDeploymentGroup(List<Deployment> deployments, String createdBy) throws Exception {
-		// Create the Group and commit it to the database
-		DeploymentGroup deploymentGroup = createDeploymentGroup(createdBy);
+		// Create the Group.
+		DeploymentGroup deploymentGroup = new DeploymentGroup(uuidFactory.getUUID(), createdBy);
 
 		// Create the Layer Group Model to send to GeoServer
 		LayerGroupModel layerGroupModel = new LayerGroupModel();
@@ -124,9 +124,9 @@ public class GroupDeployer {
 		// Send the Layer Group creation request to GeoServer
 		sendGeoServerLayerGroup(layerGroupModel, HttpMethod.POST);
 
-		// Mark that this Layer Group has been created successfully on
-		// GeoServer.
+		// Mark that the Layer has been created and commit to the database.
 		deploymentGroup.setHasGeoServerLayer(true);
+		accessor.insertDeploymentGroup(deploymentGroup);
 
 		// Return the Group
 		return deploymentGroup;
@@ -135,19 +135,44 @@ public class GroupDeployer {
 	/**
 	 * Adds Layers to the GeoServer Layer Group.
 	 * 
+	 * <p>
+	 * While the Deployment Group must exist at this point, the GeoServer Layer
+	 * Group may or may not exist at this point. It will be created if not.
+	 * </p>
+	 * 
 	 * @param deploymentGroup
 	 *            The layer group to concatenate Layers to.
 	 * @param deployments
 	 *            The deployments to add to the Layer Group.
 	 */
-	public void addDeploymentsToGroup(DeploymentGroup deploymentGroup, List<Deployment> deployments) {
-		// TODO
-		// Get the current Layers in the Group
+	public void updateDeploymentGroup(DeploymentGroup deploymentGroup, List<Deployment> deployments) throws Exception {
+		// Check if the Layer Group exists. If it doesn't, then create it. If it
+		// does, then Grab the Model to edit.
+		LayerGroupModel layerGroupModel;
+		if (deploymentGroup.getHasGeoServerLayer() == false) {
+			// Create the Layer Group Model to send to GeoServer
+			layerGroupModel = new LayerGroupModel();
+			layerGroupModel.layerGroup.name = deploymentGroup.deploymentGroupId;
+		} else {
+			// Get the existing Layer Group from GeoServer for edits.
+			layerGroupModel = getLayerGroupFromGeoServer(deploymentGroup.deploymentGroupId);
+		}
 
-		// Concatenate the new Layers to the Group
+		// For each Deployment, add a new group to the Layer Group Model.
+		for (Deployment deployment : deployments) {
+			GroupLayer groupLayer = new GroupLayer();
+			groupLayer.name = deployment.getLayer();
+			layerGroupModel.layerGroup.publishables.published.add(groupLayer);
+		}
 
-		// Update the Layer Group
+		// Send the Layer Group to GeoServer.
+		HttpMethod method = deploymentGroup.getHasGeoServerLayer() ? HttpMethod.PUT : HttpMethod.POST;
+		sendGeoServerLayerGroup(layerGroupModel, method);
 
+		// If it didn't exist before, mark that the Layer Group now exists.
+		if (deploymentGroup.getHasGeoServerLayer() == false) {
+			accessor.updateDeploymentGroupCreated(deploymentGroup.deploymentGroupId, true);
+		}
 	}
 
 	/**

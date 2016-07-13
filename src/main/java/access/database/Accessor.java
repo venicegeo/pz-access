@@ -265,6 +265,21 @@ public class Accessor {
 	}
 
 	/**
+	 * Updates the status of a Deployment Group to mark if an accompanying Layer
+	 * Group in GeoServer has been created.
+	 * 
+	 * @param deploymentGroupId
+	 *            The ID of the Deployment Group
+	 * @param created
+	 *            Whether or not the Deployment Group has an accompanying Layer
+	 *            Group in the GeoServer instance.
+	 */
+	public void updateDeploymentGroupCreated(String deploymentGroupId, boolean created) {
+		getDeploymentGroupCollection().update(DBQuery.is("deploymentGroupId", deploymentGroupId),
+				DBUpdate.set("hasGeoServerLayer", created));
+	}
+
+	/**
 	 * Creates a new Deployment entry in the database.
 	 * 
 	 * @param deployment
