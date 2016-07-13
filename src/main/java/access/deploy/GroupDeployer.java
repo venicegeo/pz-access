@@ -22,11 +22,23 @@ import model.data.deployment.DeploymentGroup;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpStatusCodeException;
+import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestTemplate;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import util.PiazzaLogger;
 import util.UUIDFactory;
 import access.database.Accessor;
+import access.deploy.geoserver.LayerGroupModel;
 
 /**
  * Component that handles the deployment of Group Layers on GeoServer. This is
@@ -44,6 +56,10 @@ public class GroupDeployer {
 	private UUIDFactory uuidFactory;
 	@Autowired
 	private Accessor accessor;
+	@Autowired
+	private Deployer deployer;
+	@Autowired
+	private RestTemplate restTemplate;
 	@Value("${vcap.services.pz-geoserver.credentials.geoserver.hostname}")
 	private String GEOSERVER_HOST;
 	@Value("${vcap.services.pz-geoserver.credentials.geoserver.port}")
@@ -122,5 +138,82 @@ public class GroupDeployer {
 		// Remove the Deployment Group from the Database
 		// TODO
 
+	}
+
+	/**
+	 * Determines if the Layer Group matching the specified Deployment Group ID
+	 * exists on GeoServer.
+	 * 
+	 * @param deploymentGroupId
+	 *            The ID of the group
+	 * @return True if exists, false if not.
+	 */
+	private boolean checklayerGroupExists(String deploymentGroupId) throws RestClientException {
+		HttpHeaders headers = deployer.getGeoServerHeaders();
+		headers.setContentType(MediaType.APPLICATION_JSON);
+		HttpEntity<String> request = new HttpEntity<String>(headers);
+		String url = String.format("http://%s:%s/geoserver/rest/workspaces/piazza/%s.json", GEOSERVER_HOST,
+				GEOSERVER_PORT, deploymentGroupId);
+		try {
+			ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, request, String.class);
+			if (response.getStatusCode().equals(HttpStatus.OK)) {
+				// The Group Layer exists.
+				return true;
+			} else {
+				// If a non-200 non-error code is encountered, then for our
+				// use-case, it does not exist.
+				return false;
+			}
+		} catch (HttpStatusCodeException exception) {
+			if (exception.getStatusCode().equals(HttpStatus.NOT_FOUND)) {
+				// Not found is a legitimate response code. Return false, as it
+				// does not exist.
+				return false;
+			} else {
+				// If an error code, that wasn't a 404, was found - then this is
+				// an exception and should be reported.
+				throw new RestClientException(String.format(
+						"Error checking availability of Deployment Group %s. GeoServer returned an Error Status of %s",
+						deploymentGroupId, exception.getStatusCode().toString()));
+			}
+		}
+	}
+
+	/**
+	 * Gets the Layer Group Model from GeoServer for the Layer Group matching
+	 * the specified Deployment Group ID. If this exists, it will return the
+	 * model for the Layer Group.
+	 * 
+	 * @param deploymentGroupId
+	 *            The ID of the layer group
+	 * @return The Layer Group Model
+	 */
+	private LayerGroupModel getLayerGroupFromGeoServer(String deploymentGroupId) throws Exception {
+		HttpHeaders headers = deployer.getGeoServerHeaders();
+		headers.setContentType(MediaType.APPLICATION_JSON);
+		HttpEntity<String> request = new HttpEntity<String>(headers);
+		String url = String.format("http://%s:%s/geoserver/rest/workspaces/piazza/%s.json", GEOSERVER_HOST,
+				GEOSERVER_PORT, deploymentGroupId);
+
+		// Execute the request to get the Layer Group
+		ResponseEntity<String> response;
+		try {
+			response = restTemplate.exchange(url, HttpMethod.GET, request, String.class);
+		} catch (HttpStatusCodeException exception) {
+			throw new Exception(String.format(
+					"Could not fetch Layer Group %s. Status code %s was returned by GeoServer with error: %s",
+					deploymentGroupId, exception.getStatusCode().toString(), exception.getMessage()));
+		}
+
+		// Deserialize the Layer Group into the Layer Group Model
+		LayerGroupModel layerGroup;
+		try {
+			layerGroup = new ObjectMapper().readValue(response.getBody(), LayerGroupModel.class);
+		} catch (Exception exception) {
+			throw new Exception(String.format("Could not read in Layer Group from GeoServer response for %s: %s",
+					deploymentGroupId, exception.getMessage()));
+		}
+
+		return layerGroup;
 	}
 }

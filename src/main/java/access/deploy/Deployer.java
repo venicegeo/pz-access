@@ -295,7 +295,7 @@ public class Deployer {
 	 * 
 	 * @return
 	 */
-	private HttpHeaders getGeoServerHeaders() {
+	public HttpHeaders getGeoServerHeaders() {
 		// Get the Basic authentication Headers for GeoServer
 		String plainCredentials = String.format("%s:%s", GEOSERVER_USERNAME, GEOSERVER_PASSWORD);
 		byte[] credentialBytes = plainCredentials.getBytes();
