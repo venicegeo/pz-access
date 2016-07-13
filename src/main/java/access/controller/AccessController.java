@@ -349,10 +349,11 @@ public class AccessController {
 	 * 
 	 * @param createdBy
 	 *            The user who requests the creation
-	 * @return The Deployment Group
+	 * @return The Deployment Group Response
 	 */
-	@RequestMapping(value = "/deploymentGroup", method = RequestMethod.POST)
-	public ResponseEntity<PiazzaResponse> createDeployment(String createdBy) {
+	@RequestMapping(value = "/deployment/group", method = RequestMethod.POST)
+	public ResponseEntity<PiazzaResponse> createDeploymentGroup(
+			@RequestParam(value = "createdBy", required = true) String createdBy) {
 		try {
 			// Create a new Deployment Group
 			DeploymentGroup deploymentGroup = groupDeployer.createDeploymentGroup(createdBy);
