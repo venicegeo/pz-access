@@ -148,12 +148,23 @@ public class Accessor {
 	 */
 	public void deleteDeployment(Deployment deployment) {
 		// Delete the deployment
-		getDeploymentCollection().remove(new BasicDBObject("id", deployment.getDeploymentId()));
+		getDeploymentCollection().remove(new BasicDBObject("deploymentId", deployment.getDeploymentId()));
 		// If the deployment had a lease, then delete that too.
 		Lease lease = getDeploymentLease(deployment);
 		if (lease != null) {
 			deleteLease(lease);
 		}
+	}
+
+	/**
+	 * Deletes a Deployment Group.
+	 * 
+	 * @param deploymentGroup
+	 *            The group to delete.
+	 */
+	public void deleteDeploymentGroup(DeploymentGroup deploymentGroup) {
+		getDeploymentGroupCollection()
+				.remove(new BasicDBObject("deploymentGroupId", deploymentGroup.deploymentGroupId));
 	}
 
 	/**
@@ -168,7 +179,7 @@ public class Accessor {
 	 *            The lease to delete.
 	 */
 	private void deleteLease(Lease lease) {
-		getLeaseCollection().remove(new BasicDBObject("id", lease.getLeaseId()));
+		getLeaseCollection().remove(new BasicDBObject("leaseId", lease.getLeaseId()));
 	}
 
 	/**
@@ -227,7 +238,7 @@ public class Accessor {
 	 * @return The Deployment
 	 */
 	public Deployment getDeployment(String deploymentId) {
-		BasicDBObject query = new BasicDBObject("id", deploymentId);
+		BasicDBObject query = new BasicDBObject("deploymentId", deploymentId);
 		Deployment deployment;
 
 		try {
@@ -250,7 +261,7 @@ public class Accessor {
 	 *            The new Expiration date. ISO8601 String.
 	 */
 	public void updateLeaseExpirationDate(String leaseId, String expirationDate) {
-		getLeaseCollection().update(DBQuery.is("id", leaseId), DBUpdate.set("expirationDate", expirationDate));
+		getLeaseCollection().update(DBQuery.is("leaseId", leaseId), DBUpdate.set("expirationDate", expirationDate));
 	}
 
 	/**
@@ -364,7 +375,7 @@ public class Accessor {
 			String keyword) throws Exception {
 		Pattern regex = Pattern.compile(String.format("(?i)%s", keyword != null ? keyword : ""));
 		// Get a DB Cursor to the query for general data
-		DBCursor<Deployment> cursor = getDeploymentCollection().find().or(DBQuery.regex("id", regex),
+		DBCursor<Deployment> cursor = getDeploymentCollection().find().or(DBQuery.regex("deploymentId", regex),
 				DBQuery.regex("dataId", regex), DBQuery.regex("capabilitiesUrl", regex));
 
 		// Sort and order

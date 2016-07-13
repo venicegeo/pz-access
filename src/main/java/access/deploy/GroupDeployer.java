@@ -85,6 +85,7 @@ public class GroupDeployer {
 	public DeploymentGroup createDeploymentGroup(String createdBy) {
 		// Commit the new group to the database and return immediately
 		DeploymentGroup deploymentGroup = new DeploymentGroup(uuidFactory.getUUID(), createdBy);
+		deploymentGroup.setHasGeoServerLayer(false);
 		accessor.insertDeploymentGroup(deploymentGroup);
 		return deploymentGroup;
 	}
@@ -106,6 +107,10 @@ public class GroupDeployer {
 
 		// For each Deployment, add this as a Layer to the Group.
 		// TODO
+
+		// Mark that this Layer Group has been created successfully on
+		// GeoServer.
+		deploymentGroup.setHasGeoServerLayer(true);
 
 		// Return the Group
 		return deploymentGroup;
@@ -148,6 +153,9 @@ public class GroupDeployer {
 			throw new Exception(String.format("Could not delete Layer Group %s on GeoServer. Failed with Code %s : %s",
 					deploymentGroup.deploymentGroupId, response.getStatusCode().toString(), response.getBody()));
 		}
+
+		// Remove the Deployment Group reference from Mongo
+		accessor.deleteDeploymentGroup(deploymentGroup);
 	}
 
 	/**
