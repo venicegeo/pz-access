@@ -216,4 +216,34 @@ public class GroupDeployer {
 
 		return layerGroup;
 	}
+
+	/**
+	 * Sends a Layer Group to GeoServer. This will either update an existing
+	 * layer group, or create a new one. The payload is exactly the same,
+	 * however the HttpMethod will change from POST (create) to PUT (update).
+	 * 
+	 * @param layerGroup
+	 *            The Layer Group to update.
+	 * @param method
+	 *            POST to create a new Layer Group, and PUT to update an
+	 *            existing one.
+	 */
+	private void sendGeoServerLayerGroup(LayerGroupModel layerGroup, HttpMethod method) throws Exception {
+		// Create the Request
+		HttpHeaders headers = deployer.getGeoServerHeaders();
+		headers.setContentType(MediaType.APPLICATION_JSON);
+		HttpEntity<String> request = new HttpEntity<String>(new ObjectMapper().writeValueAsString(layerGroup), headers);
+		String url = String.format("http://%s:%s/geoserver/rest/workspaces/piazza/%s.json", GEOSERVER_HOST,
+				GEOSERVER_PORT, layerGroup.layerGroup.name);
+
+		// Send
+		ResponseEntity<String> response = restTemplate.exchange(url, method, request, String.class);
+		if (response.getStatusCode().equals(HttpStatus.CREATED) || (response.getStatusCode().equals(HttpStatus.OK))) {
+			// Updated
+		} else {
+			throw new Exception(String.format(
+					"Could not update GeoServer Layer Group %s. Request returned Status %s : %s",
+					layerGroup.layerGroup.name, response.getStatusCode().toString(), response.getBody()));
+		}
+	}
 }
