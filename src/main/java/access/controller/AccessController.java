@@ -24,10 +24,12 @@ import java.util.Map;
 import model.data.DataResource;
 import model.data.FileRepresentation;
 import model.data.deployment.Deployment;
+import model.data.deployment.DeploymentGroup;
 import model.data.location.FileAccessFactory;
 import model.data.type.PostGISDataType;
 import model.data.type.TextDataType;
 import model.response.DataResourceResponse;
+import model.response.DeploymentGroupResponse;
 import model.response.DeploymentResponse;
 import model.response.ErrorResponse;
 import model.response.PiazzaResponse;
@@ -56,6 +58,7 @@ import org.springframework.web.bind.annotation.RestController;
 import util.PiazzaLogger;
 import access.database.Accessor;
 import access.deploy.Deployer;
+import access.deploy.GroupDeployer;
 import access.deploy.Leaser;
 import access.messaging.AccessThreadManager;
 
@@ -100,6 +103,8 @@ public class AccessController {
 	private Accessor accessor;
 	@Autowired
 	private Deployer deployer;
+	@Autowired
+	private GroupDeployer groupDeployer;
 	@Autowired
 	private Leaser leaser;
 
@@ -333,6 +338,33 @@ public class AccessController {
 			String error = String.format("Error Deleting Deployment %s: %s", deploymentId, exception.getMessage());
 			logger.log(error, PiazzaLogger.ERROR);
 			return new ErrorResponse(error, "Access");
+		}
+	}
+
+	/**
+	 * Creates a new Deployment Group in the Piazza database. No accompanying
+	 * GeoServer Layer Group will be created yet at this point; however a
+	 * placeholder GUID is associated with this Deployment Group that will be
+	 * used as the title of the eventual GeoServer Layer Group.
+	 * 
+	 * @param createdBy
+	 *            The user who requests the creation
+	 * @return The Deployment Group
+	 */
+	@RequestMapping(value = "/deploymentGroup", method = RequestMethod.POST)
+	public ResponseEntity<PiazzaResponse> createDeployment(String createdBy) {
+		try {
+			// Create a new Deployment Group
+			DeploymentGroup deploymentGroup = groupDeployer.createDeploymentGroup(createdBy);
+			return new ResponseEntity<PiazzaResponse>(new DeploymentGroupResponse(deploymentGroup), HttpStatus.CREATED);
+		} catch (Exception exception) {
+			// Log the error message.
+			exception.printStackTrace();
+			String error = String.format("Error Creating Deployment Group for user %s : %s", createdBy,
+					exception.getMessage());
+			logger.log(error, PiazzaLogger.ERROR);
+			return new ResponseEntity<PiazzaResponse>(new ErrorResponse(error, "Access"),
+					HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
 
