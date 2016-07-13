@@ -134,10 +134,20 @@ public class GroupDeployer {
 	 * 
 	 * @param deploymentGroup
 	 */
-	public void deleteDeploymentGroup(DeploymentGroup deploymentGroup) {
-		// Remove the Deployment Group from the Database
-		// TODO
+	public void deleteDeploymentGroup(DeploymentGroup deploymentGroup) throws Exception {
+		// Create Request
+		HttpHeaders headers = deployer.getGeoServerHeaders();
+		headers.setContentType(MediaType.APPLICATION_JSON);
+		HttpEntity<String> request = new HttpEntity<String>(headers);
+		String url = String.format("http://%s:%s/geoserver/rest/workspaces/piazza/%s.json", GEOSERVER_HOST,
+				GEOSERVER_PORT, deploymentGroup.deploymentGroupId);
 
+		// Execute
+		ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.DELETE, request, String.class);
+		if (response.getStatusCode().equals(HttpStatus.OK) == false) {
+			throw new Exception(String.format("Could not delete Layer Group %s on GeoServer. Failed with Code %s : %s",
+					deploymentGroup.deploymentGroupId, response.getStatusCode().toString(), response.getBody()));
+		}
 	}
 
 	/**
