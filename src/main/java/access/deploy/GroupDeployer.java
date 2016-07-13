@@ -200,45 +200,6 @@ public class GroupDeployer {
 	}
 
 	/**
-	 * Determines if the Layer Group matching the specified Deployment Group ID
-	 * exists on GeoServer.
-	 * 
-	 * @param deploymentGroupId
-	 *            The ID of the group
-	 * @return True if exists, false if not.
-	 */
-	private boolean checklayerGroupExists(String deploymentGroupId) throws RestClientException {
-		HttpHeaders headers = deployer.getGeoServerHeaders();
-		headers.setContentType(MediaType.APPLICATION_JSON);
-		HttpEntity<String> request = new HttpEntity<String>(headers);
-		String url = String.format("http://%s:%s/geoserver/rest/workspaces/piazza/%s.json", GEOSERVER_HOST,
-				GEOSERVER_PORT, deploymentGroupId);
-		try {
-			ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, request, String.class);
-			if (response.getStatusCode().equals(HttpStatus.OK)) {
-				// The Group Layer exists.
-				return true;
-			} else {
-				// If a non-200 non-error code is encountered, then for our
-				// use-case, it does not exist.
-				return false;
-			}
-		} catch (HttpStatusCodeException exception) {
-			if (exception.getStatusCode().equals(HttpStatus.NOT_FOUND)) {
-				// Not found is a legitimate response code. Return false, as it
-				// does not exist.
-				return false;
-			} else {
-				// If an error code, that wasn't a 404, was found - then this is
-				// an exception and should be reported.
-				throw new RestClientException(String.format(
-						"Error checking availability of Deployment Group %s. GeoServer returned an Error Status of %s",
-						deploymentGroupId, exception.getStatusCode().toString()));
-			}
-		}
-	}
-
-	/**
 	 * Gets the Layer Group Model from GeoServer for the Layer Group matching
 	 * the specified Deployment Group ID. If this exists, it will return the
 	 * model for the Layer Group.
