@@ -33,12 +33,14 @@ import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import util.PiazzaLogger;
 import util.UUIDFactory;
 import access.database.Accessor;
 import access.deploy.geoserver.LayerGroupModel;
+import access.deploy.geoserver.LayerGroupModel.GroupLayer;
+import access.deploy.geoserver.LayerGroupModel.LayerGroup;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
  * Component that handles the deployment of Group Layers on GeoServer. This is
@@ -101,12 +103,26 @@ public class GroupDeployer {
 	 * @return Deployment Group, containing an ID that can be used for future
 	 *         reference.
 	 */
-	public DeploymentGroup createDeploymentGroup(List<Deployment> deployments, String createdBy) {
+	public DeploymentGroup createDeploymentGroup(List<Deployment> deployments, String createdBy) throws Exception {
 		// Create the Group and commit it to the database
 		DeploymentGroup deploymentGroup = createDeploymentGroup(createdBy);
 
-		// For each Deployment, add this as a Layer to the Group.
-		// TODO
+		// Create the Layer Group Model to send to GeoServer
+		LayerGroupModel layerGroupModel = new LayerGroupModel();
+		layerGroupModel.layerGroup.name = deploymentGroup.deploymentGroupId;
+
+		// For each Deployment, add a new group to the Layer Group Model.
+		for (Deployment deployment : deployments) {
+			GroupLayer groupLayer = new GroupLayer();
+			groupLayer.name = deployment.getLayer();
+			layerGroupModel.layerGroup.publishables.published.add(groupLayer);
+		}
+
+		// Update the Layer Styles for each Layer in the Group
+		updateLayerStyles(layerGroupModel);
+
+		// Send the Layer Group creation request to GeoServer
+		sendGeoServerLayerGroup(layerGroupModel, HttpMethod.POST);
 
 		// Mark that this Layer Group has been created successfully on
 		// GeoServer.
@@ -262,6 +278,44 @@ public class GroupDeployer {
 			throw new Exception(String.format(
 					"Could not update GeoServer Layer Group %s. Request returned Status %s : %s",
 					layerGroup.layerGroup.name, response.getStatusCode().toString(), response.getBody()));
+		}
+	}
+
+	/**
+	 * Ensures that the number of Styles in the Layer Group will exactly match
+	 * the number of Layers in that Layer Group.
+	 * 
+	 * <p>
+	 * GeoServer, for whatever reason, requires there to be an equal number of
+	 * styles defined in a Layer Group model as there are numbers of Layers in
+	 * that Group. Even if you are using default styles. This function will
+	 * create blank style references in the `layergroup.styles` JSON tag to
+	 * ensure that GeoServer is satisfied with this input when making
+	 * modifications to the Layer Group.
+	 * </p>
+	 * 
+	 * <p>
+	 * Default styles are annotated by an empty String; this is how GeoServer
+	 * seems to operate. So in order to specify the default style, we simply
+	 * insert an empty String into the styles list. If we ever want to apply
+	 * custom layer styles for each layer, then this code will obviously need to
+	 * be modified to do so by being more specific with the Style names in the
+	 * Styles list.
+	 * </p>
+	 * 
+	 * @param layerGroupModel
+	 *            The Layer Group Model whose styles to balance
+	 */
+	private void updateLayerStyles(LayerGroupModel layerGroupModel) {
+		LayerGroup layerGroup = layerGroupModel.layerGroup;
+		while (layerGroup.publishables.published.size() != layerGroup.styles.style.size()) {
+			if (layerGroup.publishables.published.size() > layerGroup.styles.style.size()) {
+				// Add Styles
+				layerGroup.styles.style.add("");
+			} else {
+				// Remove Styles
+				layerGroup.styles.style.remove(0);
+			}
 		}
 	}
 }

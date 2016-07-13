@@ -15,6 +15,7 @@
  **/
 package access.deploy.geoserver;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -33,21 +34,21 @@ public class LayerGroupModel {
 	public class LayerGroup {
 		public String name;
 		public String mode = "SINGLE";
-		public Publishable publishables;
-		public Styles styles;
+		public Publishable publishables = new Publishable();
+		public Styles styles = new Styles();
 	}
 
 	public class Publishable {
-		public List<GroupLayer> published;
+		public List<GroupLayer> published = new ArrayList<GroupLayer>();
 	}
 
-	public class GroupLayer {
+	public static class GroupLayer {
 		@JsonProperty(value = "@type")
 		public String type = "layer";
 		public String name;
 	}
 
 	public class Styles {
-		public List<String> style;
+		public List<String> style = new ArrayList<String>();
 	}
 }
