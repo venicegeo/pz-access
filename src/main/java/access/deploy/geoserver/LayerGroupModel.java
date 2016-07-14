@@ -18,6 +18,10 @@ package access.deploy.geoserver;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
@@ -28,27 +32,59 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  * @author Patrick.Doody
  *
  */
+@JsonInclude(Include.NON_NULL)
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class LayerGroupModel {
 	public LayerGroup layerGroup = new LayerGroup();
 
-	public class LayerGroup {
+	public LayerGroupModel() {
+
+	}
+
+	@JsonInclude(Include.NON_NULL)
+	@JsonIgnoreProperties(ignoreUnknown = true)
+	public static class LayerGroup {
 		public String name;
 		public String mode = "SINGLE";
 		public Publishable publishables = new Publishable();
 		public Styles styles = new Styles();
+
+		public LayerGroup() {
+
+		}
 	}
 
-	public class Publishable {
+	@JsonInclude(Include.NON_NULL)
+	@JsonIgnoreProperties(ignoreUnknown = true)
+	public static class Publishable {
+		@JsonFormat(with = JsonFormat.Feature.ACCEPT_SINGLE_VALUE_AS_ARRAY)
 		public List<GroupLayer> published = new ArrayList<GroupLayer>();
+
+		public Publishable() {
+
+		}
 	}
 
+	@JsonInclude(Include.NON_NULL)
+	@JsonIgnoreProperties(ignoreUnknown = true)
 	public static class GroupLayer {
 		@JsonProperty(value = "@type")
 		public String type = "layer";
 		public String name;
+
+		public GroupLayer() {
+
+		}
 	}
 
-	public class Styles {
+	@JsonInclude(Include.NON_NULL)
+	@JsonIgnoreProperties(ignoreUnknown = true)
+	public static class Styles {
+		@JsonFormat(with = JsonFormat.Feature.ACCEPT_SINGLE_VALUE_AS_ARRAY)
 		public List<String> style = new ArrayList<String>();
+
+		public Styles() {
+
+		}
 	}
 }

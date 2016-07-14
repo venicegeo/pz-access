@@ -39,6 +39,7 @@ import access.deploy.geoserver.LayerGroupModel;
 import access.deploy.geoserver.LayerGroupModel.GroupLayer;
 import access.deploy.geoserver.LayerGroupModel.LayerGroup;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
@@ -214,7 +215,7 @@ public class GroupDeployer {
 		HttpHeaders headers = deployer.getGeoServerHeaders();
 		headers.setContentType(MediaType.APPLICATION_JSON);
 		HttpEntity<String> request = new HttpEntity<String>(headers);
-		String url = String.format("http://%s:%s/geoserver/rest/workspaces/piazza/%s.json", GEOSERVER_HOST,
+		String url = String.format("http://%s:%s/geoserver/rest/workspaces/piazza/layergroups/%s.json", GEOSERVER_HOST,
 				GEOSERVER_PORT, deploymentGroupId);
 
 		// Execute the request to get the Layer Group
@@ -230,6 +231,12 @@ public class GroupDeployer {
 		// Deserialize the Layer Group into the Layer Group Model
 		LayerGroupModel layerGroup;
 		try {
+			// GeoServer will return a list of one items as an object, and a
+			// list of >1 items as an array.
+			ObjectMapper mapper = new ObjectMapper();
+			mapper.enable(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY);
+
+			// Deserialize into our Model for modifications
 			layerGroup = new ObjectMapper().readValue(response.getBody(), LayerGroupModel.class);
 		} catch (Exception exception) {
 			throw new Exception(String.format("Could not read in Layer Group from GeoServer response for %s: %s",
@@ -255,7 +262,9 @@ public class GroupDeployer {
 		HttpHeaders headers = deployer.getGeoServerHeaders();
 		headers.setContentType(MediaType.APPLICATION_JSON);
 		HttpEntity<String> request = new HttpEntity<String>(new ObjectMapper().writeValueAsString(layerGroup), headers);
-		String url = String.format("http://%s:%s/geoserver/rest/workspaces/piazza/%s.json", GEOSERVER_HOST,
+		String url = String.format(
+				method.equals(HttpMethod.PUT) ? "http://%s:%s/geoserver/rest/workspaces/piazza/layergroups/%s.json"
+						: "http://%s:%s/geoserver/rest/workspaces/piazza/layergroups.json", GEOSERVER_HOST,
 				GEOSERVER_PORT, layerGroup.layerGroup.name);
 
 		// Send
