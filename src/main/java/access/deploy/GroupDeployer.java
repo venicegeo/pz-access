@@ -164,6 +164,9 @@ public class GroupDeployer {
 			layerGroupModel.layerGroup.publishables.published.add(groupLayer);
 		}
 
+		// Balance the Styles and the Layers
+		updateLayerStyles(layerGroupModel);
+
 		// Send the Layer Group to GeoServer.
 		HttpMethod method = deploymentGroup.getHasGeoServerLayer() ? HttpMethod.PUT : HttpMethod.POST;
 		sendGeoServerLayerGroup(layerGroupModel, method);
