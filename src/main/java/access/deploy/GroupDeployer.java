@@ -160,9 +160,20 @@ public class GroupDeployer {
 
 		// For each Deployment, add a new group to the Layer Group Model.
 		for (Deployment deployment : deployments) {
-			GroupLayer groupLayer = new GroupLayer();
-			groupLayer.name = deployment.getLayer();
-			layerGroupModel.layerGroup.publishables.published.add(groupLayer);
+			// Don't duplicate if it exists already.
+			boolean exists = false;
+			for (GroupLayer groupLayer : layerGroupModel.layerGroup.publishables.published) {
+				if (groupLayer.name.equals(deployment.getLayer())) {
+					exists = true;
+				}
+			}
+
+			if (!exists) {
+				// Add the new Layer
+				GroupLayer groupLayer = new GroupLayer();
+				groupLayer.name = deployment.getLayer();
+				layerGroupModel.layerGroup.publishables.published.add(groupLayer);
+			}
 		}
 
 		// Balance the Styles and the Layers
@@ -237,7 +248,7 @@ public class GroupDeployer {
 			mapper.enable(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY);
 
 			// Deserialize into our Model for modifications
-			layerGroup = new ObjectMapper().readValue(response.getBody(), LayerGroupModel.class);
+			layerGroup = mapper.readValue(response.getBody(), LayerGroupModel.class);
 		} catch (Exception exception) {
 			throw new Exception(String.format("Could not read in Layer Group from GeoServer response for %s: %s",
 					deploymentGroupId, exception.getMessage()));

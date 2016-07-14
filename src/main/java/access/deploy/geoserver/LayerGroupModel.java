@@ -46,6 +46,7 @@ public class LayerGroupModel {
 	public static class LayerGroup {
 		public String name;
 		public String mode = "SINGLE";
+
 		public Publishable publishables = new Publishable();
 		public Styles styles = new Styles();
 
