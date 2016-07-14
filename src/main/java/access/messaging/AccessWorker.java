@@ -15,12 +15,15 @@
  **/
 package access.messaging;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.Future;
 
 import messaging.job.JobMessageFactory;
 import messaging.job.WorkerCallback;
 import model.data.DataResource;
 import model.data.deployment.Deployment;
+import model.data.deployment.DeploymentGroup;
 import model.job.Job;
 import model.job.result.type.DeploymentResult;
 import model.job.result.type.ErrorResult;
@@ -38,6 +41,7 @@ import org.springframework.stereotype.Component;
 import util.PiazzaLogger;
 import access.database.Accessor;
 import access.deploy.Deployer;
+import access.deploy.GroupDeployer;
 import access.deploy.Leaser;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -60,7 +64,9 @@ public class AccessWorker {
 	@Autowired
 	private Deployer deployer;
 	@Autowired
-	private Accessor mongoAccessor;
+	private GroupDeployer groupDeployer;
+	@Autowired
+	private Accessor accessor;
 	@Autowired
 	private Leaser leaser;
 	@Autowired
@@ -102,16 +108,31 @@ public class AccessWorker {
 					System.out.println("Renewing Deployment Lease for " + accessJob.getDataId());
 					// If it does, then renew the Lease on the
 					// existing deployment.
-					deployment = mongoAccessor.getDeploymentByDataId(accessJob.getDataId());
+					deployment = accessor.getDeploymentByDataId(accessJob.getDataId());
 					leaser.renewDeploymentLease(deployment);
 				} else {
 					System.out.println("Creating a new Deployment and lease for " + accessJob.getDataId());
 					// Obtain the Data to be deployed
-					DataResource dataToDeploy = mongoAccessor.getData(accessJob.getDataId());
+					DataResource dataToDeploy = accessor.getData(accessJob.getDataId());
 					// Create the Deployment
 					deployment = deployer.createDeployment(dataToDeploy);
 					// Create a new Lease for this Deployment
 					leaser.createDeploymentLease(deployment);
+				}
+
+				// Check if the user has requested this layer be added to a new
+				// group layer.
+				if ((accessJob.getDeploymentGroupId() != null) && (accessJob.getDeploymentGroupId().isEmpty() == false)) {
+					// Check if the Deployment Group exists
+					DeploymentGroup deploymentGroup = accessor.getDeploymentGroupById(accessJob.getDeploymentGroupId());
+					if (deploymentGroup == null) {
+						throw new Exception(String.format("Deployment Group with ID %s does not exist.",
+								accessJob.getDeploymentGroupId()));
+					}
+					// Add the Layer to the Deployment Group
+					List<Deployment> deployments = new ArrayList<Deployment>();
+					deployments.add(deployment);
+					groupDeployer.updateDeploymentGroup(deploymentGroup, deployments);
 				}
 
 				// Update Job Status to complete for this Job.
