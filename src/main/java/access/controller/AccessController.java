@@ -33,6 +33,7 @@ import model.response.DeploymentGroupResponse;
 import model.response.DeploymentResponse;
 import model.response.ErrorResponse;
 import model.response.PiazzaResponse;
+import model.response.SuccessResponse;
 
 import org.apache.commons.io.FilenameUtils;
 import org.geotools.data.DataStore;
@@ -54,6 +55,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.client.HttpStatusCodeException;
 
 import util.PiazzaLogger;
 import access.database.Accessor;
@@ -362,6 +364,44 @@ public class AccessController {
 			// Log the error message.
 			exception.printStackTrace();
 			String error = String.format("Error Creating Deployment Group for user %s : %s", createdBy,
+					exception.getMessage());
+			logger.log(error, PiazzaLogger.ERROR);
+			return new ResponseEntity<PiazzaResponse>(new ErrorResponse(error, "Access"),
+					HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+	}
+
+	/**
+	 * Deletes a Deployment Group from Piazza, and from the corresponding
+	 * GeoServer.
+	 * 
+	 * @param deploymentGroupId
+	 *            The ID of the deployment Group to delete.
+	 * @return Appropriate response
+	 */
+	@RequestMapping(value = "/deployment/group/{deploymentGroupId}", method = RequestMethod.DELETE)
+	public ResponseEntity<PiazzaResponse> deleteDeploymentGroup(
+			@PathVariable(value = "deploymentGroupId") String deploymentGroupId) {
+		try {
+			// Delete the Deployment Group from GeoServer, and remove it from
+			// the Piazza DB persistence
+			DeploymentGroup deploymentGroup = accessor.getDeploymentGroupById(deploymentGroupId);
+			if (deploymentGroup == null) {
+				return new ResponseEntity<PiazzaResponse>(new ErrorResponse("Deployment Group does not exist.",
+						"Access"), HttpStatus.NOT_FOUND);
+			}
+			groupDeployer.deleteDeploymentGroup(deploymentGroup);
+			return new ResponseEntity<PiazzaResponse>(new SuccessResponse("Group Deleted.", "Access"), HttpStatus.OK);
+		} catch (HttpStatusCodeException httpException) {
+			// Return the HTTP Error code from GeoServer
+			String error = String.format(
+					"Could not delete Deployment Group. Response from GeoServer returned code %s with reason %s",
+					httpException.getStatusCode().toString(), httpException.getMessage());
+			logger.log(error, PiazzaLogger.ERROR);
+			return new ResponseEntity<PiazzaResponse>(new ErrorResponse(error, "Access"), httpException.getStatusCode());
+		} catch (Exception exception) {
+			// Return the 500 Internal error
+			String error = String.format("Could not delete Deployment Group. An unexpected error occurred: %s",
 					exception.getMessage());
 			logger.log(error, PiazzaLogger.ERROR);
 			return new ResponseEntity<PiazzaResponse>(new ErrorResponse(error, "Access"),

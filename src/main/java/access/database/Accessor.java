@@ -131,6 +131,26 @@ public class Accessor {
 	}
 
 	/**
+	 * Gets the Deployment Group by its unique ID.
+	 * 
+	 * @param deploymentGroupId
+	 *            The ID of the Deployment Group
+	 * @return The Deployment Group
+	 */
+	public DeploymentGroup getDeploymentGroupById(String deploymentGroupId) {
+		BasicDBObject query = new BasicDBObject("deploymentGroupId", deploymentGroupId);
+		DeploymentGroup deploymentGroup;
+
+		try {
+			deploymentGroup = getDeploymentGroupCollection().findOne(query);
+		} catch (MongoTimeoutException mte) {
+			throw new MongoException("MongoDB instance not available.");
+		}
+
+		return deploymentGroup;
+	}
+
+	/**
 	 * Deletes a deployment entirely from the database.
 	 * 
 	 * <p>
