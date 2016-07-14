@@ -59,8 +59,8 @@ public class GroupDeployer {
 	private Accessor accessor;
 	@Autowired
 	private Deployer deployer;
-	@Autowired
-	private RestTemplate restTemplate;
+
+	private RestTemplate restTemplate = new RestTemplate();
 	@Value("${vcap.services.pz-geoserver.credentials.geoserver.hostname}")
 	private String GEOSERVER_HOST;
 	@Value("${vcap.services.pz-geoserver.credentials.geoserver.port}")
