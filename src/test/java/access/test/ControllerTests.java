@@ -109,8 +109,8 @@ public class ControllerTests {
 	/**
 	 * Test an exception
 	 */
-	@Test(expected = Exception.class)
-	public void testDownloadError() throws Exception {
+	@Test
+	public void testDownloadError()  {
 		// Mock no data being found
 		when(accessor.getData(eq("123456"))).thenReturn(null);
 
@@ -129,11 +129,11 @@ public class ControllerTests {
 		mockData.dataType = new TextDataType();
 		((TextDataType) mockData.dataType).content = "This is a test";
 		when(accessor.getData(eq("123456"))).thenReturn(mockData);
-		ResponseEntity<byte[]> response = accessController.accessFile("123456", "file.txt");
+		ResponseEntity<?> response = accessController.accessFile("123456", "file.txt");
 
 		// Verify
 		assertTrue(response.getStatusCode().equals(HttpStatus.OK));
-		assertTrue(new String(response.getBody()).equals("This is a test"));
+		assertTrue(new String((byte[])response.getBody()).equals("This is a test"));
 
 		// Mock Vector (Database)
 		mockData.dataType = new PostGISDataType();
@@ -146,9 +146,9 @@ public class ControllerTests {
 
 		// Verify
 		assertTrue(response.getStatusCode().equals(HttpStatus.OK));
-		assertTrue(response.getBody().length > 0);
+		assertTrue(((byte[])(response.getBody())).length > 0);
 		// Check that the points exist in the response.
-		String geoJson = new String(response.getBody());
+		String geoJson = new String((byte[])response.getBody());
 		assertTrue(geoJson.contains("[5,5]"));
 		assertTrue(geoJson.contains("[0.0,0.0]"));
 
@@ -163,7 +163,7 @@ public class ControllerTests {
 
 		// Verify
 		assertTrue(response.getStatusCode().equals(HttpStatus.OK));
-		assertTrue(response.getBody().length == 90074);
+		assertTrue(((byte[])(response.getBody())).length == 90074);
 	}
 
 	/**

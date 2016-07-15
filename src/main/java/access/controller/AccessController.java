@@ -132,54 +132,57 @@ public class AccessController {
 	 *            The ID of the Data Item to get. Assumes this file is ready to
 	 *            be downloaded.
 	 */
-	@RequestMapping(value = "/file/{dataId}", method = RequestMethod.GET)
-	public ResponseEntity<byte[]> accessFile(@PathVariable(value = "dataId") String dataId,
-			@RequestParam(value = "fileName", required = false) String name) throws Exception {
-		// Get the DataResource item
-		DataResource data = accessor.getData(dataId);
-		String fileName = (StringUtils.isNullOrEmpty(name)) ? (dataId) : (name);
-
-		if (data == null) {
-			String message = String.format("Data not found for requested ID %s", dataId);
-			logger.log(message, PiazzaLogger.WARNING);
-			throw new Exception(message);
-		}
-
-		if (data.getDataType() instanceof TextDataType) {
-			// Stream the Bytes back
-			TextDataType textData = (TextDataType) data.getDataType();
-			return getResponse(MediaType.TEXT_PLAIN, String.format("%s%s", fileName, ".txt"), textData.getContent()
-					.getBytes());
-		} else if (data.getDataType() instanceof PostGISDataType) {
-			// Obtain geoJSON from postGIS
-			StringBuilder geoJSON = getPostGISGeoJSON(data);
-
-			// Log the Request
-			logger.log(String.format("Returning Bytes for %s of length %s", dataId, geoJSON.length()), PiazzaLogger.INFO);
-
-			// Stream the Bytes back
-			return getResponse(MediaType.TEXT_PLAIN, String.format("%s%s", fileName, ".geojson"), geoJSON.toString()
-					.getBytes());
-		} else if (!(data.getDataType() instanceof FileRepresentation)) {
-			String message = String.format("File download not available for Data ID %s; type is %s", dataId, data
-					.getDataType().getClass().getSimpleName());
-			logger.log(message, PiazzaLogger.WARNING);
-			throw new Exception(message);
-		} else {
-			// Get the File Bytes from wherever the File Location
-			FileAccessFactory fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY);
-			InputStream byteStream = fileFactory.getFile(((FileRepresentation) data.getDataType()).getLocation());
-			byte[] bytes = StreamUtils.copyToByteArray(byteStream);
-
-			// Log the Request
-			logger.log(String.format("Returning Bytes for %s of length %s", dataId, bytes.length), PiazzaLogger.INFO);
-
-			// Preserve the file extension from the original file.
-			String originalFileName = ((FileRepresentation) data.getDataType()).getLocation().getFileName();
-			String extension = FilenameUtils.getExtension(originalFileName);
-
-			// Stream the Bytes back
-			return getResponse(MediaType.APPLICATION_OCTET_STREAM, String.format("%s.%s", fileName, extension), bytes);
+	@RequestMapping(value = "/file/{dataId}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+	public ResponseEntity<?> accessFile(@PathVariable(value = "dataId") String dataId,
+			@RequestParam(value = "fileName", required = false) String name) {
+		try {
+			// Get the DataResource item
+			DataResource data = accessor.getData(dataId);
+			String fileName = (StringUtils.isNullOrEmpty(name)) ? (dataId) : (name);
+	
+			if (data == null) {
+				logger.log(String.format("Data not found for requested ID %s", dataId), PiazzaLogger.WARNING);
+				return new ResponseEntity<PiazzaResponse>(new ErrorResponse(String.format("Data not found: %s", dataId), "Access"), HttpStatus.NOT_FOUND);			
+			}
+	
+			if (data.getDataType() instanceof TextDataType) {
+				// Stream the Bytes back
+				TextDataType textData = (TextDataType) data.getDataType();
+				return getResponse(MediaType.TEXT_PLAIN, String.format("%s%s", fileName, ".txt"), textData.getContent().getBytes());
+			} else if (data.getDataType() instanceof PostGISDataType) {
+				// Obtain geoJSON from postGIS
+				StringBuilder geoJSON = getPostGISGeoJSON(data);
+	
+				// Log the Request
+				logger.log(String.format("Returning Bytes for %s of length %s", dataId, geoJSON.length()), PiazzaLogger.INFO);
+	
+				// Stream the Bytes back
+				return getResponse(MediaType.TEXT_PLAIN, String.format("%s%s", fileName, ".geojson"), geoJSON.toString().getBytes());
+			} else if (!(data.getDataType() instanceof FileRepresentation)) {
+				String message = String.format("File download not available for Data ID %s; type is %s", dataId, data
+						.getDataType().getClass().getSimpleName());
+				logger.log(message, PiazzaLogger.WARNING);
+				throw new Exception(message);
+			} else {
+				// Get the File Bytes from wherever the File Location
+				FileAccessFactory fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY);
+				InputStream byteStream = fileFactory.getFile(((FileRepresentation) data.getDataType()).getLocation());
+				byte[] bytes = StreamUtils.copyToByteArray(byteStream);
+	
+				// Log the Request
+				logger.log(String.format("Returning Bytes for %s of length %s", dataId, bytes.length), PiazzaLogger.INFO);
+	
+				// Preserve the file extension from the original file.
+				String originalFileName = ((FileRepresentation) data.getDataType()).getLocation().getFileName();
+				String extension = FilenameUtils.getExtension(originalFileName);
+	
+				// Stream the Bytes back
+				return getResponse(MediaType.APPLICATION_OCTET_STREAM, String.format("%s.%s", fileName, extension), bytes);
+			} 
+		} catch (Exception exception) {
+			exception.printStackTrace();
+			logger.log(String.format("Error fetching Data %s: %s", dataId, exception.getMessage()), PiazzaLogger.ERROR);
+			return new ResponseEntity<PiazzaResponse>(new ErrorResponse("Error fetching File: " + exception.getMessage(), "Access"), HttpStatus.INTERNAL_SERVER_ERROR);			
 		}
 	}
 
