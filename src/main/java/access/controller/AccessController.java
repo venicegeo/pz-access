@@ -138,55 +138,57 @@ public class AccessController {
 	 *            The ID of the Data Item to get. Assumes this file is ready to
 	 *            be downloaded.
 	 */
-	@RequestMapping(value = "/file/{dataId}", method = RequestMethod.GET)
-	public ResponseEntity<byte[]> accessFile(@PathVariable(value = "dataId") String dataId,
-			@RequestParam(value = "fileName", required = false) String name) throws Exception {
-		// Get the DataResource item
-		DataResource data = accessor.getData(dataId);
-		String fileName = (StringUtils.isNullOrEmpty(name)) ? (dataId) : (name);
-
-		if (data == null) {
-			String message = String.format("Data not found for requested ID %s", dataId);
-			logger.log(message, PiazzaLogger.WARNING);
-			throw new Exception(message);
-		}
-
-		if (data.getDataType() instanceof TextDataType) {
-			// Stream the Bytes back
-			TextDataType textData = (TextDataType) data.getDataType();
-			return getResponse(MediaType.TEXT_PLAIN, String.format("%s%s", fileName, ".txt"), textData.getContent()
-					.getBytes());
-		} else if (data.getDataType() instanceof PostGISDataType) {
-			// Obtain geoJSON from postGIS
-			StringBuilder geoJSON = getPostGISGeoJSON(data);
-
-			// Log the Request
-			logger.log(String.format("Returning Bytes for %s of length %s", dataId, geoJSON.length()),
-					PiazzaLogger.INFO);
-
-			// Stream the Bytes back
-			return getResponse(MediaType.TEXT_PLAIN, String.format("%s%s", fileName, ".geojson"), geoJSON.toString()
-					.getBytes());
-		} else if (!(data.getDataType() instanceof FileRepresentation)) {
-			String message = String.format("File download not available for Data ID %s; type is %s", dataId, data
-					.getDataType().getClass().getSimpleName());
-			logger.log(message, PiazzaLogger.WARNING);
-			throw new Exception(message);
-		} else {
-			// Get the File Bytes from wherever the File Location
-			FileAccessFactory fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY);
-			InputStream byteStream = fileFactory.getFile(((FileRepresentation) data.getDataType()).getLocation());
-			byte[] bytes = StreamUtils.copyToByteArray(byteStream);
-
-			// Log the Request
-			logger.log(String.format("Returning Bytes for %s of length %s", dataId, bytes.length), PiazzaLogger.INFO);
-
-			// Preserve the file extension from the original file.
-			String originalFileName = ((FileRepresentation) data.getDataType()).getLocation().getFileName();
-			String extension = FilenameUtils.getExtension(originalFileName);
-
-			// Stream the Bytes back
-			return getResponse(MediaType.APPLICATION_OCTET_STREAM, String.format("%s.%s", fileName, extension), bytes);
+	@RequestMapping(value = "/file/{dataId}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+	public ResponseEntity<?> accessFile(@PathVariable(value = "dataId") String dataId,
+			@RequestParam(value = "fileName", required = false) String name) {
+		try {
+			// Get the DataResource item
+			DataResource data = accessor.getData(dataId);
+			String fileName = (StringUtils.isNullOrEmpty(name)) ? (dataId) : (name);
+	
+			if (data == null) {
+				logger.log(String.format("Data not found for requested ID %s", dataId), PiazzaLogger.WARNING);
+				return new ResponseEntity<PiazzaResponse>(new ErrorResponse(String.format("Data not found: %s", dataId), "Access"), HttpStatus.NOT_FOUND);			
+			}
+	
+			if (data.getDataType() instanceof TextDataType) {
+				// Stream the Bytes back
+				TextDataType textData = (TextDataType) data.getDataType();
+				return getResponse(MediaType.TEXT_PLAIN, String.format("%s%s", fileName, ".txt"), textData.getContent().getBytes());
+			} else if (data.getDataType() instanceof PostGISDataType) {
+				// Obtain geoJSON from postGIS
+				StringBuilder geoJSON = getPostGISGeoJSON(data);
+	
+				// Log the Request
+				logger.log(String.format("Returning Bytes for %s of length %s", dataId, geoJSON.length()), PiazzaLogger.INFO);
+	
+				// Stream the Bytes back
+				return getResponse(MediaType.TEXT_PLAIN, String.format("%s%s", fileName, ".geojson"), geoJSON.toString().getBytes());
+			} else if (!(data.getDataType() instanceof FileRepresentation)) {
+				String message = String.format("File download not available for Data ID %s; type is %s", dataId, data
+						.getDataType().getClass().getSimpleName());
+				logger.log(message, PiazzaLogger.WARNING);
+				throw new Exception(message);
+			} else {
+				// Get the File Bytes from wherever the File Location
+				FileAccessFactory fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY);
+				InputStream byteStream = fileFactory.getFile(((FileRepresentation) data.getDataType()).getLocation());
+				byte[] bytes = StreamUtils.copyToByteArray(byteStream);
+	
+				// Log the Request
+				logger.log(String.format("Returning Bytes for %s of length %s", dataId, bytes.length), PiazzaLogger.INFO);
+	
+				// Preserve the file extension from the original file.
+				String originalFileName = ((FileRepresentation) data.getDataType()).getLocation().getFileName();
+				String extension = FilenameUtils.getExtension(originalFileName);
+	
+				// Stream the Bytes back
+				return getResponse(MediaType.APPLICATION_OCTET_STREAM, String.format("%s.%s", fileName, extension), bytes);
+			} 
+		} catch (Exception exception) {
+			exception.printStackTrace();
+			logger.log(String.format("Error fetching Data %s: %s", dataId, exception.getMessage()), PiazzaLogger.ERROR);
+			return new ResponseEntity<PiazzaResponse>(new ErrorResponse("Error fetching File: " + exception.getMessage(), "Access"), HttpStatus.INTERNAL_SERVER_ERROR);			
 		}
 	}
 
@@ -197,8 +199,8 @@ public class AccessController {
 	 *            ID of the Resource
 	 * @return The resource matching the specified ID
 	 */
-	@RequestMapping(value = "/data/{dataId}", method = RequestMethod.GET)
-	public PiazzaResponse getData(@PathVariable(value = "dataId") String dataId) {
+	@RequestMapping(value = "/data/{dataId}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+	public ResponseEntity<PiazzaResponse> getData(@PathVariable(value = "dataId") String dataId) {
 		try {
 			if (dataId.isEmpty()) {
 				throw new Exception("No Data ID specified.");
@@ -207,16 +209,16 @@ public class AccessController {
 			DataResource data = accessor.getData(dataId);
 			if (data == null) {
 				logger.log(String.format("Data not found for requested ID %s", dataId), PiazzaLogger.WARNING);
-				return new ErrorResponse(String.format("Data not found: %s", dataId), "Access");
+				return new ResponseEntity<PiazzaResponse>(new ErrorResponse(String.format("Data not found: %s", dataId), "Access"), HttpStatus.NOT_FOUND);
 			}
 
 			// Return the Data Resource item
 			logger.log(String.format("Returning Data Metadata for %s", dataId), PiazzaLogger.INFO);
-			return new DataResourceResponse(data);
+			return new ResponseEntity<PiazzaResponse>(new DataResourceResponse(data), HttpStatus.OK);
 		} catch (Exception exception) {
 			exception.printStackTrace();
 			logger.log(String.format("Error fetching Data %s: %s", dataId, exception.getMessage()), PiazzaLogger.ERROR);
-			return new ErrorResponse("Error fetching Data: " + exception.getMessage(), "Access");
+			return new ResponseEntity<PiazzaResponse>(new ErrorResponse("Error fetching Data: " + exception.getMessage(), "Access"), HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
 
@@ -232,28 +234,26 @@ public class AccessController {
 	 * @return The deployment information, or an ErrorResponse if exceptions
 	 *         occur
 	 */
-	@RequestMapping(value = "/deployment/{deploymentId}", method = RequestMethod.GET)
-	public PiazzaResponse getDeployment(@PathVariable(value = "deploymentId") String deploymentId) {
+	@RequestMapping(value = "/deployment/{deploymentId}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+	public ResponseEntity<PiazzaResponse> getDeployment(@PathVariable(value = "deploymentId") String deploymentId) {
 		try {
 			if (deploymentId.isEmpty()) {
 				throw new Exception("No Deployment ID specified.");
 			}
-			// Query for the Data ID
+			// Query for the Deployment ID
 			Deployment deployment = accessor.getDeployment(deploymentId);
 			if (deployment == null) {
-				logger.log(String.format("Deployment not found for requested ID %s", deploymentId),
-						PiazzaLogger.WARNING);
-				return new ErrorResponse(String.format("Deployment not found: %s", deploymentId), "Access");
+				logger.log(String.format("Deployment not found for requested ID %s", deploymentId), PiazzaLogger.WARNING);
+				return new ResponseEntity<PiazzaResponse>(new ErrorResponse(String.format("Deployment not found: %s", deploymentId), "Access"), HttpStatus.NOT_FOUND);
 			}
 
 			// Return the Data Resource item
 			logger.log(String.format("Returning Deployment Metadata for %s", deploymentId), PiazzaLogger.INFO);
-			return new DeploymentResponse(deployment);
+			return new ResponseEntity<PiazzaResponse>(new DeploymentResponse(deployment), HttpStatus.OK);
 		} catch (Exception exception) {
 			exception.printStackTrace();
-			logger.log(String.format("Error fetching Deployment %s: %s", deploymentId, exception.getMessage()),
-					PiazzaLogger.ERROR);
-			return new ErrorResponse("Error fetching Deployment: " + exception.getMessage(), "Access");
+			logger.log(String.format("Error fetching Deployment %s: %s", deploymentId, exception.getMessage()), PiazzaLogger.ERROR);
+			return new ResponseEntity<PiazzaResponse>(new ErrorResponse("Error fetching Deployment: " + exception.getMessage(), "Access"), HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
 
@@ -263,8 +263,8 @@ public class AccessController {
 	 * 
 	 * @return The list of all data held by the system.
 	 */
-	@RequestMapping(value = "/data", method = RequestMethod.GET)
-	public PiazzaResponse getAllData(
+	@RequestMapping(value = "/data", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+	public ResponseEntity<PiazzaResponse> getAllData(
 			@RequestParam(value = "page", required = false, defaultValue = DEFAULT_PAGE) Integer page,
 			@RequestParam(value = "perPage", required = false, defaultValue = DEFAULT_PAGE_SIZE) Integer pageSize,
 			@RequestParam(value = "sortBy", required = false, defaultValue = DEFAULT_SORTBY) String sortBy,
@@ -276,10 +276,10 @@ public class AccessController {
 			if (!(order.equalsIgnoreCase("asc")) && !(order.equalsIgnoreCase("desc"))) {
 				order = "asc";
 			}
-			return accessor.getDataList(page, pageSize, sortBy, order, keyword, userName);
+			return new ResponseEntity<PiazzaResponse>(accessor.getDataList(page, pageSize, sortBy, order, keyword, userName), HttpStatus.OK);
 		} catch (Exception exception) {
 			logger.log(String.format("Error Querying Data: %s", exception.getMessage()), PiazzaLogger.ERROR);
-			return new ErrorResponse("Error Querying Data: " + exception.getMessage(), "Access");
+			return new ResponseEntity<PiazzaResponse>(new ErrorResponse("Error Querying Data: " + exception.getMessage(), "Access"), HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
 
@@ -289,8 +289,8 @@ public class AccessController {
 	 * 
 	 * @return The list of all data held by the system.
 	 */
-	@RequestMapping(value = "/deployment", method = RequestMethod.GET)
-	public PiazzaResponse getAllDeployments(
+	@RequestMapping(value = "/deployment", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+	public ResponseEntity<PiazzaResponse> getAllDeployments(
 			@RequestParam(value = "page", required = false, defaultValue = DEFAULT_PAGE) Integer page,
 			@RequestParam(value = "perPage", required = false, defaultValue = DEFAULT_PAGE_SIZE) Integer perPage,
 			@RequestParam(value = "sortBy", required = false, defaultValue = DEFAULT_SORTBY) String sortBy,
@@ -301,10 +301,10 @@ public class AccessController {
 			if (!(order.equalsIgnoreCase("asc")) && !(order.equalsIgnoreCase("desc"))) {
 				order = "asc";
 			}
-			return accessor.getDeploymentList(page, perPage, sortBy, order, keyword);
+			return new ResponseEntity<PiazzaResponse>(accessor.getDeploymentList(page, perPage, sortBy, order, keyword), HttpStatus.OK);
 		} catch (Exception exception) {
 			logger.log(String.format("Error Querying Deployment: %s", exception.getMessage()), PiazzaLogger.ERROR);
-			return new ErrorResponse("Error Querying Deployment: " + exception.getMessage(), "Access");
+			return new ResponseEntity<PiazzaResponse>(new ErrorResponse("Error Querying Deployment: " + exception.getMessage(), "Access"), HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
 
@@ -328,18 +328,26 @@ public class AccessController {
 	 * @return OK confirmation if deleted, or an ErrorResponse if exceptions
 	 *         occur
 	 */
-	@RequestMapping(value = "/deployment/{deploymentId}", method = RequestMethod.DELETE)
-	public PiazzaResponse deleteDeployment(@PathVariable(value = "deploymentId") String deploymentId, Principal user) {
+	@RequestMapping(value = "/deployment/{deploymentId}", method = RequestMethod.DELETE, produces = MediaType.APPLICATION_JSON_VALUE)
+	public ResponseEntity<PiazzaResponse> deleteDeployment(@PathVariable(value = "deploymentId") String deploymentId, Principal user) {
 		try {
+			// Query for the Deployment ID
+			Deployment deployment = accessor.getDeployment(deploymentId);
+			if (deployment == null) {
+				logger.log(String.format("Deployment not found for requested ID %s", deploymentId),	PiazzaLogger.WARNING);
+				return new ResponseEntity<PiazzaResponse>(new ErrorResponse(String.format("Deployment not found: %s", deploymentId), "Access"), HttpStatus.NOT_FOUND);
+			}			
+			
 			// Delete the Deployment
 			deployer.undeploy(deploymentId);
 			// Return OK
-			return null;
+			return new ResponseEntity<PiazzaResponse>(new SuccessResponse("Deployment " + deploymentId
+					+ " was deleted successfully", "Access"), HttpStatus.OK);
 		} catch (Exception exception) {
 			exception.printStackTrace();
 			String error = String.format("Error Deleting Deployment %s: %s", deploymentId, exception.getMessage());
 			logger.log(error, PiazzaLogger.ERROR);
-			return new ErrorResponse(error, "Access");
+			return new ResponseEntity<PiazzaResponse>(new ErrorResponse(error, "Access"), HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
 
