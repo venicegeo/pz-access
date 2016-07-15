@@ -291,6 +291,9 @@ public class ControllerTests {
 	@Test
 	public void testUndeploy() throws Exception {
 		// Test undeploying
+		Deployment deployment = new Deployment();
+		deployment.setDeploymentId("123456");
+		when(accessor.getDeployment(eq("123456"))).thenReturn(deployment);		
 		ResponseEntity<PiazzaResponse> response = accessController.deleteDeployment("123456", null);
 		assertTrue(response.getStatusCode().compareTo(HttpStatus.OK) == 0);
 

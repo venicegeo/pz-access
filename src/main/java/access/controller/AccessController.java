@@ -155,8 +155,7 @@ public class AccessController {
 			StringBuilder geoJSON = getPostGISGeoJSON(data);
 
 			// Log the Request
-			logger.log(String.format("Returning Bytes for %s of length %s", dataId, geoJSON.length()),
-					PiazzaLogger.INFO);
+			logger.log(String.format("Returning Bytes for %s of length %s", dataId, geoJSON.length()), PiazzaLogger.INFO);
 
 			// Stream the Bytes back
 			return getResponse(MediaType.TEXT_PLAIN, String.format("%s%s", fileName, ".geojson"), geoJSON.toString()
@@ -232,11 +231,10 @@ public class AccessController {
 			if (deploymentId.isEmpty()) {
 				throw new Exception("No Deployment ID specified.");
 			}
-			// Query for the Data ID
+			// Query for the Deployment ID
 			Deployment deployment = accessor.getDeployment(deploymentId);
 			if (deployment == null) {
-				logger.log(String.format("Deployment not found for requested ID %s", deploymentId),
-						PiazzaLogger.WARNING);
+				logger.log(String.format("Deployment not found for requested ID %s", deploymentId), PiazzaLogger.WARNING);
 				return new ResponseEntity<PiazzaResponse>(new ErrorResponse(String.format("Deployment not found: %s", deploymentId), "Access"), HttpStatus.NOT_FOUND);
 			}
 
@@ -245,8 +243,7 @@ public class AccessController {
 			return new ResponseEntity<PiazzaResponse>(new DeploymentResponse(deployment), HttpStatus.OK);
 		} catch (Exception exception) {
 			exception.printStackTrace();
-			logger.log(String.format("Error fetching Deployment %s: %s", deploymentId, exception.getMessage()),
-					PiazzaLogger.ERROR);
+			logger.log(String.format("Error fetching Deployment %s: %s", deploymentId, exception.getMessage()), PiazzaLogger.ERROR);
 			return new ResponseEntity<PiazzaResponse>(new ErrorResponse("Error fetching Deployment: " + exception.getMessage(), "Access"), HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
@@ -325,6 +322,13 @@ public class AccessController {
 	@RequestMapping(value = "/deployment/{deploymentId}", method = RequestMethod.DELETE, produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<PiazzaResponse> deleteDeployment(@PathVariable(value = "deploymentId") String deploymentId, Principal user) {
 		try {
+			// Query for the Deployment ID
+			Deployment deployment = accessor.getDeployment(deploymentId);
+			if (deployment == null) {
+				logger.log(String.format("Deployment not found for requested ID %s", deploymentId),	PiazzaLogger.WARNING);
+				return new ResponseEntity<PiazzaResponse>(new ErrorResponse(String.format("Deployment not found: %s", deploymentId), "Access"), HttpStatus.NOT_FOUND);
+			}			
+			
 			// Delete the Deployment
 			deployer.undeploy(deploymentId);
 			// Return OK
