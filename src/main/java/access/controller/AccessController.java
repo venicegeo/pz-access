@@ -353,13 +353,15 @@ public class AccessController {
 	 *            The user who requests the creation
 	 * @return The Deployment Group Response
 	 */
-	@RequestMapping(value = "/deployment/group", method = RequestMethod.POST)
+	@RequestMapping(value = "/deployment/group", method = RequestMethod.POST, produces = "application/json")
 	public ResponseEntity<PiazzaResponse> createDeploymentGroup(
 			@RequestParam(value = "createdBy", required = true) String createdBy) {
 		try {
 			// Create a new Deployment Group
 			DeploymentGroup deploymentGroup = groupDeployer.createDeploymentGroup(createdBy);
-			return new ResponseEntity<PiazzaResponse>(new DeploymentGroupResponse(deploymentGroup), HttpStatus.CREATED);
+			ResponseEntity<PiazzaResponse> response = new ResponseEntity<PiazzaResponse>(new DeploymentGroupResponse(
+					deploymentGroup), HttpStatus.CREATED);
+			return response;
 		} catch (Exception exception) {
 			// Log the error message.
 			exception.printStackTrace();
@@ -379,7 +381,7 @@ public class AccessController {
 	 *            The ID of the deployment Group to delete.
 	 * @return Appropriate response
 	 */
-	@RequestMapping(value = "/deployment/group/{deploymentGroupId}", method = RequestMethod.DELETE)
+	@RequestMapping(value = "/deployment/group/{deploymentGroupId}", method = RequestMethod.DELETE, produces = "application/json")
 	public ResponseEntity<PiazzaResponse> deleteDeploymentGroup(
 			@PathVariable(value = "deploymentGroupId") String deploymentGroupId) {
 		try {
