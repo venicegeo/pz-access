@@ -29,6 +29,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
@@ -203,10 +205,21 @@ public class GroupDeployer {
 				GEOSERVER_PORT, deploymentGroup.deploymentGroupId);
 
 		// Execute
-		ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.DELETE, request, String.class);
-		if (response.getStatusCode().equals(HttpStatus.OK) == false) {
-			throw new Exception(String.format("Could not delete Layer Group %s on GeoServer. Failed with Code %s : %s",
-					deploymentGroup.deploymentGroupId, response.getStatusCode().toString(), response.getBody()));
+		try {
+			restTemplate.exchange(url, HttpMethod.DELETE, request, String.class);
+		} catch (HttpClientErrorException | HttpServerErrorException exception) {
+			// If the delete to GeoServer failed, then check why. Perhaps it's
+			// already been deleted? It might not be an error we're concerned
+			// with.
+			if (exception.getStatusCode().equals(HttpStatus.NOT_FOUND)) {
+				// If the Resource was deleted already, or doesn't exist - then
+				// ignore this error.
+			} else {
+				throw new Exception(String.format(
+						"Could not delete Layer Group %s on GeoServer. Failed with Code %s : %s",
+						deploymentGroup.deploymentGroupId, exception.getStatusCode().toString(),
+						exception.getResponseBodyAsString()));
+			}
 		}
 
 		// Remove the Deployment Group reference from Mongo
