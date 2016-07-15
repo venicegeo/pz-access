@@ -109,8 +109,8 @@ public class ControllerTests {
 	/**
 	 * Test an exception
 	 */
-	@Test(expected = Exception.class)
-	public void testDownloadError() throws Exception {
+	@Test
+	public void testDownloadError()  {
 		// Mock no data being found
 		when(accessor.getData(eq("123456"))).thenReturn(null);
 
@@ -129,11 +129,11 @@ public class ControllerTests {
 		mockData.dataType = new TextDataType();
 		((TextDataType) mockData.dataType).content = "This is a test";
 		when(accessor.getData(eq("123456"))).thenReturn(mockData);
-		ResponseEntity<byte[]> response = accessController.accessFile("123456", "file.txt");
+		ResponseEntity<?> response = accessController.accessFile("123456", "file.txt");
 
 		// Verify
 		assertTrue(response.getStatusCode().equals(HttpStatus.OK));
-		assertTrue(new String(response.getBody()).equals("This is a test"));
+		assertTrue(new String((byte[])response.getBody()).equals("This is a test"));
 
 		// Mock Vector (Database)
 		mockData.dataType = new PostGISDataType();
@@ -146,9 +146,9 @@ public class ControllerTests {
 
 		// Verify
 		assertTrue(response.getStatusCode().equals(HttpStatus.OK));
-		assertTrue(response.getBody().length > 0);
+		assertTrue(((byte[])(response.getBody())).length > 0);
 		// Check that the points exist in the response.
-		String geoJson = new String(response.getBody());
+		String geoJson = new String((byte[])response.getBody());
 		assertTrue(geoJson.contains("[5,5]"));
 		assertTrue(geoJson.contains("[0.0,0.0]"));
 
@@ -163,7 +163,7 @@ public class ControllerTests {
 
 		// Verify
 		assertTrue(response.getStatusCode().equals(HttpStatus.OK));
-		assertTrue(response.getBody().length == 90074);
+		assertTrue(((byte[])(response.getBody())).length == 90074);
 	}
 
 	/**
@@ -172,12 +172,12 @@ public class ControllerTests {
 	@Test
 	public void testGetData() {
 		// Mock no data ID
-		PiazzaResponse response = accessController.getData("");
+		PiazzaResponse response = accessController.getData("").getBody();
 		assertTrue(response instanceof ErrorResponse);
 
 		// Mock no data
 		when(accessor.getData(eq("123456"))).thenReturn(null);
-		response = accessController.getData("123456");
+		response = accessController.getData("123456").getBody();
 		assertTrue(response instanceof ErrorResponse);
 
 		// Proper mock
@@ -187,7 +187,7 @@ public class ControllerTests {
 		when(accessor.getData(eq("123456"))).thenReturn(mockData);
 
 		// Test
-		response = accessController.getData("123456");
+		response = accessController.getData("123456").getBody();
 
 		// Verify
 		assertTrue(response instanceof DataResourceResponse);
@@ -200,12 +200,12 @@ public class ControllerTests {
 	@Test
 	public void testGetDeployment() {
 		// Mock no deployment ID
-		PiazzaResponse response = accessController.getDeployment("");
+		PiazzaResponse response = accessController.getDeployment("").getBody();
 		assertTrue(response instanceof ErrorResponse);
 
 		// Mock no deployment
 		when(accessor.getDeployment(eq("123456"))).thenReturn(null);
-		response = accessController.getDeployment("123456");
+		response = accessController.getDeployment("123456").getBody();
 		assertTrue(response instanceof ErrorResponse);
 
 		// Proper mock
@@ -214,7 +214,7 @@ public class ControllerTests {
 		when(accessor.getDeployment(eq("123456"))).thenReturn(deployment);
 
 		// Test
-		response = accessController.getDeployment("123456");
+		response = accessController.getDeployment("123456").getBody();
 
 		// Verify
 		assertTrue(response instanceof DeploymentResponse);
@@ -234,7 +234,7 @@ public class ControllerTests {
 				mockResponse);
 
 		// Test
-		PiazzaResponse response = accessController.getAllData(0, 10, "dataId", "asc", "Raster", "Test User");
+		PiazzaResponse response = accessController.getAllData(0, 10, "dataId", "asc", "Raster", "Test User").getBody();
 
 		// Verify
 		assertTrue(response instanceof DataResourceListResponse);
@@ -243,7 +243,7 @@ public class ControllerTests {
 		// Test Exception
 		Mockito.doThrow(new Exception()).when(accessor)
 				.getDataList(eq(0), eq(10), eq("dataId"), eq("asc"), eq("Raster"), eq("Test User"));
-		response = accessController.getAllData(0, 10, "dataId", "asc", "Raster", "Test User");
+		response = accessController.getAllData(0, 10, "dataId", "asc", "Raster", "Test User").getBody();
 		assertTrue(response instanceof ErrorResponse);
 	}
 
@@ -259,7 +259,7 @@ public class ControllerTests {
 		when(accessor.getDeploymentList(eq(0), eq(10), eq("dataId"), eq("asc"), eq("WFS"))).thenReturn(mockResponse);
 
 		// Test
-		PiazzaResponse response = accessController.getAllDeployments(0, 10, "dataId", "asc", "WFS");
+		PiazzaResponse response = accessController.getAllDeployments(0, 10, "dataId", "asc", "WFS").getBody();
 
 		// Verify
 		assertTrue(response instanceof DeploymentListResponse);
@@ -268,7 +268,7 @@ public class ControllerTests {
 		// Test Exception
 		Mockito.doThrow(new Exception()).when(accessor)
 				.getDeploymentList(eq(0), eq(10), eq("dataId"), eq("asc"), eq("WFS"));
-		response = accessController.getAllDeployments(0, 10, "dataId", "asc", "WFS");
+		response = accessController.getAllDeployments(0, 10, "dataId", "asc", "WFS").getBody();
 		assertTrue(response instanceof ErrorResponse);
 	}
 
@@ -291,13 +291,16 @@ public class ControllerTests {
 	@Test
 	public void testUndeploy() throws Exception {
 		// Test undeploying
-		PiazzaResponse response = accessController.deleteDeployment("123456", null);
-		assertTrue(response == null);
+		Deployment deployment = new Deployment();
+		deployment.setDeploymentId("123456");
+		when(accessor.getDeployment(eq("123456"))).thenReturn(deployment);		
+		ResponseEntity<PiazzaResponse> response = accessController.deleteDeployment("123456", null);
+		assertTrue(response.getStatusCode().compareTo(HttpStatus.OK) == 0);
 
 		// Test Exception
 		Mockito.doThrow(new Exception()).when(deployer).undeploy(eq("123456"));
 		response = accessController.deleteDeployment("123456", null);
-		assertTrue(response instanceof ErrorResponse);
+		assertTrue(response.getBody() instanceof ErrorResponse);
 
 		// Test reaping
 		accessController.forceReap();
