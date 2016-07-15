@@ -385,6 +385,10 @@ public class AccessController {
 	public ResponseEntity<PiazzaResponse> deleteDeploymentGroup(
 			@PathVariable(value = "deploymentGroupId") String deploymentGroupId) {
 		try {
+			if ((deploymentGroupId == null) || (deploymentGroupId.isEmpty())) {
+				return new ResponseEntity<PiazzaResponse>(new ErrorResponse("Deployment Group ID not specified.",
+						"Access"), HttpStatus.BAD_REQUEST);
+			}
 			// Delete the Deployment Group from GeoServer, and remove it from
 			// the Piazza DB persistence
 			DeploymentGroup deploymentGroup = accessor.getDeploymentGroupById(deploymentGroupId);

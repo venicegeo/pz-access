@@ -201,7 +201,7 @@ public class GroupDeployer {
 		HttpHeaders headers = deployer.getGeoServerHeaders();
 		headers.setContentType(MediaType.APPLICATION_JSON);
 		HttpEntity<String> request = new HttpEntity<String>(headers);
-		String url = String.format("http://%s:%s/geoserver/rest/workspaces/piazza/%s.json", GEOSERVER_HOST,
+		String url = String.format("http://%s:%s/geoserver/rest/workspaces/piazza/layergroups/%s.json", GEOSERVER_HOST,
 				GEOSERVER_PORT, deploymentGroup.deploymentGroupId);
 
 		// Execute
