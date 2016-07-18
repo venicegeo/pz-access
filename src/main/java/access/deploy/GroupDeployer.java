@@ -64,13 +64,13 @@ public class GroupDeployer {
 	private Deployer deployer;
 
 	private RestTemplate restTemplate = new RestTemplate();
-	@Value("${vcap.services.pz-geoserver.credentials.geoserver.hostname}")
+	@Value("${vcap.services.pz-geoserver-efs.credentials.geoserver.hostname}")
 	private String GEOSERVER_HOST;
-	@Value("${vcap.services.pz-geoserver.credentials.geoserver.port}")
+	@Value("${vcap.services.pz-geoserver-efs.credentials.geoserver.port}")
 	private String GEOSERVER_PORT;
-	@Value("${vcap.services.pz-geoserver.credentials.geoserver.username}")
+	@Value("${vcap.services.pz-geoserver-efs.credentials.geoserver.username}")
 	private String GEOSERVER_USERNAME;
-	@Value("${vcap.services.pz-geoserver.credentials.geoserver.password}")
+	@Value("${vcap.services.pz-geoserver-efs.credentials.geoserver.password}")
 	private String GEOSERVER_PASSWORD;
 
 	/**
