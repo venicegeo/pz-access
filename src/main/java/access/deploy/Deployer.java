@@ -195,7 +195,7 @@ public class Deployer {
 
 		// Send the Request
 		String url = String.format("http://%s:%s/geoserver/rest/workspaces/piazza/coveragestores/%s/file.geotiff",
-				"localhost", "8080", dataResource.getDataId());
+				GEOSERVER_HOST, GEOSERVER_PORT, dataResource.getDataId());
 		ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.PUT, request, String.class);
 		if (response.getStatusCode().equals(HttpStatus.CREATED) == false) {
 			throw new Exception(String.format("Creating Layer on GeoServer returned HTTP Status %s with Body: %s",
@@ -295,7 +295,7 @@ public class Deployer {
 	 * 
 	 * @return
 	 */
-	private HttpHeaders getGeoServerHeaders() {
+	public HttpHeaders getGeoServerHeaders() {
 		// Get the Basic authentication Headers for GeoServer
 		String plainCredentials = String.format("%s:%s", GEOSERVER_USERNAME, GEOSERVER_PASSWORD);
 		byte[] credentialBytes = plainCredentials.getBytes();

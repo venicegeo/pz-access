@@ -24,6 +24,7 @@ import javax.annotation.PreDestroy;
 
 import model.data.DataResource;
 import model.data.deployment.Deployment;
+import model.data.deployment.DeploymentGroup;
 import model.data.deployment.Lease;
 import model.response.DataResourceListResponse;
 import model.response.DeploymentListResponse;
@@ -69,6 +70,8 @@ public class Accessor {
 	private String RESOURCE_COLLECTION_NAME;
 	@Value("${mongo.db.collection.deployments}")
 	private String DEPLOYMENT_COLLECTION_NAME;
+	@Value("${mongo.db.collection.deployment.groups}")
+	private String DEPLOYMENT_GROUP_COLLECTION_NAME;
 	@Value("${mongo.db.collection.leases}")
 	private String LEASE_COLLECTION_NAME;
 	private MongoClient mongoClient;
@@ -128,6 +131,26 @@ public class Accessor {
 	}
 
 	/**
+	 * Gets the Deployment Group by its unique ID.
+	 * 
+	 * @param deploymentGroupId
+	 *            The ID of the Deployment Group
+	 * @return The Deployment Group
+	 */
+	public DeploymentGroup getDeploymentGroupById(String deploymentGroupId) {
+		BasicDBObject query = new BasicDBObject("deploymentGroupId", deploymentGroupId);
+		DeploymentGroup deploymentGroup;
+
+		try {
+			deploymentGroup = getDeploymentGroupCollection().findOne(query);
+		} catch (MongoTimeoutException mte) {
+			throw new MongoException("MongoDB instance not available.");
+		}
+
+		return deploymentGroup;
+	}
+
+	/**
 	 * Deletes a deployment entirely from the database.
 	 * 
 	 * <p>
@@ -145,12 +168,23 @@ public class Accessor {
 	 */
 	public void deleteDeployment(Deployment deployment) {
 		// Delete the deployment
-		getDeploymentCollection().remove(new BasicDBObject("id", deployment.getDeploymentId()));
+		getDeploymentCollection().remove(new BasicDBObject("deploymentId", deployment.getDeploymentId()));
 		// If the deployment had a lease, then delete that too.
 		Lease lease = getDeploymentLease(deployment);
 		if (lease != null) {
 			deleteLease(lease);
 		}
+	}
+
+	/**
+	 * Deletes a Deployment Group.
+	 * 
+	 * @param deploymentGroup
+	 *            The group to delete.
+	 */
+	public void deleteDeploymentGroup(DeploymentGroup deploymentGroup) {
+		getDeploymentGroupCollection()
+				.remove(new BasicDBObject("deploymentGroupId", deploymentGroup.deploymentGroupId));
 	}
 
 	/**
@@ -165,7 +199,7 @@ public class Accessor {
 	 *            The lease to delete.
 	 */
 	private void deleteLease(Lease lease) {
-		getLeaseCollection().remove(new BasicDBObject("id", lease.getLeaseId()));
+		getLeaseCollection().remove(new BasicDBObject("leaseId", lease.getLeaseId()));
 	}
 
 	/**
@@ -224,7 +258,7 @@ public class Accessor {
 	 * @return The Deployment
 	 */
 	public Deployment getDeployment(String deploymentId) {
-		BasicDBObject query = new BasicDBObject("id", deploymentId);
+		BasicDBObject query = new BasicDBObject("deploymentId", deploymentId);
 		Deployment deployment;
 
 		try {
@@ -247,7 +281,22 @@ public class Accessor {
 	 *            The new Expiration date. ISO8601 String.
 	 */
 	public void updateLeaseExpirationDate(String leaseId, String expirationDate) {
-		getLeaseCollection().update(DBQuery.is("id", leaseId), DBUpdate.set("expirationDate", expirationDate));
+		getLeaseCollection().update(DBQuery.is("leaseId", leaseId), DBUpdate.set("expirationDate", expirationDate));
+	}
+
+	/**
+	 * Updates the status of a Deployment Group to mark if an accompanying Layer
+	 * Group in GeoServer has been created.
+	 * 
+	 * @param deploymentGroupId
+	 *            The ID of the Deployment Group
+	 * @param created
+	 *            Whether or not the Deployment Group has an accompanying Layer
+	 *            Group in the GeoServer instance.
+	 */
+	public void updateDeploymentGroupCreated(String deploymentGroupId, boolean created) {
+		getDeploymentGroupCollection().update(DBQuery.is("deploymentGroupId", deploymentGroupId),
+				DBUpdate.set("hasGeoServerLayer", created));
 	}
 
 	/**
@@ -258,6 +307,16 @@ public class Accessor {
 	 */
 	public void insertDeployment(Deployment deployment) {
 		getDeploymentCollection().insert(deployment);
+	}
+
+	/**
+	 * Creates a new Deployment Group entry in the database.
+	 * 
+	 * @param deploymentGroup
+	 *            Deployment Group to insert
+	 */
+	public void insertDeploymentGroup(DeploymentGroup deploymentGroup) {
+		getDeploymentGroupCollection().insert(deploymentGroup);
 	}
 
 	/**
@@ -351,7 +410,7 @@ public class Accessor {
 			String keyword) throws Exception {
 		Pattern regex = Pattern.compile(String.format("(?i)%s", keyword != null ? keyword : ""));
 		// Get a DB Cursor to the query for general data
-		DBCursor<Deployment> cursor = getDeploymentCollection().find().or(DBQuery.regex("id", regex),
+		DBCursor<Deployment> cursor = getDeploymentCollection().find().or(DBQuery.regex("deploymentId", regex),
 				DBQuery.regex("dataId", regex), DBQuery.regex("capabilitiesUrl", regex));
 
 		// Sort and order
@@ -379,6 +438,17 @@ public class Accessor {
 	public JacksonDBCollection<Deployment, String> getDeploymentCollection() {
 		DBCollection collection = mongoClient.getDB(DATABASE_NAME).getCollection(DEPLOYMENT_COLLECTION_NAME);
 		return JacksonDBCollection.wrap(collection, Deployment.class, String.class);
+	}
+
+	/**
+	 * Gets the Mongo Collection of all Deployment Groups currently referenced
+	 * within Piazza.
+	 * 
+	 * @return Mongo collection for Deployment Groups
+	 */
+	public JacksonDBCollection<DeploymentGroup, String> getDeploymentGroupCollection() {
+		DBCollection collection = mongoClient.getDB(DATABASE_NAME).getCollection(DEPLOYMENT_GROUP_COLLECTION_NAME);
+		return JacksonDBCollection.wrap(collection, DeploymentGroup.class, String.class);
 	}
 
 	/**
