@@ -17,9 +17,6 @@ package access.deploy;
 
 import java.util.List;
 
-import model.data.deployment.Deployment;
-import model.data.deployment.DeploymentGroup;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
@@ -34,28 +31,26 @@ import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
-import util.PiazzaLogger;
-import util.UUIDFactory;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import access.database.Accessor;
 import access.deploy.geoserver.LayerGroupModel;
 import access.deploy.geoserver.LayerGroupModel.GroupLayer;
 import access.deploy.geoserver.LayerGroupModel.LayerGroup;
-
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import model.data.deployment.Deployment;
+import model.data.deployment.DeploymentGroup;
+import util.UUIDFactory;
 
 /**
- * Component that handles the deployment of Group Layers on GeoServer. This is
- * done through the /deployment/group endpoint. Group layers refer to a
- * collection of layers and expose them all as a single WMS endpoint.
+ * Component that handles the deployment of Group Layers on GeoServer. This is done through the /deployment/group
+ * endpoint. Group layers refer to a collection of layers and expose them all as a single WMS endpoint.
  * 
  * @author Patrick.Doody
  *
  */
 @Component
 public class GroupDeployer {
-	@Autowired
-	private PiazzaLogger logger;
 	@Autowired
 	private UUIDFactory uuidFactory;
 	@Autowired
@@ -74,17 +69,14 @@ public class GroupDeployer {
 	private String GEOSERVER_PASSWORD;
 
 	/**
-	 * Creates a new Deployment Group, without specifying any initial Data
-	 * Layers to be added. This will create the DeploymentGroup and store it in
-	 * the database, however, the actual GeoServer Layer Group will not be
-	 * created. The GeoServer Layer Group will be created upon first request of
-	 * a layer to be added to that group.
+	 * Creates a new Deployment Group, without specifying any initial Data Layers to be added. This will create the
+	 * DeploymentGroup and store it in the database, however, the actual GeoServer Layer Group will not be created. The
+	 * GeoServer Layer Group will be created upon first request of a layer to be added to that group.
 	 * 
 	 * @param createdBy
 	 *            The user who requests this creation
 	 * 
-	 * @return Deployment Group, containing an ID that can be used for future
-	 *         reference.
+	 * @return Deployment Group, containing an ID that can be used for future reference.
 	 */
 	public DeploymentGroup createDeploymentGroup(String createdBy) {
 		// Commit the new group to the database and return immediately
@@ -95,15 +87,14 @@ public class GroupDeployer {
 	}
 
 	/**
-	 * Creates a new Deployment Group. For each Deployment specified in the
-	 * constructor, it will add that deployment's layer to the Layer Group.
+	 * Creates a new Deployment Group. For each Deployment specified in the constructor, it will add that deployment's
+	 * layer to the Layer Group.
 	 * 
 	 * @param deployments
 	 *            The list of Layers to add to the group.
 	 * @param createdBy
 	 *            The user who requests this creation
-	 * @return Deployment Group, containing an ID that can be used for future
-	 *         reference.
+	 * @return Deployment Group, containing an ID that can be used for future reference.
 	 */
 	public DeploymentGroup createDeploymentGroup(List<Deployment> deployments, String createdBy) throws Exception {
 		// Create the Group.
@@ -138,8 +129,8 @@ public class GroupDeployer {
 	 * Adds Layers to the GeoServer Layer Group.
 	 * 
 	 * <p>
-	 * While the Deployment Group must exist at this point, the GeoServer Layer
-	 * Group may or may not exist at this point. It will be created if not.
+	 * While the Deployment Group must exist at this point, the GeoServer Layer Group may or may not exist at this
+	 * point. It will be created if not.
 	 * </p>
 	 * 
 	 * @param deploymentGroup
@@ -201,8 +192,8 @@ public class GroupDeployer {
 		HttpHeaders headers = deployer.getGeoServerHeaders();
 		headers.setContentType(MediaType.APPLICATION_JSON);
 		HttpEntity<String> request = new HttpEntity<String>(headers);
-		String url = String.format("http://%s:%s/geoserver/rest/workspaces/piazza/layergroups/%s.json", GEOSERVER_HOST,
-				GEOSERVER_PORT, deploymentGroup.deploymentGroupId);
+		String url = String.format("http://%s:%s/geoserver/rest/workspaces/piazza/layergroups/%s.json", GEOSERVER_HOST, GEOSERVER_PORT,
+				deploymentGroup.deploymentGroupId);
 
 		// Execute
 		try {
@@ -215,10 +206,8 @@ public class GroupDeployer {
 				// If the Resource was deleted already, or doesn't exist - then
 				// ignore this error.
 			} else {
-				throw new Exception(String.format(
-						"Could not delete Layer Group %s on GeoServer. Failed with Code %s : %s",
-						deploymentGroup.deploymentGroupId, exception.getStatusCode().toString(),
-						exception.getResponseBodyAsString()));
+				throw new Exception(String.format("Could not delete Layer Group %s on GeoServer. Failed with Code %s : %s",
+						deploymentGroup.deploymentGroupId, exception.getStatusCode().toString(), exception.getResponseBodyAsString()));
 			}
 		}
 
@@ -227,9 +216,8 @@ public class GroupDeployer {
 	}
 
 	/**
-	 * Gets the Layer Group Model from GeoServer for the Layer Group matching
-	 * the specified Deployment Group ID. If this exists, it will return the
-	 * model for the Layer Group.
+	 * Gets the Layer Group Model from GeoServer for the Layer Group matching the specified Deployment Group ID. If this
+	 * exists, it will return the model for the Layer Group.
 	 * 
 	 * @param deploymentGroupId
 	 *            The ID of the layer group
@@ -239,16 +227,15 @@ public class GroupDeployer {
 		HttpHeaders headers = deployer.getGeoServerHeaders();
 		headers.setContentType(MediaType.APPLICATION_JSON);
 		HttpEntity<String> request = new HttpEntity<String>(headers);
-		String url = String.format("http://%s:%s/geoserver/rest/workspaces/piazza/layergroups/%s.json", GEOSERVER_HOST,
-				GEOSERVER_PORT, deploymentGroupId);
+		String url = String.format("http://%s:%s/geoserver/rest/workspaces/piazza/layergroups/%s.json", GEOSERVER_HOST, GEOSERVER_PORT,
+				deploymentGroupId);
 
 		// Execute the request to get the Layer Group
 		ResponseEntity<String> response;
 		try {
 			response = restTemplate.exchange(url, HttpMethod.GET, request, String.class);
 		} catch (HttpStatusCodeException exception) {
-			throw new Exception(String.format(
-					"Could not fetch Layer Group %s. Status code %s was returned by GeoServer with error: %s",
+			throw new Exception(String.format("Could not fetch Layer Group %s. Status code %s was returned by GeoServer with error: %s",
 					deploymentGroupId, exception.getStatusCode().toString(), exception.getMessage()));
 		}
 
@@ -263,23 +250,21 @@ public class GroupDeployer {
 			// Deserialize into our Model for modifications
 			layerGroup = mapper.readValue(response.getBody(), LayerGroupModel.class);
 		} catch (Exception exception) {
-			throw new Exception(String.format("Could not read in Layer Group from GeoServer response for %s: %s",
-					deploymentGroupId, exception.getMessage()));
+			throw new Exception(String.format("Could not read in Layer Group from GeoServer response for %s: %s", deploymentGroupId,
+					exception.getMessage()));
 		}
 
 		return layerGroup;
 	}
 
 	/**
-	 * Sends a Layer Group to GeoServer. This will either update an existing
-	 * layer group, or create a new one. The payload is exactly the same,
-	 * however the HttpMethod will change from POST (create) to PUT (update).
+	 * Sends a Layer Group to GeoServer. This will either update an existing layer group, or create a new one. The
+	 * payload is exactly the same, however the HttpMethod will change from POST (create) to PUT (update).
 	 * 
 	 * @param layerGroup
 	 *            The Layer Group to update.
 	 * @param method
-	 *            POST to create a new Layer Group, and PUT to update an
-	 *            existing one.
+	 *            POST to create a new Layer Group, and PUT to update an existing one.
 	 */
 	private void sendGeoServerLayerGroup(LayerGroupModel layerGroup, HttpMethod method) throws Exception {
 		// Create the Request
@@ -288,40 +273,34 @@ public class GroupDeployer {
 		HttpEntity<String> request = new HttpEntity<String>(new ObjectMapper().writeValueAsString(layerGroup), headers);
 		String url = String.format(
 				method.equals(HttpMethod.PUT) ? "http://%s:%s/geoserver/rest/workspaces/piazza/layergroups/%s.json"
-						: "http://%s:%s/geoserver/rest/workspaces/piazza/layergroups.json", GEOSERVER_HOST,
-				GEOSERVER_PORT, layerGroup.layerGroup.name);
+						: "http://%s:%s/geoserver/rest/workspaces/piazza/layergroups.json",
+				GEOSERVER_HOST, GEOSERVER_PORT, layerGroup.layerGroup.name);
 
 		// Send
 		ResponseEntity<String> response = restTemplate.exchange(url, method, request, String.class);
 		if (response.getStatusCode().equals(HttpStatus.CREATED) || (response.getStatusCode().equals(HttpStatus.OK))) {
 			// Updated
 		} else {
-			throw new Exception(String.format(
-					"Could not update GeoServer Layer Group %s. Request returned Status %s : %s",
+			throw new Exception(String.format("Could not update GeoServer Layer Group %s. Request returned Status %s : %s",
 					layerGroup.layerGroup.name, response.getStatusCode().toString(), response.getBody()));
 		}
 	}
 
 	/**
-	 * Ensures that the number of Styles in the Layer Group will exactly match
-	 * the number of Layers in that Layer Group.
+	 * Ensures that the number of Styles in the Layer Group will exactly match the number of Layers in that Layer Group.
 	 * 
 	 * <p>
-	 * GeoServer, for whatever reason, requires there to be an equal number of
-	 * styles defined in a Layer Group model as there are numbers of Layers in
-	 * that Group. Even if you are using default styles. This function will
-	 * create blank style references in the `layergroup.styles` JSON tag to
-	 * ensure that GeoServer is satisfied with this input when making
-	 * modifications to the Layer Group.
+	 * GeoServer, for whatever reason, requires there to be an equal number of styles defined in a Layer Group model as
+	 * there are numbers of Layers in that Group. Even if you are using default styles. This function will create blank
+	 * style references in the `layergroup.styles` JSON tag to ensure that GeoServer is satisfied with this input when
+	 * making modifications to the Layer Group.
 	 * </p>
 	 * 
 	 * <p>
-	 * Default styles are annotated by an empty String; this is how GeoServer
-	 * seems to operate. So in order to specify the default style, we simply
-	 * insert an empty String into the styles list. If we ever want to apply
-	 * custom layer styles for each layer, then this code will obviously need to
-	 * be modified to do so by being more specific with the Style names in the
-	 * Styles list.
+	 * Default styles are annotated by an empty String; this is how GeoServer seems to operate. So in order to specify
+	 * the default style, we simply insert an empty String into the styles list. If we ever want to apply custom layer
+	 * styles for each layer, then this code will obviously need to be modified to do so by being more specific with the
+	 * Style names in the Styles list.
 	 * </p>
 	 * 
 	 * @param layerGroupModel

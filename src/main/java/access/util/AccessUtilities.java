@@ -15,17 +15,14 @@
  **/
 package access.util;
 
+import org.apache.commons.io.IOUtils;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+
 import model.data.DataResource;
 import model.data.location.FileAccessFactory;
 import model.data.location.FileLocation;
 import model.data.type.RasterDataType;
-
-import org.apache.commons.io.IOUtils;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
-
-import util.PiazzaLogger;
 
 /**
  * Utility class to handle common functionality required by access components
@@ -35,8 +32,6 @@ import util.PiazzaLogger;
  */
 @Component
 public class AccessUtilities {
-	@Autowired
-	private PiazzaLogger logger;
 	@Value("${vcap.services.pz-blobstore.credentials.access_key_id}")
 	private String AMAZONS3_ACCESS_KEY;
 	@Value("${vcap.services.pz-blobstore.credentials.secret_access_key}")
