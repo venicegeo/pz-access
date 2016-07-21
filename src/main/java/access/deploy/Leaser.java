@@ -49,7 +49,7 @@ public class Leaser {
 	private UUIDFactory uuidFactory;
 	@Autowired
 	private Accessor accessor;
-	private static final int DEFAULT_LEASE_PERIOD_DAYS = 21;
+	private static final Integer DEFAULT_LEASE_PERIOD_DAYS = 21;
 
 	/**
 	 * Renews the existing Deployment. This Deployment must exist in the Deployments collection.
@@ -71,8 +71,8 @@ public class Leaser {
 			if (expirationDate.isBeforeNow()) {
 				// If the Lease has expired, then the Lease will be extended for
 				// the default Lease period.
-				durationDays = ((durationDays != null) && (durationDays > 0)) ? durationDays : DEFAULT_LEASE_PERIOD_DAYS;
-				accessor.updateLeaseExpirationDate(lease.getLeaseId(), DateTime.now().plusDays(durationDays).toString());
+				durationDays = ((durationDays != null) && (durationDays.intValue() > 0)) ? durationDays : DEFAULT_LEASE_PERIOD_DAYS;
+				accessor.updateLeaseExpirationDate(lease.getLeaseId(), DateTime.now().plusDays(durationDays.intValue()).toString());
 				logger.log(String.format("Updating Deployment Lease for Deployment %s on host %s for %s", deployment.getDeploymentId(),
 						deployment.getHost(), deployment.getDataId()), PiazzaLogger.INFO);
 			} else {
@@ -95,8 +95,8 @@ public class Leaser {
 	public Lease createDeploymentLease(Deployment deployment, Integer durationDays) {
 		// Create the Lease
 		String leaseId = uuidFactory.getUUID();
-		durationDays = ((durationDays != null) && (durationDays > 0)) ? durationDays : DEFAULT_LEASE_PERIOD_DAYS;
-		Lease lease = new Lease(leaseId, deployment.getDeploymentId(), DateTime.now().plusDays(durationDays).toString());
+		durationDays = ((durationDays != null) && (durationDays.intValue() > 0)) ? durationDays : DEFAULT_LEASE_PERIOD_DAYS;
+		Lease lease = new Lease(leaseId, deployment.getDeploymentId(), DateTime.now().plusDays(durationDays.intValue()).toString());
 
 		// Commit the Lease to the Database
 		accessor.insertLease(lease);
