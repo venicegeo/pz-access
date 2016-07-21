@@ -25,6 +25,7 @@ import model.data.DataResource;
 import model.data.FileRepresentation;
 import model.data.deployment.Deployment;
 import model.data.deployment.DeploymentGroup;
+import model.data.deployment.Lease;
 import model.data.location.FileAccessFactory;
 import model.data.type.PostGISDataType;
 import model.data.type.TextDataType;
@@ -246,10 +247,17 @@ public class AccessController {
 				logger.log(String.format("Deployment not found for requested ID %s", deploymentId), PiazzaLogger.WARNING);
 				return new ResponseEntity<PiazzaResponse>(new ErrorResponse(String.format("Deployment not found: %s", deploymentId), "Access"), HttpStatus.NOT_FOUND);
 			}
+			
+			// Get the expiration date for this Deployment
+			Lease lease = accessor.getDeploymentLease(deployment);
+			String expiresOn = null;
+			if (lease != null) {
+				expiresOn = lease.getExpiresOn();
+			}
 
 			// Return the Data Resource item
 			logger.log(String.format("Returning Deployment Metadata for %s", deploymentId), PiazzaLogger.INFO);
-			return new ResponseEntity<PiazzaResponse>(new DeploymentResponse(deployment), HttpStatus.OK);
+			return new ResponseEntity<PiazzaResponse>(new DeploymentResponse(deployment, expiresOn), HttpStatus.OK);
 		} catch (Exception exception) {
 			exception.printStackTrace();
 			logger.log(String.format("Error fetching Deployment %s: %s", deploymentId, exception.getMessage()), PiazzaLogger.ERROR);

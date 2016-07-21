@@ -218,7 +218,7 @@ public class ControllerTests {
 
 		// Verify
 		assertTrue(response instanceof DeploymentResponse);
-		assertTrue(((DeploymentResponse) response).data.getDeploymentId().equals("123456"));
+		assertTrue(((DeploymentResponse) response).data.getDeployment().getDeploymentId().equals("123456"));
 	}
 
 	/**
