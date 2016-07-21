@@ -71,14 +71,14 @@ public class LeaserTests {
 
 		// Test when lease exists
 		when(accessor.getDeploymentLease(any(Deployment.class))).thenReturn(mockLease);
-		Lease lease = leaser.renewDeploymentLease(mockDeployment);
+		Lease lease = leaser.renewDeploymentLease(mockDeployment, 21);
 		assertTrue(lease != null);
 		assertTrue(lease.getLeaseId().equals("123456"));
 
 		// Test when lease needs to be created
 		when(accessor.getDeploymentLease(any(Deployment.class))).thenReturn(null);
 		when(uuidFactory.getUUID()).thenReturn("654321");
-		lease = leaser.renewDeploymentLease(mockDeployment);
+		lease = leaser.renewDeploymentLease(mockDeployment, 21);
 		assertTrue(lease != null);
 		assertTrue(lease.getLeaseId().equals("654321"));
 		assertTrue(new DateTime(lease.getExpiresOn()).isAfter(new DateTime().plusDays(20)));

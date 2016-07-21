@@ -48,13 +48,11 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
- * Worker class that handles Access Jobs being passed in through the Kafka.
- * Handles the Access Jobs by standing up services, retrieving files, or other
- * various forms of Access for data.
+ * Worker class that handles Access Jobs being passed in through the Kafka. Handles the Access Jobs by standing up
+ * services, retrieving files, or other various forms of Access for data.
  * 
- * This component assumes that the data intended to be accessed is already
- * ingested into the Piazza system; either by the Ingest component or other
- * components that are capable of inserting data into Piazza.
+ * This component assumes that the data intended to be accessed is already ingested into the Piazza system; either by
+ * the Ingest component or other components that are capable of inserting data into Piazza.
  * 
  * @author Patrick.Doody & Sonny.Saniev
  * 
@@ -75,8 +73,7 @@ public class AccessWorker {
 	private String SPACE;
 
 	/**
-	 * Listens for Kafka Access messages for creating Deployments for Access of
-	 * Resources
+	 * Listens for Kafka Access messages for creating Deployments for Access of Resources
 	 */
 	@Async
 	public Future<AccessJob> run(ConsumerRecord<String, String> consumerRecord, Producer<String, String> producer,
@@ -89,9 +86,8 @@ public class AccessWorker {
 			accessJob = (AccessJob) job.jobType;
 
 			// Logging
-			logger.log(
-					String.format("Received Request to Access Data %s of Type %s under Job ID %s",
-							accessJob.getDataId(), accessJob.getDeploymentType(), job.getJobId()), PiazzaLogger.INFO);
+			logger.log(String.format("Received Request to Access Data %s of Type %s under Job ID %s", accessJob.getDataId(),
+					accessJob.getDeploymentType(), job.getJobId()), PiazzaLogger.INFO);
 
 			// Update Status that this Job is being processed
 			StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_RUNNING);
@@ -109,7 +105,7 @@ public class AccessWorker {
 					// If it does, then renew the Lease on the
 					// existing deployment.
 					deployment = accessor.getDeploymentByDataId(accessJob.getDataId());
-					leaser.renewDeploymentLease(deployment);
+					leaser.renewDeploymentLease(deployment, accessJob.getDurationDays());
 				} else {
 					System.out.println("Creating a new Deployment and lease for " + accessJob.getDataId());
 					// Obtain the Data to be deployed
@@ -117,7 +113,7 @@ public class AccessWorker {
 					// Create the Deployment
 					deployment = deployer.createDeployment(dataToDeploy);
 					// Create a new Lease for this Deployment
-					leaser.createDeploymentLease(deployment);
+					leaser.createDeploymentLease(deployment, accessJob.getDurationDays());
 				}
 
 				// Check if the user has requested this layer be added to a new
@@ -126,8 +122,7 @@ public class AccessWorker {
 					// Check if the Deployment Group exists
 					DeploymentGroup deploymentGroup = accessor.getDeploymentGroupById(accessJob.getDeploymentGroupId());
 					if (deploymentGroup == null) {
-						throw new Exception(String.format("Deployment Group with ID %s does not exist.",
-								accessJob.getDeploymentGroupId()));
+						throw new Exception(String.format("Deployment Group with ID %s does not exist.", accessJob.getDeploymentGroupId()));
 					}
 					// Add the Layer to the Deployment Group
 					List<Deployment> deployments = new ArrayList<Deployment>();
@@ -141,17 +136,15 @@ public class AccessWorker {
 				producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate, SPACE));
 
 				// Console Logging
-				logger.log(String.format("GeoServer Deployment successul for Resource %s", accessJob.getDataId()),
-						PiazzaLogger.INFO);
+				logger.log(String.format("GeoServer Deployment successul for Resource %s", accessJob.getDataId()), PiazzaLogger.INFO);
 				System.out.println("Deployment Successfully Returned for Resource " + accessJob.getDataId());
 				break;
 			default:
 				throw new Exception("Unknown Deployment Type: " + accessJob.getDeploymentType());
 			}
 		} catch (Exception exception) {
-			logger.log(
-					String.format("Error Accessing Data under Job %s with Error: %s", consumerRecord.key(),
-							exception.getMessage()), PiazzaLogger.ERROR);
+			logger.log(String.format("Error Accessing Data under Job %s with Error: %s", consumerRecord.key(), exception.getMessage()),
+					PiazzaLogger.ERROR);
 			exception.printStackTrace();
 			try {
 				// Send the failure message to the Job Manager.
@@ -161,9 +154,8 @@ public class AccessWorker {
 			} catch (JsonProcessingException jsonException) {
 				// If the Kafka message fails to send, at least log
 				// something in the console.
-				System.out
-						.println("Could not update Job Manager with failure event in Ingest Worker. Error creating message: "
-								+ jsonException.getMessage());
+				System.out.println("Could not update Job Manager with failure event in Ingest Worker. Error creating message: "
+						+ jsonException.getMessage());
 				jsonException.printStackTrace();
 			}
 		} finally {
