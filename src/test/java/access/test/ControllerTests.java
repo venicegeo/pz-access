@@ -171,7 +171,7 @@ public class ControllerTests {
 	 */
 	@Test
 	public void testGetData() {
-		// Mock no data ID
+		// Mock no data Id
 		PiazzaResponse response = accessController.getData("").getBody();
 		assertTrue(response instanceof ErrorResponse);
 
@@ -199,7 +199,7 @@ public class ControllerTests {
 	 */
 	@Test
 	public void testGetDeployment() {
-		// Mock no deployment ID
+		// Mock no deployment Id
 		PiazzaResponse response = accessController.getDeployment("").getBody();
 		assertTrue(response instanceof ErrorResponse);
 

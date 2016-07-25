@@ -214,12 +214,12 @@ public class Deployer {
 	}
 
 	/**
-	 * Deletes a deployment, as specified by its ID. This will remove the
+	 * Deletes a deployment, as specified by its Id. This will remove the
 	 * Deployment from GeoServer, delete the lease and the deployment from the
 	 * Database.
 	 * 
 	 * @param deploymentId
-	 *            The ID of the deployment.
+	 *            The Id of the deployment.
 	 */
 	public void undeploy(String deploymentId) throws Exception {
 		// Get the Deployment from the Database to delete. If the Deployment had
@@ -227,7 +227,7 @@ public class Deployer {
 		// is deleted.
 		Deployment deployment = accessor.getDeployment(deploymentId);
 		if (deployment == null) {
-			throw new Exception("Deployment does not exist matching ID " + deploymentId);
+			throw new Exception("Deployment does not exist matching Id " + deploymentId);
 		}
 		// Delete the Deployment from GeoServer
 		HttpHeaders headers = getGeoServerHeaders();
@@ -243,7 +243,7 @@ public class Deployer {
 			if (exception.getStatusCode() == HttpStatus.NOT_FOUND) {
 				logger.log(
 						String.format(
-								"Attempted to undeploy GeoServer layer %s while deleting the Deployment ID %s, but the layer was already deleted from GeoServer. This layer may have been removed by some other means.",
+								"Attempted to undeploy GeoServer layer %s while deleting the Deployment Id %s, but the layer was already deleted from GeoServer. This layer may have been removed by some other means.",
 								deployment.getLayer(), deploymentId), PiazzaLogger.WARNING);
 			} else {
 				// Some other exception occurred. Bubble it up.
@@ -311,8 +311,8 @@ public class Deployer {
 	 * system or not.
 	 * 
 	 * @param dataId
-	 *            The Data ID to check for Deployment.
-	 * @return True if a deployment exists for the Data ID, false if not.
+	 *            The Data Id to check for Deployment.
+	 * @return True if a deployment exists for the Data Id, false if not.
 	 */
 	public boolean doesDeploymentExist(String dataId) {
 		Deployment deployment = accessor.getDeploymentByDataId(dataId);

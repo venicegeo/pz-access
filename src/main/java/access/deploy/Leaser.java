@@ -145,12 +145,12 @@ public class Leaser {
 					deployer.undeploy(expiredLease.getDeploymentId());
 					// Log the removal
 					logger.log(
-							String.format("Expired Lease with ID %s with expiration date %s for Deployment %s has been removed.",
+							String.format("Expired Lease with Id %s with expiration date %s for Deployment %s has been removed.",
 									expiredLease.getLeaseId(), expiredLease.getExpiresOn(), expiredLease.getDeploymentId()),
 							PiazzaLogger.INFO);
 				} catch (Exception exception) {
 					exception.printStackTrace();
-					logger.log(String.format("Error reaping Expired Lease with ID %s: %s. This expired lease may still persist.",
+					logger.log(String.format("Error reaping Expired Lease with Id %s: %s. This expired lease may still persist.",
 							expiredLease.getLeaseId(), exception.getMessage()), PiazzaLogger.ERROR);
 				}
 			} while (cursor.hasNext());

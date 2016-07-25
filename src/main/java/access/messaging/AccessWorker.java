@@ -86,7 +86,7 @@ public class AccessWorker {
 			accessJob = (AccessJob) job.jobType;
 
 			// Logging
-			logger.log(String.format("Received Request to Access Data %s of Type %s under Job ID %s", accessJob.getDataId(),
+			logger.log(String.format("Received Request to Access Data %s of Type %s under Job Id %s", accessJob.getDataId(),
 					accessJob.getDeploymentType(), job.getJobId()), PiazzaLogger.INFO);
 
 			// Update Status that this Job is being processed
@@ -122,7 +122,7 @@ public class AccessWorker {
 					// Check if the Deployment Group exists
 					DeploymentGroup deploymentGroup = accessor.getDeploymentGroupById(accessJob.getDeploymentGroupId());
 					if (deploymentGroup == null) {
-						throw new Exception(String.format("Deployment Group with ID %s does not exist.", accessJob.getDeploymentGroupId()));
+						throw new Exception(String.format("Deployment Group with Id %s does not exist.", accessJob.getDeploymentGroupId()));
 					}
 					// Add the Layer to the Deployment Group
 					List<Deployment> deployments = new ArrayList<Deployment>();

@@ -76,7 +76,7 @@ public class GroupDeployer {
 	 * @param createdBy
 	 *            The user who requests this creation
 	 * 
-	 * @return Deployment Group, containing an ID that can be used for future reference.
+	 * @return Deployment Group, containing an Id that can be used for future reference.
 	 */
 	public DeploymentGroup createDeploymentGroup(String createdBy) {
 		// Commit the new group to the database and return immediately
@@ -94,7 +94,7 @@ public class GroupDeployer {
 	 *            The list of Layers to add to the group.
 	 * @param createdBy
 	 *            The user who requests this creation
-	 * @return Deployment Group, containing an ID that can be used for future reference.
+	 * @return Deployment Group, containing an Id that can be used for future reference.
 	 */
 	public DeploymentGroup createDeploymentGroup(List<Deployment> deployments, String createdBy) throws Exception {
 		// Create the Group.
@@ -216,11 +216,11 @@ public class GroupDeployer {
 	}
 
 	/**
-	 * Gets the Layer Group Model from GeoServer for the Layer Group matching the specified Deployment Group ID. If this
+	 * Gets the Layer Group Model from GeoServer for the Layer Group matching the specified Deployment Group Id. If this
 	 * exists, it will return the model for the Layer Group.
 	 * 
 	 * @param deploymentGroupId
-	 *            The ID of the layer group
+	 *            The Id of the layer group
 	 * @return The Layer Group Model
 	 */
 	private LayerGroupModel getLayerGroupFromGeoServer(String deploymentGroupId) throws Exception {

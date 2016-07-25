@@ -136,7 +136,7 @@ public class AccessController {
 	 * This will return the raw bytes of the resource.
 	 * 
 	 * @param dataId
-	 *            The ID of the Data Item to get. Assumes this file is ready to
+	 *            The Id of the Data Item to get. Assumes this file is ready to
 	 *            be downloaded.
 	 */
 	@RequestMapping(value = "/file/{dataId}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
@@ -148,7 +148,7 @@ public class AccessController {
 			String fileName = (StringUtils.isNullOrEmpty(name)) ? (dataId) : (name);
 	
 			if (data == null) {
-				logger.log(String.format("Data not found for requested ID %s", dataId), PiazzaLogger.WARNING);
+				logger.log(String.format("Data not found for requested Id %s", dataId), PiazzaLogger.WARNING);
 				return new ResponseEntity<PiazzaResponse>(new ErrorResponse(String.format("Data not found: %s", dataId), "Access"), HttpStatus.NOT_FOUND);			
 			}
 	
@@ -166,7 +166,7 @@ public class AccessController {
 				// Stream the Bytes back
 				return getResponse(MediaType.TEXT_PLAIN, String.format("%s%s", fileName, ".geojson"), geoJSON.toString().getBytes());
 			} else if (!(data.getDataType() instanceof FileRepresentation)) {
-				String message = String.format("File download not available for Data ID %s; type is %s", dataId, data
+				String message = String.format("File download not available for Data Id %s; type is %s", dataId, data
 						.getDataType().getClass().getSimpleName());
 				logger.log(message, PiazzaLogger.WARNING);
 				throw new Exception(message);
@@ -197,19 +197,19 @@ public class AccessController {
 	 * Returns the Data resource object from the Resources collection.
 	 * 
 	 * @param dataId
-	 *            ID of the Resource
-	 * @return The resource matching the specified ID
+	 *            Id of the Resource
+	 * @return The resource matching the specified Id
 	 */
 	@RequestMapping(value = "/data/{dataId}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<PiazzaResponse> getData(@PathVariable(value = "dataId") String dataId) {
 		try {
 			if (dataId.isEmpty()) {
-				throw new Exception("No Data ID specified.");
+				throw new Exception("No Data Id specified.");
 			}
-			// Query for the Data ID
+			// Query for the Data Id
 			DataResource data = accessor.getData(dataId);
 			if (data == null) {
-				logger.log(String.format("Data not found for requested ID %s", dataId), PiazzaLogger.WARNING);
+				logger.log(String.format("Data not found for requested Id %s", dataId), PiazzaLogger.WARNING);
 				return new ResponseEntity<PiazzaResponse>(new ErrorResponse(String.format("Data not found: %s", dataId), "Access"), HttpStatus.NOT_FOUND);
 			}
 
@@ -225,13 +225,13 @@ public class AccessController {
 
 	/**
 	 * Gets Deployment information for an active deployment, including URL and
-	 * Data ID.
+	 * Data Id.
 	 * 
 	 * @see http://pz-swagger.stage.geointservices.io/#!/Deployment/
 	 *      get_deployment_deploymentId
 	 * 
 	 * @param deploymentId
-	 *            The ID of the deployment to fetch
+	 *            The Id of the deployment to fetch
 	 * @return The deployment information, or an ErrorResponse if exceptions
 	 *         occur
 	 */
@@ -239,12 +239,12 @@ public class AccessController {
 	public ResponseEntity<PiazzaResponse> getDeployment(@PathVariable(value = "deploymentId") String deploymentId) {
 		try {
 			if (deploymentId.isEmpty()) {
-				throw new Exception("No Deployment ID specified.");
+				throw new Exception("No Deployment Id specified.");
 			}
-			// Query for the Deployment ID
+			// Query for the Deployment Id
 			Deployment deployment = accessor.getDeployment(deploymentId);
 			if (deployment == null) {
-				logger.log(String.format("Deployment not found for requested ID %s", deploymentId), PiazzaLogger.WARNING);
+				logger.log(String.format("Deployment not found for requested Id %s", deploymentId), PiazzaLogger.WARNING);
 				return new ResponseEntity<PiazzaResponse>(new ErrorResponse(String.format("Deployment not found: %s", deploymentId), "Access"), HttpStatus.NOT_FOUND);
 			}
 			
@@ -330,7 +330,7 @@ public class AccessController {
 	 * Deletes Deployment information for an active deployment.
 	 * 
 	 * @param deploymentId
-	 *            The ID of the deployment to delete.
+	 *            The Id of the deployment to delete.
 	 * @param user
 	 *            The user requesting the deployment information
 	 * @return OK confirmation if deleted, or an ErrorResponse if exceptions
@@ -339,10 +339,10 @@ public class AccessController {
 	@RequestMapping(value = "/deployment/{deploymentId}", method = RequestMethod.DELETE, produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<PiazzaResponse> deleteDeployment(@PathVariable(value = "deploymentId") String deploymentId, Principal user) {
 		try {
-			// Query for the Deployment ID
+			// Query for the Deployment Id
 			Deployment deployment = accessor.getDeployment(deploymentId);
 			if (deployment == null) {
-				logger.log(String.format("Deployment not found for requested ID %s", deploymentId),	PiazzaLogger.WARNING);
+				logger.log(String.format("Deployment not found for requested Id %s", deploymentId),	PiazzaLogger.WARNING);
 				return new ResponseEntity<PiazzaResponse>(new ErrorResponse(String.format("Deployment not found: %s", deploymentId), "Access"), HttpStatus.NOT_FOUND);
 			}			
 			
@@ -394,7 +394,7 @@ public class AccessController {
 	 * GeoServer.
 	 * 
 	 * @param deploymentGroupId
-	 *            The ID of the deployment Group to delete.
+	 *            The Id of the deployment Group to delete.
 	 * @return Appropriate response
 	 */
 	@RequestMapping(value = "/deployment/group/{deploymentGroupId}", method = RequestMethod.DELETE, produces = "application/json")
@@ -402,7 +402,7 @@ public class AccessController {
 			@PathVariable(value = "deploymentGroupId") String deploymentGroupId) {
 		try {
 			if ((deploymentGroupId == null) || (deploymentGroupId.isEmpty())) {
-				return new ResponseEntity<PiazzaResponse>(new ErrorResponse("Deployment Group ID not specified.",
+				return new ResponseEntity<PiazzaResponse>(new ErrorResponse("Deployment Group Id not specified.",
 						"Access"), HttpStatus.BAD_REQUEST);
 			}
 			// Delete the Deployment Group from GeoServer, and remove it from
@@ -450,7 +450,7 @@ public class AccessController {
 	public ResponseEntity<Map<String, Object>> getAdminStats() {
 		Map<String, Object> stats = new HashMap<String, Object>();
 		// Return information on the jobs currently being processed
-		stats.put("jobs", threadManager.getRunningJobIDs());
+		stats.put("jobs", threadManager.getRunningJobIds());
 		return new ResponseEntity<Map<String, Object>>(stats, HttpStatus.OK);
 	}
 
