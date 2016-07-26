@@ -40,6 +40,7 @@ import access.deploy.geoserver.LayerGroupModel.GroupLayer;
 import access.deploy.geoserver.LayerGroupModel.LayerGroup;
 import model.data.deployment.Deployment;
 import model.data.deployment.DeploymentGroup;
+import util.PiazzaLogger;
 import util.UUIDFactory;
 
 /**
@@ -51,6 +52,8 @@ import util.UUIDFactory;
  */
 @Component
 public class GroupDeployer {
+	@Autowired
+	private PiazzaLogger logger;
 	@Autowired
 	private UUIDFactory uuidFactory;
 	@Autowired
@@ -291,7 +294,15 @@ public class GroupDeployer {
 				GEOSERVER_HOST, GEOSERVER_PORT, layerGroup.layerGroup.name);
 
 		// Send
-		ResponseEntity<String> response = restTemplate.exchange(url, method, request, String.class);
+		ResponseEntity<String> response = null;
+		try {
+			response = restTemplate.exchange(url, method, request, String.class);
+		} catch (HttpClientErrorException | HttpServerErrorException exception) {
+			String error = String.format("Error sending Layer Group %s to GeoServer HTTP %s to %s. Server responded with: %s",
+					layerGroup.layerGroup.name, method.toString(), url, exception.getResponseBodyAsString());
+			logger.log(error, PiazzaLogger.ERROR);
+			throw new Exception(error);
+		}
 		if (response.getStatusCode().equals(HttpStatus.CREATED) || (response.getStatusCode().equals(HttpStatus.OK))) {
 			// Updated
 		} else {
