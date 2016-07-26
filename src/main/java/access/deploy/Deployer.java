@@ -44,12 +44,11 @@ import access.database.Accessor;
 import access.util.AccessUtilities;
 
 /**
- * Class that manages the GeoServer Deployments held by this component. This is
- * done by managing the Deployments via a MongoDB collection.
+ * Class that manages the GeoServer Deployments held by this component. This is done by managing the Deployments via a
+ * MongoDB collection.
  * 
- * A deployment is, in this current context, a GeoServer layer being stood up.
- * In the future, this may be expanded to other deployment solutions, as
- * requested by users in the Access Job.
+ * A deployment is, in this current context, a GeoServer layer being stood up. In the future, this may be expanded to
+ * other deployment solutions, as requested by users in the Access Job.
  * 
  * @author Patrick.Doody
  * 
@@ -91,8 +90,7 @@ public class Deployer {
 		// Create the GeoServer Deployment based on the Data Type
 		Deployment deployment;
 		try {
-			if ((dataResource.getDataType() instanceof ShapefileDataType)
-					|| (dataResource.getDataType() instanceof PostGISDataType)
+			if ((dataResource.getDataType() instanceof ShapefileDataType) || (dataResource.getDataType() instanceof PostGISDataType)
 					|| (dataResource.getDataType() instanceof GeoJsonDataType)) {
 				// Deploy from an existing PostGIS Table
 				deployment = deployPostGisTable(dataResource);
@@ -101,8 +99,8 @@ public class Deployer {
 				deployment = deployRaster(dataResource);
 			} else {
 				// Unsupported Data type has been specified.
-				throw new UnsupportedOperationException("Cannot deploy the following Data Type to GeoServer: "
-						+ dataResource.getDataType().getClass().getSimpleName());
+				throw new UnsupportedOperationException(
+						"Cannot deploy the following Data Type to GeoServer: " + dataResource.getDataType().getClass().getSimpleName());
 			}
 		} catch (Exception exception) {
 			exception.printStackTrace();
@@ -113,20 +111,19 @@ public class Deployer {
 		accessor.insertDeployment(deployment);
 
 		// Log information
-		logger.log(
-				String.format("Created Deployment %s for Data %s on host %s", deployment.getDeploymentId(),
-						deployment.getDataId(), deployment.getHost()), PiazzaLogger.INFO);
+		logger.log(String.format("Created Deployment %s for Data %s on host %s", deployment.getDeploymentId(), deployment.getDataId(),
+				deployment.getHost()), PiazzaLogger.INFO);
 
 		// Return Deployment reference
 		return deployment;
 	}
 
 	/**
-	 * Deploys a PostGIS Table resource to GeoServer. This will create a new
-	 * GeoServer layer that will reference the PostGIS table.
+	 * Deploys a PostGIS Table resource to GeoServer. This will create a new GeoServer layer that will reference the
+	 * PostGIS table.
 	 * 
-	 * PostGIS tables can be created via the Ingest process by, for instance,
-	 * ingesting a Shapefile or a WFS into the Database.
+	 * PostGIS tables can be created via the Ingest process by, for instance, ingesting a Shapefile or a WFS into the
+	 * Database.
 	 * 
 	 * @param dataResource
 	 *            The DataResource to deploy.
@@ -135,8 +132,8 @@ public class Deployer {
 	private Deployment deployPostGisTable(DataResource dataResource) throws Exception {
 		// Create the JSON Payload for the Layer request to GeoServer
 		ClassLoader classLoader = getClass().getClassLoader();
-		String featureTypeRequestBody = IOUtils.toString(classLoader.getResourceAsStream("templates" + File.separator
-				+ "featureTypeRequest.xml"));
+		String featureTypeRequestBody = IOUtils
+				.toString(classLoader.getResourceAsStream("templates" + File.separator + "featureTypeRequest.xml"));
 
 		// Get the appropriate Table Name from the DataResource
 		String tableName = null;
@@ -149,36 +146,33 @@ public class Deployer {
 		}
 
 		// Inject the Metadata from the Data Resource into the Payload
-		String requestBody = String.format(featureTypeRequestBody, tableName, tableName, tableName, dataResource
-				.getSpatialMetadata().getEpsgString(), "EPSG:4326");
+		String requestBody = String.format(featureTypeRequestBody, tableName, tableName, tableName,
+				dataResource.getSpatialMetadata().getEpsgString(), "EPSG:4326");
 
 		// Execute the POST to GeoServer to add the FeatureType
 		HttpStatus statusCode = postGeoServerFeatureType(ADD_LAYER_ENDPOINT, requestBody);
 
 		// Ensure the Status Code is OK
 		if (statusCode != HttpStatus.CREATED) {
-			logger.log(String.format(
-					"Failed to Deploy PostGIS Table name %s for Resource %s to GeoServer. HTTP Code: ", tableName,
+			logger.log(String.format("Failed to Deploy PostGIS Table name %s for Resource %s to GeoServer. HTTP Code: ", tableName,
 					dataResource.getDataId(), statusCode), PiazzaLogger.ERROR);
-			throw new Exception("Failed to Deploy to GeoServer; the Status returned a non-OK response code: "
-					+ statusCode);
+			throw new Exception("Failed to Deploy to GeoServer; the Status returned a non-OK response code: " + statusCode);
 		}
 
 		// Create a new Deployment for this Resource
 		String deploymentId = uuidFactory.getUUID();
 		String capabilitiesUrl = String.format(HOST_ADDRESS, GEOSERVER_HOST, GEOSERVER_PORT, CAPABILITIES_URL);
 
-		Deployment deployment = new Deployment(deploymentId, dataResource.getDataId(), GEOSERVER_HOST, GEOSERVER_PORT,
-				tableName, capabilitiesUrl);
+		Deployment deployment = new Deployment(deploymentId, dataResource.getDataId(), GEOSERVER_HOST, GEOSERVER_PORT, tableName,
+				capabilitiesUrl);
 
 		// Return the newly created Deployment
 		return deployment;
 	}
 
 	/**
-	 * Deploys a GeoTIFF resource to GeoServer. This will create a new GeoServer
-	 * data store and layer. This will upload the file directly to GeoServer
-	 * using the GeoServer REST API.
+	 * Deploys a GeoTIFF resource to GeoServer. This will create a new GeoServer data store and layer. This will upload
+	 * the file directly to GeoServer using the GeoServer REST API.
 	 * 
 	 * @param dataResource
 	 *            The DataResource to deploy.
@@ -194,29 +188,30 @@ public class Deployer {
 		HttpEntity<byte[]> request = new HttpEntity<byte[]>(fileBytes, headers);
 
 		// Send the Request
-		String url = String.format("http://%s:%s/geoserver/rest/workspaces/piazza/coveragestores/%s/file.geotiff",
-				GEOSERVER_HOST, GEOSERVER_PORT, dataResource.getDataId());
+		String url = String.format("http://%s:%s/geoserver/rest/workspaces/piazza/coveragestores/%s/file.geotiff", GEOSERVER_HOST,
+				GEOSERVER_PORT, dataResource.getDataId());
 		ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.PUT, request, String.class);
 		if (response.getStatusCode().equals(HttpStatus.CREATED) == false) {
-			throw new Exception(String.format("Creating Layer on GeoServer returned HTTP Status %s with Body: %s",
-					response.getStatusCode().toString(), response.getBody()));
+			String error = String.format("Creating Layer on GeoServer at URL %s returned HTTP Status %s with Body: %s", url,
+					response.getStatusCode().toString(), response.getBody());
+			logger.log(error, PiazzaLogger.ERROR);
+			throw new Exception(error);
 		}
 
 		// Create a Deployment for this Resource
 		String deploymentId = uuidFactory.getUUID();
 		String capabilitiesUrl = String.format(HOST_ADDRESS, GEOSERVER_HOST, GEOSERVER_PORT, CAPABILITIES_URL);
 		String deploymentLayerName = dataResource.getDataId();
-		Deployment deployment = new Deployment(deploymentId, dataResource.getDataId(), GEOSERVER_HOST, GEOSERVER_PORT,
-				deploymentLayerName, capabilitiesUrl);
+		Deployment deployment = new Deployment(deploymentId, dataResource.getDataId(), GEOSERVER_HOST, GEOSERVER_PORT, deploymentLayerName,
+				capabilitiesUrl);
 
 		// Return the newly Created Deployment
 		return deployment;
 	}
 
 	/**
-	 * Deletes a deployment, as specified by its Id. This will remove the
-	 * Deployment from GeoServer, delete the lease and the deployment from the
-	 * Database.
+	 * Deletes a deployment, as specified by its Id. This will remove the Deployment from GeoServer, delete the lease
+	 * and the deployment from the Database.
 	 * 
 	 * @param deploymentId
 	 *            The Id of the deployment.
@@ -233,18 +228,16 @@ public class Deployer {
 		HttpHeaders headers = getGeoServerHeaders();
 		headers.setContentType(MediaType.APPLICATION_XML);
 		HttpEntity<String> request = new HttpEntity<String>(headers);
-		String url = String.format("http://%s:%s/geoserver/rest/layers/%s", GEOSERVER_HOST, GEOSERVER_PORT,
-				deployment.getLayer());
+		String url = String.format("http://%s:%s/geoserver/rest/layers/%s", GEOSERVER_HOST, GEOSERVER_PORT, deployment.getLayer());
 		try {
 			restTemplate.exchange(url, HttpMethod.DELETE, request, String.class);
 		} catch (HttpClientErrorException exception) {
 			// Check the status code. If it's a 404, then the layer has likely
 			// already been deleted by some other means.
 			if (exception.getStatusCode() == HttpStatus.NOT_FOUND) {
-				logger.log(
-						String.format(
-								"Attempted to undeploy GeoServer layer %s while deleting the Deployment Id %s, but the layer was already deleted from GeoServer. This layer may have been removed by some other means.",
-								deployment.getLayer(), deploymentId), PiazzaLogger.WARNING);
+				logger.log(String.format(
+						"Attempted to undeploy GeoServer layer %s while deleting the Deployment Id %s, but the layer was already deleted from GeoServer. This layer may have been removed by some other means.",
+						deployment.getLayer(), deploymentId), PiazzaLogger.WARNING);
 			} else {
 				// Some other exception occurred. Bubble it up.
 				throw exception;
@@ -255,15 +248,13 @@ public class Deployer {
 	}
 
 	/**
-	 * Executes the POST request to GeoServer to create the FeatureType as a
-	 * Layer.
+	 * Executes the POST request to GeoServer to create the FeatureType as a Layer.
 	 * 
 	 * @param featureType
 	 *            The JSON Payload of the POST request
-	 * @return The HTTP Status code of the request to GeoServer for adding the
-	 *         layer. GeoServer will typically not return any payload in the
-	 *         response, so the HTTP Status is the best we can do in order to
-	 *         check for success.
+	 * @return The HTTP Status code of the request to GeoServer for adding the layer. GeoServer will typically not
+	 *         return any payload in the response, so the HTTP Status is the best we can do in order to check for
+	 *         success.
 	 */
 	private HttpStatus postGeoServerFeatureType(String restURL, String featureType) throws Exception {
 		// Construct the URL for the Service
@@ -279,8 +270,8 @@ public class Deployer {
 		try {
 			response = restTemplate.exchange(url, HttpMethod.POST, request, String.class);
 		} catch (Exception exception) {
-			String error = String.format("There was an error creating the Coverage Layer to URL %s with errors %s",
-					url, exception.getMessage());
+			String error = String.format("There was an error creating the Coverage Layer to URL %s with errors %s", url,
+					exception.getMessage());
 			logger.log(error, PiazzaLogger.ERROR);
 			throw new Exception(error);
 		}
@@ -290,8 +281,8 @@ public class Deployer {
 	}
 
 	/**
-	 * Gets the headers for a typical GeoServer request. This include the
-	 * "application/XML" content, and the encoded basic credentials.
+	 * Gets the headers for a typical GeoServer request. This include the "application/XML" content, and the encoded
+	 * basic credentials.
 	 * 
 	 * @return
 	 */
@@ -307,8 +298,7 @@ public class Deployer {
 	}
 
 	/**
-	 * Checks to see if the DataResource currently has a deployment in the
-	 * system or not.
+	 * Checks to see if the DataResource currently has a deployment in the system or not.
 	 * 
 	 * @param dataId
 	 *            The Data Id to check for Deployment.
