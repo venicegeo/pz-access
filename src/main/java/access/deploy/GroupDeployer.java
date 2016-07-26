@@ -104,11 +104,15 @@ public class GroupDeployer {
 		LayerGroupModel layerGroupModel = new LayerGroupModel();
 		layerGroupModel.layerGroup.name = deploymentGroup.deploymentGroupId;
 
-		// For each Deployment, add a new group to the Layer Group Model.
-		for (Deployment deployment : deployments) {
-			GroupLayer groupLayer = new GroupLayer();
-			groupLayer.name = deployment.getLayer();
-			layerGroupModel.layerGroup.publishables.published.add(groupLayer);
+		try {
+			// For each Deployment, add a new group to the Layer Group Model.
+			for (Deployment deployment : deployments) {
+				GroupLayer groupLayer = new GroupLayer();
+				groupLayer.name = deployment.getLayer();
+				layerGroupModel.layerGroup.publishables.published.add(groupLayer);
+			}
+		} catch (Exception exception) {
+			throw new Exception(String.format("Error Updating Deployments for Group Layer: %s", exception.getMessage()));
 		}
 
 		// Update the Layer Styles for each Layer in the Group
@@ -151,22 +155,26 @@ public class GroupDeployer {
 			layerGroupModel = getLayerGroupFromGeoServer(deploymentGroup.deploymentGroupId);
 		}
 
-		// For each Deployment, add a new group to the Layer Group Model.
-		for (Deployment deployment : deployments) {
-			// Don't duplicate if it exists already.
-			boolean exists = false;
-			for (GroupLayer groupLayer : layerGroupModel.layerGroup.publishables.published) {
-				if (groupLayer.name.equals(deployment.getLayer())) {
-					exists = true;
+		try {
+			// For each Deployment, add a new group to the Layer Group Model.
+			for (Deployment deployment : deployments) {
+				// Don't duplicate if it exists already.
+				boolean exists = false;
+				for (GroupLayer groupLayer : layerGroupModel.layerGroup.publishables.published) {
+					if (groupLayer.name.equals(deployment.getLayer())) {
+						exists = true;
+					}
+				}
+
+				if (!exists) {
+					// Add the new Layer
+					GroupLayer groupLayer = new GroupLayer();
+					groupLayer.name = deployment.getLayer();
+					layerGroupModel.layerGroup.publishables.published.add(groupLayer);
 				}
 			}
-
-			if (!exists) {
-				// Add the new Layer
-				GroupLayer groupLayer = new GroupLayer();
-				groupLayer.name = deployment.getLayer();
-				layerGroupModel.layerGroup.publishables.published.add(groupLayer);
-			}
+		} catch (Exception exception) {
+			throw new Exception(String.format("Error Updating Deployments for Group Layer: %s", exception.getMessage()));
 		}
 
 		// Balance the Styles and the Layers
@@ -270,7 +278,13 @@ public class GroupDeployer {
 		// Create the Request
 		HttpHeaders headers = deployer.getGeoServerHeaders();
 		headers.setContentType(MediaType.APPLICATION_JSON);
-		HttpEntity<String> request = new HttpEntity<String>(new ObjectMapper().writeValueAsString(layerGroup), headers);
+		HttpEntity<String> request = null;
+		try {
+			request = new HttpEntity<String>(new ObjectMapper().writeValueAsString(layerGroup), headers);
+		} catch (Exception exception) {
+			throw new Exception(
+					String.format("Error serializing Request Body to GeoServer for updating Layer Group: %s", exception.getMessage()));
+		}
 		String url = String.format(
 				method.equals(HttpMethod.PUT) ? "http://%s:%s/geoserver/rest/workspaces/piazza/layergroups/%s.json"
 						: "http://%s:%s/geoserver/rest/workspaces/piazza/layergroups.json",
@@ -306,16 +320,20 @@ public class GroupDeployer {
 	 * @param layerGroupModel
 	 *            The Layer Group Model whose styles to balance
 	 */
-	private void updateLayerStyles(LayerGroupModel layerGroupModel) {
-		LayerGroup layerGroup = layerGroupModel.layerGroup;
-		while (layerGroup.publishables.published.size() != layerGroup.styles.style.size()) {
-			if (layerGroup.publishables.published.size() > layerGroup.styles.style.size()) {
-				// Add Styles
-				layerGroup.styles.style.add("");
-			} else {
-				// Remove Styles
-				layerGroup.styles.style.remove(0);
+	private void updateLayerStyles(LayerGroupModel layerGroupModel) throws Exception {
+		try {
+			LayerGroup layerGroup = layerGroupModel.layerGroup;
+			while (layerGroup.publishables.published.size() != layerGroup.styles.style.size()) {
+				if (layerGroup.publishables.published.size() > layerGroup.styles.style.size()) {
+					// Add Styles
+					layerGroup.styles.style.add("");
+				} else {
+					// Remove Styles
+					layerGroup.styles.style.remove(0);
+				}
 			}
+		} catch (Exception exception) {
+			throw new Exception(String.format("Error updating layer Styles for Deployments: %s", exception.getMessage()));
 		}
 	}
 }
