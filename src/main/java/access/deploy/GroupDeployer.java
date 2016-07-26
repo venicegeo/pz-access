@@ -282,8 +282,10 @@ public class GroupDeployer {
 		HttpHeaders headers = deployer.getGeoServerHeaders();
 		headers.setContentType(MediaType.APPLICATION_JSON);
 		HttpEntity<String> request = null;
+		String payload = null;
 		try {
-			request = new HttpEntity<String>(new ObjectMapper().writeValueAsString(layerGroup), headers);
+			payload = new ObjectMapper().writeValueAsString(layerGroup);
+			request = new HttpEntity<String>(payload, headers);
 		} catch (Exception exception) {
 			throw new Exception(
 					String.format("Error serializing Request Body to GeoServer for updating Layer Group: %s", exception.getMessage()));
@@ -301,6 +303,7 @@ public class GroupDeployer {
 			String error = String.format("Error sending Layer Group %s to GeoServer HTTP %s to %s. Server responded with: %s",
 					layerGroup.layerGroup.name, method.toString(), url, exception.getResponseBodyAsString());
 			logger.log(error, PiazzaLogger.ERROR);
+			logger.log(String.format("Request Payload for failed request was: %s", payload), PiazzaLogger.ERROR);
 			throw new Exception(error);
 		}
 		if (response.getStatusCode().equals(HttpStatus.CREATED) || (response.getStatusCode().equals(HttpStatus.OK))) {
