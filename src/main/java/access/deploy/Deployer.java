@@ -191,10 +191,11 @@ public class Deployer {
 		// Send the Request
 		String url = String.format("http://%s:%s/geoserver/rest/workspaces/piazza/coveragestores/%s/file.geotiff", GEOSERVER_HOST,
 				GEOSERVER_PORT, dataResource.getDataId());
-		ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.PUT, request, String.class);
-		if (response.getStatusCode().equals(HttpStatus.CREATED) == false) {
+		try {
+			restTemplate.exchange(url, HttpMethod.PUT, request, String.class);
+		} catch (HttpClientErrorException | HttpServerErrorException exception) {
 			String error = String.format("Creating Layer on GeoServer at URL %s returned HTTP Status %s with Body: %s", url,
-					response.getStatusCode().toString(), response.getBody());
+					exception.getStatusCode().toString(), exception.getResponseBodyAsString());
 			logger.log(error, PiazzaLogger.ERROR);
 			throw new Exception(error);
 		}
@@ -225,25 +226,50 @@ public class Deployer {
 		if (deployment == null) {
 			throw new Exception("Deployment does not exist matching Id " + deploymentId);
 		}
-		// Delete the Deployment from GeoServer
+		// Delete the Deployment Layer from GeoServer
 		HttpHeaders headers = getGeoServerHeaders();
-		headers.setContentType(MediaType.APPLICATION_XML);
+		headers.setContentType(MediaType.APPLICATION_JSON);
 		HttpEntity<String> request = new HttpEntity<String>(headers);
 		String url = String.format("http://%s:%s/geoserver/rest/layers/%s", GEOSERVER_HOST, GEOSERVER_PORT, deployment.getLayer());
 		try {
 			restTemplate.exchange(url, HttpMethod.DELETE, request, String.class);
-		} catch (HttpClientErrorException exception) {
+		} catch (HttpClientErrorException | HttpServerErrorException exception) {
 			// Check the status code. If it's a 404, then the layer has likely
 			// already been deleted by some other means.
 			if (exception.getStatusCode() == HttpStatus.NOT_FOUND) {
 				logger.log(String.format(
-						"Attempted to undeploy GeoServer layer %s while deleting the Deployment Id %s, but the layer was already deleted from GeoServer. This layer may have been removed by some other means.",
+						"Attempted to undeploy GeoServer layer %s while deleting the Deployment Id %s, but the layer was already deleted from GeoServer. This layer may have been removed by some other means. If this was a Vector Source, then this message can be safely ignored.",
 						deployment.getLayer(), deploymentId), PiazzaLogger.WARNING);
 			} else {
 				// Some other exception occurred. Bubble it up.
-				throw exception;
+				String error = String.format("Error deleting GeoServer Layer for Deployment %s via request %s: Code %s with Error %s",
+						deploymentId, url, exception.getStatusCode(), exception.getResponseBodyAsString());
+				logger.log(error, PiazzaLogger.ERROR);
+				throw new Exception(error);
 			}
 		}
+
+		// If this was a Raster dataset that contained its own unique data store, then delete that data store.
+		url = String.format("http://%s:%s/geoserver/rest/workspaces/piazza/datastores/%s", GEOSERVER_HOST, GEOSERVER_PORT,
+				deployment.getDataId());
+		try {
+			restTemplate.exchange(url, HttpMethod.DELETE, request, String.class);
+		} catch (HttpClientErrorException | HttpServerErrorException exception) {
+			// Check the status code. If it's a 404, then the layer has likely
+			// already been deleted by some other means.
+			if (exception.getStatusCode() == HttpStatus.NOT_FOUND) {
+				logger.log(String.format(
+						"Attempted to delete Data Store for GeoServer %s while deleting the Deployment Id %s, but the Data Store was already deleted from GeoServer. This Data Store may have been removed by some other means.",
+						deployment.getLayer(), deploymentId), PiazzaLogger.WARNING);
+			} else {
+				// Some other exception occurred. Bubble it up.
+				String error = String.format("Error deleting GeoServer Data Store for Deployment %s via request %s: Code %s with Error %s",
+						deploymentId, url, exception.getStatusCode(), exception.getResponseBodyAsString());
+				logger.log(error, PiazzaLogger.ERROR);
+				throw new Exception(error);
+			}
+		}
+
 		// Remove the Deployment from the Database
 		accessor.deleteDeployment(deployment);
 	}

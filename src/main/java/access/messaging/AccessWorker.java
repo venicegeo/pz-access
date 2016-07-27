@@ -158,8 +158,7 @@ public class AccessWorker {
 						// If the Layer does not exist on GeoServer yet, but Piazza has reported that a Deployment
 						// exists, then another Job is likely processing this Deployment and has not yet finished. Send
 						// an error back to the user to try again later.
-						String error = String.format(
-								"Could not create Deployment Group. The GeoServer layer for %s does not exist.",
+						String error = String.format("Could not create Deployment Group. The GeoServer layer for %s does not exist.",
 								deployment.getLayer());
 						logger.log(error, PiazzaLogger.WARNING);
 						throw new Exception(error);
