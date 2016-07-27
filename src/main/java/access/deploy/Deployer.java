@@ -250,8 +250,8 @@ public class Deployer {
 		}
 
 		// If this was a Raster dataset that contained its own unique data store, then delete that Coverage Store.
-		url = String.format("http://%s:%s/geoserver/rest/workspaces/piazza/coveragestores/%s", GEOSERVER_HOST, GEOSERVER_PORT,
-				deployment.getDataId());
+		url = String.format("http://%s:%s/geoserver/rest/workspaces/piazza/coveragestores/%s?purge=all&recurse=true", GEOSERVER_HOST,
+				GEOSERVER_PORT, deployment.getDataId());
 		try {
 			restTemplate.exchange(url, HttpMethod.DELETE, request, String.class);
 		} catch (HttpClientErrorException | HttpServerErrorException exception) {
@@ -264,7 +264,7 @@ public class Deployer {
 			} else {
 				// Some other exception occurred. Bubble it up.
 				String error = String.format(
-						"Error deleting GeoServer Coverage Store for Deployment %s via request %s: Code %s with Error %s", deploymentId,
+						"Error deleting GeoServer Coverage Store for Deployment %s via request %s: Code %s with Error: %s", deploymentId,
 						url, exception.getStatusCode(), exception.getResponseBodyAsString());
 				logger.log(error, PiazzaLogger.ERROR);
 				throw new Exception(error);
