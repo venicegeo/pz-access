@@ -131,15 +131,39 @@ public class AccessWorker {
 				// Check if the user has requested this layer be added to a new
 				// group layer.
 				if ((accessJob.getDeploymentGroupId() != null) && (accessJob.getDeploymentGroupId().isEmpty() == false)) {
-					// Check if the Deployment Group exists
-					DeploymentGroup deploymentGroup = accessor.getDeploymentGroupById(accessJob.getDeploymentGroupId());
-					if (deploymentGroup == null) {
-						throw new Exception(String.format("Deployment Group with Id %s does not exist.", accessJob.getDeploymentGroupId()));
+					// First verify that the Deployment exists in GeoServer . This is to avoid a race condition where
+					// another Deployment Job in Piazza is responsible for creating the Deployment Layer for the Data ID
+					// - but has not finished publishing this layer to GeoServer yet.
+					boolean geoServerLayerExists = false;
+					try {
+						geoServerLayerExists = deployer.doesGeoServerLayerExist(deployment.getLayer());
+					} catch (Exception exception) {
+						String error = String.format("Could not create Deployment Group: %s", exception.getMessage());
+						logger.log(error, PiazzaLogger.ERROR);
+						throw new Exception(error);
 					}
-					// Add the Layer to the Deployment Group
-					List<Deployment> deployments = new ArrayList<Deployment>();
-					deployments.add(deployment);
-					groupDeployer.updateDeploymentGroup(deploymentGroup, deployments);
+
+					if (geoServerLayerExists) {
+						// First, Check if the Deployment Group exists
+						DeploymentGroup deploymentGroup = accessor.getDeploymentGroupById(accessJob.getDeploymentGroupId());
+						if (deploymentGroup == null) {
+							throw new Exception(
+									String.format("Deployment Group with Id %s does not exist.", accessJob.getDeploymentGroupId()));
+						}
+						// Add the Layer to the Deployment Group
+						List<Deployment> deployments = new ArrayList<Deployment>();
+						deployments.add(deployment);
+						groupDeployer.updateDeploymentGroup(deploymentGroup, deployments);
+					} else {
+						// If the Layer does not exist on GeoServer yet, but Piazza has reported that a Deployment
+						// exists, then another Job is likely processing this Deployment and has not yet finished. Send
+						// an error back to the user to try again later.
+						String error = String.format(
+								"Could not create Deployment Group. The GeoServer layer for %s does not exist yet. It might still be processing. Please try again later.",
+								deployment.getLayer());
+						logger.log(error, PiazzaLogger.WARNING);
+						throw new Exception(error);
+					}
 				}
 
 				// Update Job Status to complete for this Job.

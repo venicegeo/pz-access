@@ -36,6 +36,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestTemplate;
 
 import util.PiazzaLogger;
@@ -278,6 +279,39 @@ public class Deployer {
 
 		// Return the HTTP Status
 		return response.getStatusCode();
+	}
+
+	/**
+	 * Checks GeoServer to determine if a Layer exists.
+	 * 
+	 * @param layerId
+	 *            The ID of the layer. Corresponds with the Data ID.
+	 * @return True if the layer exists on GeoServer, false if not.
+	 */
+	public boolean doesGeoServerLayerExist(String layerId) throws Exception {
+		HttpHeaders headers = getGeoServerHeaders();
+		headers.setContentType(MediaType.APPLICATION_JSON);
+		HttpEntity<String> request = new HttpEntity<String>(headers);
+		String url = String.format("http://%s:%s/geoserver/rest/layers/%s.json", GEOSERVER_HOST, GEOSERVER_PORT, layerId);
+		try {
+			ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, request, String.class);
+			if (response.getStatusCode().equals(HttpStatus.OK)) {
+				return true;
+			} else {
+				return false;
+			}
+		} catch (HttpClientErrorException | HttpServerErrorException exception) {
+			// Check the status code. If it's a 404, then the layer does not exist.
+			if (exception.getStatusCode() == HttpStatus.NOT_FOUND) {
+				return false;
+			} else {
+				// Some other exception occurred. Bubble it up as an exception.
+				String error = String.format("Error while checking status of Layer %s. GeoServer returned with Code %s and error %s: ",
+						layerId, exception.getStatusCode(), exception.getResponseBodyAsString());
+				logger.log(error, PiazzaLogger.ERROR);
+				throw new Exception(error);
+			}
+		}
 	}
 
 	/**
