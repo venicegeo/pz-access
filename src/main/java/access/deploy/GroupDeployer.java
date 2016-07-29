@@ -84,7 +84,7 @@ public class GroupDeployer {
 	public DeploymentGroup createDeploymentGroup(String createdBy) {
 		// Commit the new group to the database and return immediately
 		DeploymentGroup deploymentGroup = new DeploymentGroup(uuidFactory.getUUID(), createdBy);
-		deploymentGroup.setHasGeoServerLayer(false);
+		deploymentGroup.setHasGisServerLayer(false);
 		accessor.insertDeploymentGroup(deploymentGroup);
 		return deploymentGroup;
 	}
@@ -125,7 +125,7 @@ public class GroupDeployer {
 		sendGeoServerLayerGroup(layerGroupModel, HttpMethod.POST);
 
 		// Mark that the Layer has been created and commit to the database.
-		deploymentGroup.setHasGeoServerLayer(true);
+		deploymentGroup.setHasGisServerLayer(true);
 		accessor.insertDeploymentGroup(deploymentGroup);
 
 		// Return the Group
@@ -149,7 +149,7 @@ public class GroupDeployer {
 		// Check if the Layer Group exists. If it doesn't, then create it. If it
 		// does, then Grab the Model to edit.
 		LayerGroupModel layerGroupModel;
-		if (deploymentGroup.getHasGeoServerLayer() == false) {
+		if (deploymentGroup.getHasGisServerLayer() == false) {
 			// Create the Layer Group Model to send to GeoServer
 			layerGroupModel = new LayerGroupModel();
 			layerGroupModel.layerGroup.name = deploymentGroup.deploymentGroupId;
@@ -184,11 +184,11 @@ public class GroupDeployer {
 		updateLayerStyles(layerGroupModel);
 
 		// Send the Layer Group to GeoServer.
-		HttpMethod method = deploymentGroup.getHasGeoServerLayer() ? HttpMethod.PUT : HttpMethod.POST;
+		HttpMethod method = deploymentGroup.getHasGisServerLayer() ? HttpMethod.PUT : HttpMethod.POST;
 		sendGeoServerLayerGroup(layerGroupModel, method);
 
 		// If it didn't exist before, mark that the Layer Group now exists.
-		if (deploymentGroup.getHasGeoServerLayer() == false) {
+		if (deploymentGroup.getHasGisServerLayer() == false) {
 			accessor.updateDeploymentGroupCreated(deploymentGroup.deploymentGroupId, true);
 		}
 	}

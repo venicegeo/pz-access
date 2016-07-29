@@ -383,7 +383,7 @@ public class AccessController {
 		} catch (Exception exception) {
 			// Log the error message.
 			exception.printStackTrace();
-			String error = String.format("Error Creating Deployment Group for user %s : %s", createdBy, exception.getMessage());
+			String error = String.format("Error Creating DeploymentGroup for user %s : %s", createdBy, exception.getMessage());
 			logger.log(error, PiazzaLogger.ERROR);
 			return new ResponseEntity<PiazzaResponse>(new ErrorResponse(error, "Access"), HttpStatus.INTERNAL_SERVER_ERROR);
 		}
@@ -400,27 +400,27 @@ public class AccessController {
 	public ResponseEntity<PiazzaResponse> deleteDeploymentGroup(@PathVariable(value = "deploymentGroupId") String deploymentGroupId) {
 		try {
 			if ((deploymentGroupId == null) || (deploymentGroupId.isEmpty())) {
-				return new ResponseEntity<PiazzaResponse>(new ErrorResponse("Deployment Group Id not specified.", "Access"),
+				return new ResponseEntity<PiazzaResponse>(new ErrorResponse("DeploymentGroup Id not specified.", "Access"),
 						HttpStatus.BAD_REQUEST);
 			}
-			// Delete the Deployment Group from GeoServer, and remove it from
+			// Delete the DeploymentGroup from GeoServer, and remove it from
 			// the Piazza DB persistence
 			DeploymentGroup deploymentGroup = accessor.getDeploymentGroupById(deploymentGroupId);
 			if (deploymentGroup == null) {
-				return new ResponseEntity<PiazzaResponse>(new ErrorResponse("Deployment Group does not exist.", "Access"),
+				return new ResponseEntity<PiazzaResponse>(new ErrorResponse("DeploymentGroup does not exist.", "Access"),
 						HttpStatus.NOT_FOUND);
 			}
 			groupDeployer.deleteDeploymentGroup(deploymentGroup);
 			return new ResponseEntity<PiazzaResponse>(new SuccessResponse("Group Deleted.", "Access"), HttpStatus.OK);
 		} catch (HttpStatusCodeException httpException) {
 			// Return the HTTP Error code from GeoServer
-			String error = String.format("Could not delete Deployment Group. Response from GeoServer returned code %s with reason %s",
+			String error = String.format("Could not delete DeploymentGroup. Response from GeoServer returned code %s with reason %s",
 					httpException.getStatusCode().toString(), httpException.getMessage());
 			logger.log(error, PiazzaLogger.ERROR);
 			return new ResponseEntity<PiazzaResponse>(new ErrorResponse(error, "Access"), httpException.getStatusCode());
 		} catch (Exception exception) {
 			// Return the 500 Internal error
-			String error = String.format("Could not delete Deployment Group. An unexpected error occurred: %s", exception.getMessage());
+			String error = String.format("Could not delete DeploymentGroup. An unexpected error occurred: %s", exception.getMessage());
 			logger.log(error, PiazzaLogger.ERROR);
 			return new ResponseEntity<PiazzaResponse>(new ErrorResponse(error, "Access"), HttpStatus.INTERNAL_SERVER_ERROR);
 		}
