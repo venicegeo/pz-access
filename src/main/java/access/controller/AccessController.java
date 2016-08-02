@@ -137,7 +137,7 @@ public class AccessController {
 	 * @param dataId
 	 *            The Id of the Data Item to get. Assumes this file is ready to be downloaded.
 	 */
-	@RequestMapping(value = "/file/{dataId}", method = RequestMethod.GET, produces = {MediaType.APPLICATION_JSON_VALUE, MediaType.APPLICATION_OCTET_STREAM_VALUE})
+	@RequestMapping(value = "/file/{dataId}", method = RequestMethod.GET)
 	public ResponseEntity<?> accessFile(@PathVariable(value = "dataId") String dataId,
 			@RequestParam(value = "fileName", required = false) String name) {
 		try {
@@ -154,7 +154,7 @@ public class AccessController {
 			if (data.getDataType() instanceof TextDataType) {
 				// Stream the Bytes back
 				TextDataType textData = (TextDataType) data.getDataType();
-				return getResponse(MediaType.APPLICATION_OCTET_STREAM, String.format("%s%s", fileName, ".txt"), textData.getContent().getBytes());
+				return getResponse(MediaType.TEXT_PLAIN, String.format("%s%s", fileName, ".txt"), textData.getContent().getBytes());
 			} else if (data.getDataType() instanceof PostGISDataType) {
 				// Obtain geoJSON from postGIS
 				StringBuilder geoJSON = getPostGISGeoJSON(data);
@@ -163,7 +163,7 @@ public class AccessController {
 				logger.log(String.format("Returning Bytes for %s of length %s", dataId, geoJSON.length()), PiazzaLogger.INFO);
 
 				// Stream the Bytes back
-				return getResponse(MediaType.APPLICATION_OCTET_STREAM, String.format("%s%s", fileName, ".geojson"), geoJSON.toString().getBytes());
+				return getResponse(MediaType.TEXT_PLAIN, String.format("%s%s", fileName, ".geojson"), geoJSON.toString().getBytes());
 			} else if (!(data.getDataType() instanceof FileRepresentation)) {
 				String message = String.format("File download not available for Data Id %s; type is %s", dataId,
 						data.getDataType().getClass().getSimpleName());
