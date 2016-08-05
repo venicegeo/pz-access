@@ -51,7 +51,6 @@ import access.deploy.Deployer;
 import access.deploy.GroupDeployer;
 import access.deploy.Leaser;
 import access.messaging.AccessThreadManager;
-import io.swagger.annotations.ApiParam;
 import model.data.DataResource;
 import model.data.FileRepresentation;
 import model.data.deployment.Deployment;
