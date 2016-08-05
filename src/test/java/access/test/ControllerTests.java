@@ -231,18 +231,18 @@ public class ControllerTests {
 		DataResourceListResponse mockResponse = new DataResourceListResponse();
 		mockResponse.data = new ArrayList<DataResource>();
 		mockResponse.data.add(new DataResource());
-		when(accessor.getDataList(eq(0), eq(10), eq("dataId"), eq("asc"), eq("Raster"), eq("Test User"))).thenReturn(mockResponse);
+		when(accessor.getDataList(eq(0), eq(10), eq("dataId"), eq("asc"), eq("Raster"), eq("Test User"), eq("123"))).thenReturn(mockResponse);
 
 		// Test
-		PiazzaResponse response = accessController.getAllData(0, 10, "dataId", "asc", "Raster", "Test User").getBody();
+		PiazzaResponse response = accessController.getAllData("123", 0, 10, "dataId", "asc", "Raster", "Test User").getBody();
 
 		// Verify
 		assertTrue(response instanceof DataResourceListResponse);
 		assertTrue(((DataResourceListResponse) response).data.size() == 1);
 
 		// Test Exception
-		Mockito.doThrow(new Exception()).when(accessor).getDataList(eq(0), eq(10), eq("dataId"), eq("asc"), eq("Raster"), eq("Test User"));
-		response = accessController.getAllData(0, 10, "dataId", "asc", "Raster", "Test User").getBody();
+		Mockito.doThrow(new Exception()).when(accessor).getDataList(eq(0), eq(10), eq("dataId"), eq("asc"), eq("Raster"), eq("Test User"), eq("123"));
+		response = accessController.getAllData("123", 0, 10, "dataId", "asc", "Raster", "Test User").getBody();
 		assertTrue(response instanceof ErrorResponse);
 	}
 

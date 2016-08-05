@@ -51,6 +51,7 @@ import access.deploy.Deployer;
 import access.deploy.GroupDeployer;
 import access.deploy.Leaser;
 import access.messaging.AccessThreadManager;
+import io.swagger.annotations.ApiParam;
 import model.data.DataResource;
 import model.data.FileRepresentation;
 import model.data.deployment.Deployment;
@@ -274,6 +275,7 @@ public class AccessController {
 	 */
 	@RequestMapping(value = "/data", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<PiazzaResponse> getAllData(
+			@RequestParam(value = "createdByJobId", required = false) String createdByJobId,
 			@RequestParam(value = "page", required = false, defaultValue = DEFAULT_PAGE) Integer page,
 			@RequestParam(value = "perPage", required = false, defaultValue = DEFAULT_PAGE_SIZE) Integer pageSize,
 			@RequestParam(value = "sortBy", required = false, defaultValue = DEFAULT_SORTBY) String sortBy,
@@ -285,7 +287,7 @@ public class AccessController {
 			if (!(order.equalsIgnoreCase("asc")) && !(order.equalsIgnoreCase("desc"))) {
 				order = "asc";
 			}
-			return new ResponseEntity<PiazzaResponse>(accessor.getDataList(page, pageSize, sortBy, order, keyword, userName),
+			return new ResponseEntity<PiazzaResponse>(accessor.getDataList(page, pageSize, sortBy, order, keyword, userName, createdByJobId),
 					HttpStatus.OK);
 		} catch (Exception exception) {
 			logger.log(String.format("Error Querying Data: %s", exception.getMessage()), PiazzaLogger.ERROR);
