@@ -26,11 +26,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.annotation.PostConstruct;
 
-import messaging.job.JobMessageFactory;
-import messaging.job.KafkaClientFactory;
-import messaging.job.WorkerCallback;
-import model.job.type.AccessJob;
-
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -40,12 +35,19 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import messaging.job.JobMessageFactory;
+import messaging.job.KafkaClientFactory;
+import messaging.job.WorkerCallback;
+import model.job.type.AbortJob;
+import model.job.type.AccessJob;
+import model.request.PiazzaJobRequest;
 import util.PiazzaLogger;
 
 /**
- * Manager class for Access Jobs. Handles an incoming Access Job request by
- * creating a GeoServer deployment, or returning a file location. This manages
- * the Thread Pool of Access Workers.
+ * Manager class for Access Jobs. Handles an incoming Access Job request by creating a GeoServer deployment, or
+ * returning a file location. This manages the Thread Pool of Access Workers.
  * 
  * @author Patrick.Doody
  * 
@@ -109,8 +111,7 @@ public class AccessThreadManager {
 	}
 
 	/**
-	 * Opens up a Kafka Consumer to poll for all Access Jobs that should be
-	 * processed by this component.
+	 * Opens up a Kafka Consumer to poll for all Access Jobs that should be processed by this component.
 	 */
 	public void pollAccessJobs() {
 		try {
@@ -124,8 +125,7 @@ public class AccessThreadManager {
 			};
 
 			// Create the General Group Consumer
-			Consumer<String, String> generalConsumer = KafkaClientFactory.getConsumer(KAFKA_HOST, KAFKA_PORT,
-					KAFKA_GROUP);
+			Consumer<String, String> generalConsumer = KafkaClientFactory.getConsumer(KAFKA_HOST, KAFKA_PORT, KAFKA_GROUP);
 			generalConsumer.subscribe(Arrays.asList(String.format("%s-%s", ACCESS_TOPIC_NAME, SPACE)));
 
 			// Poll
@@ -143,22 +143,21 @@ public class AccessThreadManager {
 				}
 			}
 		} catch (WakeupException exception) {
-			logger.log(String.format("Polling Thread forcefully closed: %s", exception.getMessage()),
-					PiazzaLogger.FATAL);
+			logger.log(String.format("Polling Thread forcefully closed: %s", exception.getMessage()), PiazzaLogger.FATAL);
 		}
 	}
 
 	/**
-	 * Begins listening for Abort Jobs. If a Job is owned by this component,
-	 * then it will be terminated.
+	 * Begins listening for Abort Jobs. If a Job is owned by this component, then it will be terminated.
 	 */
 	public void pollAbortJobs() {
 		try {
 			// Create the Unique Consumer
 			Consumer<String, String> uniqueConsumer = KafkaClientFactory.getConsumer(KAFKA_HOST, KAFKA_PORT,
 					String.format("%s-%s", KAFKA_GROUP, UUID.randomUUID().toString()));
-			uniqueConsumer.subscribe(Arrays.asList(String
-					.format("%s-%s", JobMessageFactory.ABORT_JOB_TOPIC_NAME, SPACE)));
+			uniqueConsumer.subscribe(Arrays.asList(String.format("%s-%s", JobMessageFactory.ABORT_JOB_TOPIC_NAME, SPACE)));
+
+			ObjectMapper mapper = new ObjectMapper();
 
 			// Poll
 			while (!closed.get()) {
@@ -167,7 +166,17 @@ public class AccessThreadManager {
 				for (ConsumerRecord<String, String> consumerRecord : consumerRecords) {
 					// Determine if this Job Id is being processed by this
 					// component.
-					String jobId = consumerRecord.key();
+					String jobId = null;
+					try {
+						PiazzaJobRequest request = mapper.readValue(consumerRecord.value(), PiazzaJobRequest.class);
+						jobId = ((AbortJob) request.jobType).getJobId();
+					} catch (Exception exception) {
+						exception.printStackTrace();
+						logger.log(String.format("Error Aborting Job. Could not get the Job ID from the Kafka Message with error:  %s",
+								exception.getMessage()), PiazzaLogger.ERROR);
+						continue;
+					}
+
 					if (runningJobs.containsKey(jobId)) {
 						// Cancel the Running Job
 						runningJobs.get(jobId).cancel(true);
@@ -177,8 +186,7 @@ public class AccessThreadManager {
 				}
 			}
 		} catch (WakeupException exception) {
-			logger.log(String.format("Polling Thread forcefully closed: %s", exception.getMessage()),
-					PiazzaLogger.FATAL);
+			logger.log(String.format("Polling Thread forcefully closed: %s", exception.getMessage()), PiazzaLogger.FATAL);
 		}
 	}
 
@@ -190,8 +198,7 @@ public class AccessThreadManager {
 	}
 
 	/**
-	 * Returns a list of the Job Ids that are currently being processed by this
-	 * instance
+	 * Returns a list of the Job Ids that are currently being processed by this instance
 	 * 
 	 * @return The list of Job Ids
 	 */
