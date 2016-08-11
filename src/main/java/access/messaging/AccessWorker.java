@@ -98,6 +98,10 @@ public class AccessWorker {
 			logger.log(String.format("Received Request to Access Data %s of Type %s under Job Id %s", accessJob.getDataId(),
 					accessJob.getDeploymentType(), job.getJobId()), PiazzaLogger.INFO);
 
+			if (Thread.interrupted()) {
+				throw new InterruptedException();
+			}
+			
 			// Update Status that this Job is being processed
 			StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_RUNNING);
 			producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate, SPACE));
@@ -126,6 +130,10 @@ public class AccessWorker {
 					deployment = deployer.createDeployment(dataToDeploy);
 					// Create a new Lease for this Deployment
 					leaser.createDeploymentLease(deployment, accessJob.getDurationDays());
+				}
+				
+				if (Thread.interrupted()) {
+					throw new InterruptedException();
 				}
 
 				// Check if the user has requested this layer be added to a new
@@ -164,6 +172,10 @@ public class AccessWorker {
 						throw new Exception(error);
 					}
 				}
+				
+				if (Thread.interrupted()) {
+					throw new InterruptedException();
+				}
 
 				// Update Job Status to complete for this Job.
 				statusUpdate = new StatusUpdate(StatusUpdate.STATUS_SUCCESS);
@@ -177,6 +189,8 @@ public class AccessWorker {
 			default:
 				throw new Exception("Unknown Deployment Type: " + accessJob.getDeploymentType());
 			}
+		} catch (InterruptedException exception) {
+			logger.log(String.format("Thread interrupt received for Job %s", consumerRecord.key()), PiazzaLogger.INFO);
 		} catch (Exception exception) {
 			logger.log(String.format("Error Accessing Data under Job %s with Error: %s", consumerRecord.key(), exception.getMessage()),
 					PiazzaLogger.ERROR);
