@@ -19,6 +19,22 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Future;
 
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.producer.Producer;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.scheduling.annotation.AsyncResult;
+import org.springframework.stereotype.Component;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mongodb.MongoInterruptedException;
+
+import access.database.Accessor;
+import access.deploy.Deployer;
+import access.deploy.GroupDeployer;
+import access.deploy.Leaser;
 import messaging.job.JobMessageFactory;
 import messaging.job.WorkerCallback;
 import model.data.DataResource;
@@ -29,23 +45,7 @@ import model.job.result.type.DeploymentResult;
 import model.job.result.type.ErrorResult;
 import model.job.type.AccessJob;
 import model.status.StatusUpdate;
-
-import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.clients.producer.Producer;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.scheduling.annotation.Async;
-import org.springframework.scheduling.annotation.AsyncResult;
-import org.springframework.stereotype.Component;
-
 import util.PiazzaLogger;
-import access.database.Accessor;
-import access.deploy.Deployer;
-import access.deploy.GroupDeployer;
-import access.deploy.Leaser;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
  * Worker class that handles Access Jobs being passed in through the Kafka. Handles the Access Jobs by standing up
@@ -189,7 +189,7 @@ public class AccessWorker {
 			default:
 				throw new Exception("Unknown Deployment Type: " + accessJob.getDeploymentType());
 			}
-		} catch (InterruptedException exception) {
+		} catch (MongoInterruptedException | InterruptedException exception) {
 			logger.log(String.format("Thread interrupt received for Job %s", consumerRecord.key()), PiazzaLogger.INFO);
 		} catch (Exception exception) {
 			logger.log(String.format("Error Accessing Data under Job %s with Error: %s", consumerRecord.key(), exception.getMessage()),
