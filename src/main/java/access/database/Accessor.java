@@ -290,7 +290,7 @@ public class Accessor {
 	 */
 	public void updateDeploymentGroupCreated(String deploymentGroupId, boolean created) {
 		getDeploymentGroupCollection().update(DBQuery.is("deploymentGroupId", deploymentGroupId),
-				DBUpdate.set("hasGeoServerLayer", created));
+				DBUpdate.set("hasGisServerLayer", created));
 	}
 
 	/**
