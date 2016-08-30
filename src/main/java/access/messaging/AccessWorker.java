@@ -101,7 +101,7 @@ public class AccessWorker {
 			if (Thread.interrupted()) {
 				throw new InterruptedException();
 			}
-			
+
 			// Update Status that this Job is being processed
 			StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_RUNNING);
 			producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate, SPACE));
@@ -131,7 +131,7 @@ public class AccessWorker {
 					// Create a new Lease for this Deployment
 					leaser.createDeploymentLease(deployment, accessJob.getDurationDays());
 				}
-				
+
 				if (Thread.interrupted()) {
 					throw new InterruptedException();
 				}
@@ -172,7 +172,7 @@ public class AccessWorker {
 						throw new Exception(error);
 					}
 				}
-				
+
 				if (Thread.interrupted()) {
 					throw new InterruptedException();
 				}
@@ -191,6 +191,15 @@ public class AccessWorker {
 			}
 		} catch (MongoInterruptedException | InterruptedException exception) {
 			logger.log(String.format("Thread interrupt received for Job %s", consumerRecord.key()), PiazzaLogger.INFO);
+			StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_CANCELLED);
+			try {
+				producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate, SPACE));
+			} catch (JsonProcessingException jsonException) {
+				jsonException.printStackTrace();
+				logger.log(String.format(
+						"Error sending Cancelled Status from Job %s: %s. The Job was cancelled, but its status will not be updated in the Job Manager.",
+						consumerRecord.key(), jsonException.getMessage()), PiazzaLogger.ERROR);
+			}
 		} catch (Exception exception) {
 			logger.log(String.format("Error Accessing Data under Job %s with Error: %s", consumerRecord.key(), exception.getMessage()),
 					PiazzaLogger.ERROR);
