@@ -194,10 +194,24 @@ public class Deployer {
 		try {
 			restTemplate.exchange(url, HttpMethod.PUT, request, String.class);
 		} catch (HttpClientErrorException | HttpServerErrorException exception) {
-			String error = String.format("Creating Layer on GeoServer at URL %s returned HTTP Status %s with Body: %s", url,
-					exception.getStatusCode().toString(), exception.getResponseBodyAsString());
-			logger.log(error, PiazzaLogger.ERROR);
-			throw new Exception(error);
+			if (exception.getStatusCode() == HttpStatus.METHOD_NOT_ALLOWED) {
+				// If 405 NOT ALLOWED is encountered, then the layer may already exist on the GeoServer. Check if it
+				// exists already. If it does, then use this layer for the Deployment.
+				if (doesGeoServerLayerExist(dataResource.getDataId()) == false) {
+					// If it doesn't exist, throw an error. Something went wrong.
+					String error = String.format(
+							"GeoServer would not allow for layer creation, despite an existing layer not being present: %s", url,
+							exception.getStatusCode().toString(), exception.getResponseBodyAsString());
+					logger.log(error, PiazzaLogger.ERROR);
+					throw new Exception(error);
+				}
+			} else {
+				// For any other errors, report back this error to the user and fail the job.
+				String error = String.format("Creating Layer on GeoServer at URL %s returned HTTP Status %s with Body: %s", url,
+						exception.getStatusCode().toString(), exception.getResponseBodyAsString());
+				logger.log(error, PiazzaLogger.ERROR);
+				throw new Exception(error);
+			}
 		}
 
 		// Create a Deployment for this Resource
