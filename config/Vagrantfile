@@ -23,6 +23,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
 		geoserver.vm.hostname = "geoserver.dev"
 		geoserver.vm.provision :shell, path: "geoserver-bootstrap.sh"
 		geoserver.vm.network :private_network, ip:"192.168.23.27"
+		geoserver.vm.network "forwarded_port", guest: 8080, host: 8282
 		geoserver.vm.synced_folder "../", "/vagrant/access"
 		geoserver.vm.provider "virtualbox" do |vb|
 	      vb.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
