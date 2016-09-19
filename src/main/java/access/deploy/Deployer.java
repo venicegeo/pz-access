@@ -17,15 +17,9 @@ package access.deploy;
 
 import java.io.File;
 
-import model.data.DataResource;
-import model.data.deployment.Deployment;
-import model.data.type.GeoJsonDataType;
-import model.data.type.PostGISDataType;
-import model.data.type.RasterDataType;
-import model.data.type.ShapefileDataType;
-
 import org.apache.commons.io.IOUtils;
 import org.apache.tomcat.util.codec.binary.Base64;
+import org.joda.time.DateTime;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
@@ -39,10 +33,16 @@ import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestTemplate;
 
-import util.PiazzaLogger;
-import util.UUIDFactory;
 import access.database.Accessor;
 import access.util.AccessUtilities;
+import model.data.DataResource;
+import model.data.deployment.Deployment;
+import model.data.type.GeoJsonDataType;
+import model.data.type.PostGISDataType;
+import model.data.type.RasterDataType;
+import model.data.type.ShapefileDataType;
+import util.PiazzaLogger;
+import util.UUIDFactory;
 
 /**
  * Class that manages the GeoServer Deployments held by this component. This is done by managing the Deployments via a
@@ -109,6 +109,7 @@ public class Deployer {
 		}
 
 		// Insert the Deployment into the Database
+		deployment.createdOn = new DateTime();
 		accessor.insertDeployment(deployment);
 
 		// Log information
