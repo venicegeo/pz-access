@@ -34,7 +34,6 @@ import org.springframework.stereotype.Component;
 import com.mongodb.BasicDBObject;
 import com.mongodb.DBCollection;
 import com.mongodb.MongoClient;
-import com.mongodb.MongoClientOptions;
 import com.mongodb.MongoClientURI;
 import com.mongodb.MongoException;
 import com.mongodb.MongoTimeoutException;
@@ -73,12 +72,14 @@ public class Accessor {
 	private String DEPLOYMENT_GROUP_COLLECTION_NAME;
 	@Value("${mongo.db.collection.leases}")
 	private String LEASE_COLLECTION_NAME;
+	@Value("${mongo.thread.multiplier}")
+	private int mongoThreadMultiplier;
 	private MongoClient mongoClient;
 
 	@PostConstruct
 	private void initialize() {
 		try {
-			mongoClient = new MongoClient(new MongoClientURI(DATABASE_URI + "?waitQueueMultiple=10"));
+			mongoClient = new MongoClient(new MongoClientURI(DATABASE_URI + "?waitQueueMultiple=" + mongoThreadMultiplier));
 		} catch (UnknownHostException exception) {
 			System.out.println("Error connecting to MongoDB Instance.");
 			exception.printStackTrace();

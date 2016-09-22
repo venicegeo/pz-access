@@ -72,8 +72,8 @@ public class Deployer {
 	private String GEOSERVER_USERNAME;
 	@Value("${vcap.services.pz-geoserver-efs.credentials.geoserver.password}")
 	private String GEOSERVER_PASSWORD;
-
-	private RestTemplate restTemplate = new RestTemplate();
+	@Autowired
+	private RestTemplate restTemplate;
 
 	private static final String HOST_ADDRESS = "http://%s:%s%s";
 
