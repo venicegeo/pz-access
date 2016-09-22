@@ -22,14 +22,6 @@ import java.util.regex.Pattern;
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 
-import model.data.DataResource;
-import model.data.deployment.Deployment;
-import model.data.deployment.DeploymentGroup;
-import model.data.deployment.Lease;
-import model.response.DataResourceListResponse;
-import model.response.DeploymentListResponse;
-import model.response.Pagination;
-
 import org.geotools.data.DataStore;
 import org.mongojack.DBCursor;
 import org.mongojack.DBQuery;
@@ -39,14 +31,22 @@ import org.mongojack.JacksonDBCollection;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import util.GeoToolsUtil;
-
 import com.mongodb.BasicDBObject;
 import com.mongodb.DBCollection;
 import com.mongodb.MongoClient;
+import com.mongodb.MongoClientOptions;
 import com.mongodb.MongoClientURI;
 import com.mongodb.MongoException;
 import com.mongodb.MongoTimeoutException;
+
+import model.data.DataResource;
+import model.data.deployment.Deployment;
+import model.data.deployment.DeploymentGroup;
+import model.data.deployment.Lease;
+import model.response.DataResourceListResponse;
+import model.response.DeploymentListResponse;
+import model.response.Pagination;
+import util.GeoToolsUtil;
 
 /**
  * Handles Mongo access for the Deployer and the Leaser, and for the Resource collection which stores the Ingested
@@ -78,7 +78,7 @@ public class Accessor {
 	@PostConstruct
 	private void initialize() {
 		try {
-			mongoClient = new MongoClient(new MongoClientURI(DATABASE_URI));
+			mongoClient = new MongoClient(new MongoClientURI(DATABASE_URI + "?waitQueueMultiple=10"));
 		} catch (UnknownHostException exception) {
 			System.out.println("Error connecting to MongoDB Instance.");
 			exception.printStackTrace();
