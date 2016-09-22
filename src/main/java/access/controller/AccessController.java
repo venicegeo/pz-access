@@ -273,8 +273,7 @@ public class AccessController {
 	 * @return The list of all data held by the system.
 	 */
 	@RequestMapping(value = "/data", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<PiazzaResponse> getAllData(
-			@RequestParam(value = "createdByJobId", required = false) String createdByJobId,
+	public ResponseEntity<PiazzaResponse> getAllData(@RequestParam(value = "createdByJobId", required = false) String createdByJobId,
 			@RequestParam(value = "page", required = false, defaultValue = DEFAULT_PAGE) Integer page,
 			@RequestParam(value = "perPage", required = false, defaultValue = DEFAULT_PAGE_SIZE) Integer pageSize,
 			@RequestParam(value = "sortBy", required = false, defaultValue = DEFAULT_SORTBY) String sortBy,
@@ -286,8 +285,8 @@ public class AccessController {
 			if (!(order.equalsIgnoreCase("asc")) && !(order.equalsIgnoreCase("desc"))) {
 				order = "asc";
 			}
-			return new ResponseEntity<PiazzaResponse>(accessor.getDataList(page, pageSize, sortBy, order, keyword, userName, createdByJobId),
-					HttpStatus.OK);
+			return new ResponseEntity<PiazzaResponse>(
+					accessor.getDataList(page, pageSize, sortBy, order, keyword, userName, createdByJobId), HttpStatus.OK);
 		} catch (Exception exception) {
 			logger.log(String.format("Error Querying Data: %s", exception.getMessage()), PiazzaLogger.ERROR);
 			return new ResponseEntity<PiazzaResponse>(new ErrorResponse("Error Querying Data: " + exception.getMessage(), "Access"),
