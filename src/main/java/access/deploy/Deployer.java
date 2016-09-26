@@ -206,6 +206,17 @@ public class Deployer {
 					logger.log(error, PiazzaLogger.ERROR);
 					throw new Exception(error);
 				}
+			} else if ((exception.getStatusCode() == HttpStatus.INTERNAL_SERVER_ERROR)
+					&& (exception.getResponseBodyAsString().contains("Error persisting"))) {
+				// If a 500 is received, then it's possible that GeoServer is processing this layer already via a
+				// simultaneous POST, and there is a collision. Add this information to the response.
+				// TODO: In the future, we should persist a lookup table where only one Data ID is persisted at a time
+				// to GeoServer, to avoid this collision.
+				String error = String.format(
+						"Creating Layer on GeoServer at URL %s returned HTTP Status %s with Body: %s. This may be the result of GeoServer processing this Data Id simultaneously by another request. Please try again.",
+						url, exception.getStatusCode().toString(), exception.getResponseBodyAsString());
+				logger.log(error, PiazzaLogger.ERROR);
+				throw new Exception(error);
 			} else {
 				// For any other errors, report back this error to the user and fail the job.
 				String error = String.format("Creating Layer on GeoServer at URL %s returned HTTP Status %s with Body: %s", url,
