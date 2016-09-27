@@ -33,11 +33,13 @@ import org.springframework.web.client.RestTemplate;
 
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 
 import access.database.Accessor;
 import access.deploy.geoserver.LayerGroupModel;
 import access.deploy.geoserver.LayerGroupModel.GroupLayer;
 import access.deploy.geoserver.LayerGroupModel.LayerGroup;
+import access.deploy.geoserver.LayerGroupModel2;
 import model.data.deployment.Deployment;
 import model.data.deployment.DeploymentGroup;
 import util.PiazzaLogger;
@@ -230,6 +232,11 @@ public class GroupDeployer {
 	 * Gets the Layer Group Model from GeoServer for the Layer Group matching the specified Deployment Group Id. If this
 	 * exists, it will return the model for the Layer Group.
 	 * 
+	 * <p>
+	 * XML is used because GeoServer has an existing bug that prevents this GET request working with JSON when using
+	 * Layer Groups above 5 Layers.
+	 * </p>
+	 * 
 	 * @param deploymentGroupId
 	 *            The Id of the layer group
 	 * @return The Layer Group Model
@@ -238,7 +245,9 @@ public class GroupDeployer {
 		HttpHeaders headers = deployer.getGeoServerHeaders();
 		headers.setContentType(MediaType.APPLICATION_JSON);
 		HttpEntity<String> request = new HttpEntity<String>(headers);
-		String url = String.format("http://%s:%s/geoserver/rest/workspaces/piazza/layergroups/%s.json", GEOSERVER_HOST, GEOSERVER_PORT,
+		// Note that XML format is used. This is a work-around because JSON currently has a bug with GeoServer that
+		// prevents a correct response from returning when Layer count is above 5.
+		String url = String.format("http://%s:%s/geoserver/rest/workspaces/piazza/layergroups/%s.xml", GEOSERVER_HOST, GEOSERVER_PORT,
 				deploymentGroupId);
 
 		// Execute the request to get the Layer Group
@@ -250,22 +259,37 @@ public class GroupDeployer {
 					deploymentGroupId, exception.getStatusCode().toString(), exception.getMessage()));
 		}
 
-		// Deserialize the Layer Group into the Layer Group Model
-		LayerGroupModel layerGroup;
+		// Convert the GeoServer response into the Layer Group Model
+		LayerGroupModel layerGroupJson = new LayerGroupModel();
 		try {
-			// GeoServer will return a list of one items as an object, and a
-			// list of >1 items as an array.
-			ObjectMapper mapper = new ObjectMapper();
-			mapper.enable(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY);
+			// Deserialize the XML response in the XML annotated Model
+			ObjectMapper xmlMapper = new XmlMapper();
+			xmlMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, Boolean.FALSE);
+			xmlMapper.configure(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY, Boolean.TRUE);
+			xmlMapper.configure(DeserializationFeature.ACCEPT_EMPTY_STRING_AS_NULL_OBJECT, Boolean.TRUE);
+			LayerGroupModel2.LayerGroup2 xmljsonModel = xmlMapper.readValue(response.getBody(), LayerGroupModel2.LayerGroup2.class);
+			// Convert the XML annotated Model (used by responses) into the JSON annotated Model (used by requests)
+			layerGroupJson.layerGroup.name = xmljsonModel.name;
+			for (LayerGroupModel2.GroupLayer2 layer : xmljsonModel.published) {
+				LayerGroupModel.GroupLayer groupLayer = new LayerGroupModel.GroupLayer();
+				groupLayer.name = layer.name;
+				layerGroupJson.layerGroup.publishables.published.add(groupLayer);
+			}
 
-			// Deserialize into our Model for modifications
-			layerGroup = mapper.readValue(response.getBody(), LayerGroupModel.class);
+			for (String style : xmljsonModel.style) {
+				layerGroupJson.layerGroup.styles.style.add(style);
+			}
+
+		} catch (HttpClientErrorException | HttpServerErrorException exception) {
+			throw new Exception(String.format(
+					"Could not read in Layer Group from GeoServer response for %s: %s. Expected back a Layer Group description, but GeoServer responded with Code %s and Body %s",
+					deploymentGroupId, exception.getMessage(), exception.getStatusCode().toString(), exception.getResponseBodyAsString()));
 		} catch (Exception exception) {
 			throw new Exception(String.format("Could not read in Layer Group from GeoServer response for %s: %s", deploymentGroupId,
 					exception.getMessage()));
 		}
 
-		return layerGroup;
+		return layerGroupJson;
 	}
 
 	/**
