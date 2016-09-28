@@ -29,6 +29,8 @@ import org.geotools.data.simple.SimpleFeatureIterator;
 import org.geotools.data.simple.SimpleFeatureSource;
 import org.geotools.geojson.feature.FeatureJSON;
 import org.opengis.feature.simple.SimpleFeature;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
@@ -120,6 +122,8 @@ public class AccessController {
 	private static final String DEFAULT_SORTBY = "dataId";
 	private static final String DEFAULT_ORDER = "asc";
 
+	private final static Logger LOGGER = LoggerFactory.getLogger(AccessController.class);
+	
 	/**
 	 * Healthcheck required for all Piazza Core Services
 	 * 
@@ -186,8 +190,9 @@ public class AccessController {
 				return getResponse(MediaType.APPLICATION_OCTET_STREAM, String.format("%s.%s", fileName, extension), bytes);
 			}
 		} catch (Exception exception) {
-			exception.printStackTrace();
-			logger.log(String.format("Error fetching Data %s: %s", dataId, exception.getMessage()), PiazzaLogger.ERROR);
+			String error = String.format("Error fetching Data %s: %s", dataId, exception.getMessage());
+			LOGGER.error(error);
+			logger.log(error, PiazzaLogger.ERROR);
 			return new ResponseEntity<PiazzaResponse>(new ErrorResponse("Error fetching File: " + exception.getMessage(), "Access"),
 					HttpStatus.INTERNAL_SERVER_ERROR);
 		}
@@ -218,8 +223,9 @@ public class AccessController {
 			logger.log(String.format("Returning Data Metadata for %s", dataId), PiazzaLogger.INFO);
 			return new ResponseEntity<PiazzaResponse>(new DataResourceResponse(data), HttpStatus.OK);
 		} catch (Exception exception) {
-			exception.printStackTrace();
-			logger.log(String.format("Error fetching Data %s: %s", dataId, exception.getMessage()), PiazzaLogger.ERROR);
+			String error = String.format("Error fetching Data %s: %s", dataId, exception.getMessage());
+			LOGGER.error(error);
+			logger.log(error, PiazzaLogger.ERROR);
 			return new ResponseEntity<PiazzaResponse>(new ErrorResponse("Error fetching Data: " + exception.getMessage(), "Access"),
 					HttpStatus.INTERNAL_SERVER_ERROR);
 		}
@@ -259,8 +265,9 @@ public class AccessController {
 			logger.log(String.format("Returning Deployment Metadata for %s", deploymentId), PiazzaLogger.INFO);
 			return new ResponseEntity<PiazzaResponse>(new DeploymentResponse(deployment, expiresOn), HttpStatus.OK);
 		} catch (Exception exception) {
-			exception.printStackTrace();
-			logger.log(String.format("Error fetching Deployment %s: %s", deploymentId, exception.getMessage()), PiazzaLogger.ERROR);
+			String error = String.format("Error fetching Deployment %s: %s", deploymentId, exception.getMessage());
+			LOGGER.error(error);
+			logger.log(error, PiazzaLogger.ERROR);
 			return new ResponseEntity<PiazzaResponse>(new ErrorResponse("Error fetching Deployment: " + exception.getMessage(), "Access"),
 					HttpStatus.INTERNAL_SERVER_ERROR);
 		}
@@ -356,9 +363,9 @@ public class AccessController {
 			return new ResponseEntity<PiazzaResponse>(
 					new SuccessResponse("Deployment " + deploymentId + " was deleted successfully", "Access"), HttpStatus.OK);
 		} catch (Exception exception) {
-			exception.printStackTrace();
 			String error = String.format("Error Deleting Deployment %s: %s", deploymentId, exception.getMessage());
 			logger.log(error, PiazzaLogger.ERROR);
+			LOGGER.error(error);			
 			return new ResponseEntity<PiazzaResponse>(new ErrorResponse(error, "Access"), HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
@@ -382,8 +389,8 @@ public class AccessController {
 			return response;
 		} catch (Exception exception) {
 			// Log the error message.
-			exception.printStackTrace();
 			String error = String.format("Error Creating DeploymentGroup for user %s : %s", createdBy, exception.getMessage());
+			LOGGER.error(error);
 			logger.log(error, PiazzaLogger.ERROR);
 			return new ResponseEntity<PiazzaResponse>(new ErrorResponse(error, "Access"), HttpStatus.INTERNAL_SERVER_ERROR);
 		}

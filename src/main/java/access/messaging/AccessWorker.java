@@ -21,6 +21,8 @@ import java.util.concurrent.Future;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.Producer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
@@ -72,6 +74,8 @@ public class AccessWorker {
 	@Value("${SPACE}")
 	private String SPACE;
 
+	private final static Logger LOGGER = LoggerFactory.getLogger(AccessWorker.class);
+	
 	/**
 	 * Listens for Kafka Access messages for creating Deployments for Access of Resources
 	 */
@@ -196,14 +200,17 @@ public class AccessWorker {
 				producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate, SPACE));
 			} catch (JsonProcessingException jsonException) {
 				jsonException.printStackTrace();
-				logger.log(String.format(
+				String error = String.format(
 						"Error sending Cancelled Status from Job %s: %s. The Job was cancelled, but its status will not be updated in the Job Manager.",
-						consumerRecord.key(), jsonException.getMessage()), PiazzaLogger.ERROR);
+						consumerRecord.key(), jsonException.getMessage());
+				LOGGER.error(error);
+				logger.log(error, PiazzaLogger.ERROR);
 			}
 		} catch (Exception exception) {
-			logger.log(String.format("Error Accessing Data under Job %s with Error: %s", consumerRecord.key(), exception.getMessage()),
-					PiazzaLogger.ERROR);
-			exception.printStackTrace();
+			String error = String.format("Error Accessing Data under Job %s with Error: %s", consumerRecord.key(), exception.getMessage());
+			LOGGER.error(error);
+			logger.log(error, PiazzaLogger.ERROR);
+			
 			try {
 				// Send the failure message to the Job Manager.
 				StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_ERROR);
@@ -212,9 +219,9 @@ public class AccessWorker {
 			} catch (JsonProcessingException jsonException) {
 				// If the Kafka message fails to send, at least log
 				// something in the console.
-				System.out.println("Could not update Job Manager with failure event in Ingest Worker. Error creating message: "
-						+ jsonException.getMessage());
-				jsonException.printStackTrace();
+				String errorJson = String.format("Could not update Job Manager with failure event in Ingest Worker. Error creating message: %s", jsonException.getMessage());
+				LOGGER.error(errorJson);
+				logger.log(errorJson, PiazzaLogger.ERROR);
 			}
 		} finally {
 			if (callback != null) {
