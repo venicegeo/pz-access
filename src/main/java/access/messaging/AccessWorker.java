@@ -199,7 +199,6 @@ public class AccessWorker {
 			try {
 				producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate, SPACE));
 			} catch (JsonProcessingException jsonException) {
-				jsonException.printStackTrace();
 				String error = String.format(
 						"Error sending Cancelled Status from Job %s: %s. The Job was cancelled, but its status will not be updated in the Job Manager.",
 						consumerRecord.key(), jsonException.getMessage());
