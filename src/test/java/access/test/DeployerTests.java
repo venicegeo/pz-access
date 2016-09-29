@@ -39,6 +39,7 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
@@ -122,8 +123,8 @@ public class DeployerTests {
 	@Test
 	public void testCreation() throws Exception {
 		// Mock
-		Mockito.doReturn(new ResponseEntity<String>("OK", HttpStatus.CREATED)).when(restTemplate)
-				.exchange(anyString(), eq(HttpMethod.POST), any(HttpEntity.class), eq(String.class));
+		Mockito.doReturn(new ResponseEntity<String>("OK", HttpStatus.CREATED)).when(restTemplate).exchange(anyString(), eq(HttpMethod.POST),
+				any(HttpEntity.class), eq(String.class));
 
 		// GeoJSON
 		Deployment deployment = deployer.createDeployment(geoJsonData);
@@ -132,8 +133,8 @@ public class DeployerTests {
 		assertTrue(deployment.getDeploymentId().equals("123456"));
 
 		// Raster
-		Mockito.doReturn(new ResponseEntity<String>("OK", HttpStatus.CREATED)).when(restTemplate)
-				.exchange(anyString(), eq(HttpMethod.PUT), any(HttpEntity.class), eq(String.class));
+		Mockito.doReturn(new ResponseEntity<String>("OK", HttpStatus.CREATED)).when(restTemplate).exchange(anyString(), eq(HttpMethod.PUT),
+				any(HttpEntity.class), eq(String.class));
 		Mockito.doReturn(new byte[100]).when(accessUtilities).getBytesForDataResource(any(DataResource.class));
 		deployment = deployer.createDeployment(rasterData);
 		assertTrue(deployment != null);
@@ -171,8 +172,8 @@ public class DeployerTests {
 		// Mock
 		Deployment mockDeployment = new Deployment("123456", "123456", "localhost", "8080", "Test", "Test");
 		when(accessor.getDeployment(eq("123456"))).thenReturn(mockDeployment);
-		Mockito.doThrow(new RestClientException("Boom")).when(restTemplate)
-				.exchange(anyString(), eq(HttpMethod.DELETE), any(HttpEntity.class), eq(String.class));
+		Mockito.doThrow(new RestClientException("Boom")).when(restTemplate).exchange(anyString(), eq(HttpMethod.DELETE),
+				any(HttpEntity.class), eq(String.class));
 
 		// Test - should throw an exception
 		deployer.undeploy("123456");
@@ -189,5 +190,42 @@ public class DeployerTests {
 		when(accessor.getDeploymentByDataId(eq("123456"))).thenReturn(new Deployment());
 		exist = deployer.doesDeploymentExist("123456");
 		assertTrue(exist);
+	}
+
+	/**
+	 * Tests Layer check in GeoServer
+	 * 
+	 * @throws Exception
+	 */
+	@Test
+	public void testGeoServerExists() throws Exception {
+		// Test Layer exists
+		Mockito.doReturn(new ResponseEntity<String>("Exist", HttpStatus.OK)).when(restTemplate).exchange(Mockito.anyString(), Mockito.any(),
+				Mockito.any(), Mockito.eq(String.class));
+		boolean exists = deployer.doesGeoServerLayerExist("123456");
+		assertTrue(exists);
+
+		// Test Layer doesn't exist
+		Mockito.doReturn(new ResponseEntity<String>("Not Exist", HttpStatus.NOT_FOUND)).when(restTemplate).exchange(Mockito.anyString(),
+				Mockito.any(), Mockito.any(), Mockito.eq(String.class));
+		exists = deployer.doesGeoServerLayerExist("123456");
+		assertTrue(!exists);
+
+		// Test layer exception
+		Mockito.doThrow(new HttpClientErrorException(HttpStatus.NOT_FOUND)).when(restTemplate).exchange(Mockito.anyString(), Mockito.any(),
+				Mockito.any(), Mockito.eq(String.class));
+		exists = deployer.doesGeoServerLayerExist("123456");
+		assertTrue(!exists);
+	}
+
+	/**
+	 * Tests the exception in checking a GeoServer layer
+	 */
+	@Test(expected = Exception.class)
+	public void testGeoServerException() throws Exception {
+		// Test layer exception
+		Mockito.doThrow(new HttpClientErrorException(HttpStatus.INTERNAL_SERVER_ERROR)).when(restTemplate).exchange(Mockito.anyString(),
+				Mockito.any(), Mockito.any(), Mockito.eq(String.class));
+		deployer.doesGeoServerLayerExist("123456");
 	}
 }
