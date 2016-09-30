@@ -33,10 +33,12 @@ import com.vividsolutions.jts.geom.Point;
 import access.controller.AccessController;
 import access.database.Accessor;
 import access.deploy.Deployer;
+import access.deploy.GroupDeployer;
 import access.deploy.Leaser;
 import access.messaging.AccessThreadManager;
 import model.data.DataResource;
 import model.data.deployment.Deployment;
+import model.data.deployment.DeploymentGroup;
 import model.data.location.FolderShare;
 import model.data.type.GeoJsonDataType;
 import model.data.type.PostGISDataType;
@@ -44,10 +46,12 @@ import model.data.type.RasterDataType;
 import model.data.type.TextDataType;
 import model.response.DataResourceListResponse;
 import model.response.DataResourceResponse;
+import model.response.DeploymentGroupResponse;
 import model.response.DeploymentListResponse;
 import model.response.DeploymentResponse;
 import model.response.ErrorResponse;
 import model.response.PiazzaResponse;
+import model.response.SuccessResponse;
 import util.PiazzaLogger;
 
 /**
@@ -65,6 +69,8 @@ public class ControllerTests {
 	private Accessor accessor;
 	@Mock
 	private Deployer deployer;
+	@Mock
+	private GroupDeployer groupDeployer;
 	@Mock
 	private Leaser leaser;
 	@Mock
@@ -231,7 +237,8 @@ public class ControllerTests {
 		DataResourceListResponse mockResponse = new DataResourceListResponse();
 		mockResponse.data = new ArrayList<DataResource>();
 		mockResponse.data.add(new DataResource());
-		when(accessor.getDataList(eq(0), eq(10), eq("dataId"), eq("asc"), eq("Raster"), eq("Test User"), eq("123"))).thenReturn(mockResponse);
+		when(accessor.getDataList(eq(0), eq(10), eq("dataId"), eq("asc"), eq("Raster"), eq("Test User"), eq("123")))
+				.thenReturn(mockResponse);
 
 		// Test
 		PiazzaResponse response = accessController.getAllData("123", 0, 10, "dataId", "asc", "Raster", "Test User").getBody();
@@ -241,7 +248,8 @@ public class ControllerTests {
 		assertTrue(((DataResourceListResponse) response).data.size() == 1);
 
 		// Test Exception
-		Mockito.doThrow(new Exception()).when(accessor).getDataList(eq(0), eq(10), eq("dataId"), eq("asc"), eq("Raster"), eq("Test User"), eq("123"));
+		Mockito.doThrow(new Exception()).when(accessor).getDataList(eq(0), eq(10), eq("dataId"), eq("asc"), eq("Raster"), eq("Test User"),
+				eq("123"));
 		response = accessController.getAllData("123", 0, 10, "dataId", "asc", "Raster", "Test User").getBody();
 		assertTrue(response instanceof ErrorResponse);
 	}
@@ -316,5 +324,42 @@ public class ControllerTests {
 		// Verify
 		assertTrue(stats != null);
 		assertTrue(stats.keySet().contains("jobs"));
+	}
+
+	/**
+	 * Tests a Deployment Group
+	 */
+	@Test
+	public void testCreateGroup() {
+		// Correct output
+		Mockito.doReturn(new DeploymentGroup("123456", "Tester")).when(groupDeployer).createDeploymentGroup("Tester");
+		ResponseEntity<PiazzaResponse> response = accessController.createDeploymentGroup("Tester");
+		assertTrue(response.getBody() instanceof DeploymentGroupResponse);
+	}
+
+	/**
+	 * Test deleting a deployment group
+	 */
+	@Test
+	public void testDeleteGroup() throws Exception {
+		// Test a null input
+		ResponseEntity<PiazzaResponse> response = accessController.deleteDeploymentGroup(null);
+		assertTrue(response.getBody() instanceof ErrorResponse);
+
+		// Test a null Deployment Group
+		response = accessController.deleteDeploymentGroup("123456");
+		assertTrue(response.getBody() instanceof ErrorResponse);
+
+		DeploymentGroup mockGroup = new DeploymentGroup("123456", "Tester");
+		Mockito.doReturn(mockGroup).when(accessor).getDeploymentGroupById("123456");
+
+		// Test correct response
+		response = accessController.deleteDeploymentGroup("123456");
+		assertTrue(response.getBody() instanceof SuccessResponse);
+
+		// Test an Exception
+		Mockito.doThrow(new Exception("Error")).when(groupDeployer).deleteDeploymentGroup(Mockito.any());
+		response = accessController.deleteDeploymentGroup("123456");
+		assertTrue(response.getBody() instanceof ErrorResponse);
 	}
 }
