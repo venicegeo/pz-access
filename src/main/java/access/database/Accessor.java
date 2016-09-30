@@ -28,6 +28,8 @@ import org.mongojack.DBQuery;
 import org.mongojack.DBSort;
 import org.mongojack.DBUpdate;
 import org.mongojack.JacksonDBCollection;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -46,6 +48,7 @@ import model.response.DataResourceListResponse;
 import model.response.DeploymentListResponse;
 import model.response.Pagination;
 import util.GeoToolsUtil;
+import util.PiazzaLogger;
 
 /**
  * Handles Mongo access for the Deployer and the Leaser, and for the Resource collection which stores the Ingested
@@ -76,13 +79,15 @@ public class Accessor {
 	private int mongoThreadMultiplier;
 	private MongoClient mongoClient;
 
+	private final static Logger LOGGER = LoggerFactory.getLogger(Accessor.class);
+	
 	@PostConstruct
 	private void initialize() {
 		try {
 			mongoClient = new MongoClient(new MongoClientURI(DATABASE_URI + "?waitQueueMultiple=" + mongoThreadMultiplier));
 		} catch (UnknownHostException exception) {
-			System.out.println("Error connecting to MongoDB Instance.");
-			exception.printStackTrace();
+			String error = "Error connecting to MongoDB Instance.";
+			LOGGER.error(error);
 		}
 	}
 

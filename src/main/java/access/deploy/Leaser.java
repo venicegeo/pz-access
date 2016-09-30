@@ -20,6 +20,8 @@ import model.data.deployment.Lease;
 
 import org.joda.time.DateTime;
 import org.mongojack.DBCursor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -50,6 +52,8 @@ public class Leaser {
 	@Autowired
 	private Accessor accessor;
 	private static final Integer DEFAULT_LEASE_PERIOD_DAYS = 21;
+	
+	private final static Logger LOGGER = LoggerFactory.getLogger(Leaser.class);
 
 	/**
 	 * Renews the existing Deployment. This Deployment must exist in the Deployments collection.
@@ -130,9 +134,7 @@ public class Leaser {
 
 		// Determine if GeoServer is reaching capacity of its resources.
 		// TODO: Not sure if this is needed just yet.
-		if (true) {
-			logger.log("GeoServer not at capacity. No reaping of resources required.", PiazzaLogger.INFO);
-		}
+		logger.log("GeoServer not at capacity. No reaping of resources required.", PiazzaLogger.INFO);
 
 		// Query for all leases that have gone past their expiration date.
 		BasicDBObject query = new BasicDBObject("expirationDate", new BasicDBObject("$lt", DateTime.now().toString()));
@@ -149,9 +151,10 @@ public class Leaser {
 									expiredLease.getLeaseId(), expiredLease.getExpiresOn(), expiredLease.getDeploymentId()),
 							PiazzaLogger.INFO);
 				} catch (Exception exception) {
-					exception.printStackTrace();
-					logger.log(String.format("Error reaping Expired Lease with Id %s: %s. This expired lease may still persist.",
-							expiredLease.getLeaseId(), exception.getMessage()), PiazzaLogger.ERROR);
+					String error = String.format("Error reaping Expired Lease with Id %s: %s. This expired lease may still persist.",
+							expiredLease.getLeaseId(), exception.getMessage());
+					LOGGER.error(error);
+					logger.log(error, PiazzaLogger.ERROR);
 				}
 			} while (cursor.hasNext());
 		} else {

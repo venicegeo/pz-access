@@ -20,6 +20,8 @@ import java.io.File;
 import org.apache.commons.io.IOUtils;
 import org.apache.tomcat.util.codec.binary.Base64;
 import org.joda.time.DateTime;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
@@ -79,6 +81,8 @@ public class Deployer {
 
 	private static final String ADD_LAYER_ENDPOINT = "/geoserver/rest/workspaces/piazza/datastores/piazza/featuretypes/";
 	private static final String CAPABILITIES_URL = "/geoserver/piazza/wfs?service=wfs&version=2.0.0&request=GetCapabilities";
+	
+	private final static Logger LOGGER = LoggerFactory.getLogger(Deployer.class);
 
 	/**
 	 * Creates a new deployment from the dataResource object.
@@ -104,8 +108,9 @@ public class Deployer {
 						"Cannot deploy the following Data Type to GeoServer: " + dataResource.getDataType().getClass().getSimpleName());
 			}
 		} catch (Exception exception) {
-			exception.printStackTrace();
-			throw new Exception("There was an error deploying the to GeoServer instance: " + exception.getMessage());
+			String error = String.format("There was an error deploying the to GeoServer instance: %s", exception.getMessage());
+			LOGGER.error(error);
+			throw new Exception(error);
 		}
 
 		// Insert the Deployment into the Database
@@ -156,7 +161,7 @@ public class Deployer {
 
 		// Ensure the Status Code is OK
 		if (statusCode != HttpStatus.CREATED) {
-			logger.log(String.format("Failed to Deploy PostGIS Table name %s for Resource %s to GeoServer. HTTP Code: ", tableName,
+			logger.log(String.format("Failed to Deploy PostGIS Table name %s for Resource %s to GeoServer. HTTP Code: %s", tableName,
 					dataResource.getDataId(), statusCode), PiazzaLogger.ERROR);
 			throw new Exception("Failed to Deploy to GeoServer; the Status returned a non-OK response code: " + statusCode);
 		}
@@ -201,7 +206,7 @@ public class Deployer {
 				if (doesGeoServerLayerExist(dataResource.getDataId()) == false) {
 					// If it doesn't exist, throw an error. Something went wrong.
 					String error = String.format(
-							"GeoServer would not allow for layer creation, despite an existing layer not being present: %s", url,
+							"GeoServer would not allow for layer creation, despite an existing layer not being present: url: %s, statusCode: %s, exceptionBody: %s", url,
 							exception.getStatusCode().toString(), exception.getResponseBodyAsString());
 					logger.log(error, PiazzaLogger.ERROR);
 					throw new Exception(error);
