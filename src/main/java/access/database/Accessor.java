@@ -85,7 +85,7 @@ public class Accessor {
 	private void initialize() {
 		try {
 			mongoClient = new MongoClient(new MongoClientURI(DATABASE_URI + "?waitQueueMultiple=" + mongoThreadMultiplier));
-		} catch (UnknownHostException exception) {
+		} catch (Exception exception) {
 			String error = "Error connecting to MongoDB Instance.";
 			LOGGER.error(error);
 		}

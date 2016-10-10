@@ -2,7 +2,7 @@ applications:
 - name: pz-access
   host: pz-access
   path: pz-access.jar
-  buildpack: java_buildpack_offline
+  buildpack: 'https://github.com/cloudfoundry/java-buildpack.git#v3.9'
   memory: 2048M
   instances: 1
   timeout: 80
