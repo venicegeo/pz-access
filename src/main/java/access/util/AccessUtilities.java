@@ -33,9 +33,9 @@ import model.data.type.RasterDataType;
 @Component
 public class AccessUtilities {
 	@Value("${vcap.services.pz-blobstore.credentials.access_key_id}")
-	private String AMAZONS3_ACCESS_KEY;
+	private String amazonS3AccessKey;
 	@Value("${vcap.services.pz-blobstore.credentials.secret_access_key}")
-	private String AMAZONS3_PRIVATE_KEY;
+	private String amazonS3PrivateKey;
 
 	/**
 	 * Gets the Bytes for a Data Resource
@@ -43,11 +43,11 @@ public class AccessUtilities {
 	 * @param dataResource
 	 *            The Data Resource
 	 * @return The byte array for the file
+	 * @throws Exception 
 	 */
 	public byte[] getBytesForDataResource(DataResource dataResource) throws Exception {
 		FileLocation fileLocation = ((RasterDataType) dataResource.getDataType()).getLocation();
-		FileAccessFactory fileAccessFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY);
-		byte[] fileBytes = IOUtils.toByteArray(fileAccessFactory.getFile(fileLocation));
-		return fileBytes;
+		FileAccessFactory fileAccessFactory = new FileAccessFactory(amazonS3AccessKey, amazonS3PrivateKey);
+		return IOUtils.toByteArray(fileAccessFactory.getFile(fileLocation));
 	}
 }

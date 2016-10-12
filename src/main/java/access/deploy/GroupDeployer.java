@@ -17,6 +17,8 @@ package access.deploy;
 
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
@@ -65,13 +67,15 @@ public class GroupDeployer {
 	@Autowired
 	private RestTemplate restTemplate;
 	@Value("${vcap.services.pz-geoserver-efs.credentials.geoserver.hostname}")
-	private String GEOSERVER_HOST;
+	private String geoserverHost;
 	@Value("${vcap.services.pz-geoserver-efs.credentials.geoserver.port}")
-	private String GEOSERVER_PORT;
+	private String geoserverPort;
 	@Value("${vcap.services.pz-geoserver-efs.credentials.geoserver.username}")
-	private String GEOSERVER_USERNAME;
+	private String geoserverUsername;
 	@Value("${vcap.services.pz-geoserver-efs.credentials.geoserver.password}")
-	private String GEOSERVER_PASSWORD;
+	private String geoserverPassword;
+
+	private static final Logger LOGGER = LoggerFactory.getLogger(GroupDeployer.class);
 
 	/**
 	 * Creates a new Deployment Group, without specifying any initial Data Layers to be added. This will create the
@@ -117,7 +121,9 @@ public class GroupDeployer {
 				layerGroupModel.layerGroup.publishables.published.add(groupLayer);
 			}
 		} catch (Exception exception) {
-			throw new Exception(String.format("Error Updating Deployments for Group Layer: %s", exception.getMessage()));
+			String error = String.format("Error Updating Deployments for Group Layer: %s", exception.getMessage());
+			LOGGER.error(error, exception);
+			throw new Exception(error);
 		}
 
 		// Update the Layer Styles for each Layer in the Group
@@ -151,7 +157,7 @@ public class GroupDeployer {
 		// Check if the Layer Group exists. If it doesn't, then create it. If it
 		// does, then Grab the Model to edit.
 		LayerGroupModel layerGroupModel;
-		if (deploymentGroup.getHasGisServerLayer() == false) {
+		if (!deploymentGroup.getHasGisServerLayer()) {
 			// Create the Layer Group Model to send to GeoServer
 			layerGroupModel = new LayerGroupModel();
 			layerGroupModel.layerGroup.name = deploymentGroup.deploymentGroupId;
@@ -179,7 +185,9 @@ public class GroupDeployer {
 				}
 			}
 		} catch (Exception exception) {
-			throw new Exception(String.format("Error Updating Deployments for Group Layer: %s", exception.getMessage()));
+			String error = String.format("Error Updating Deployments for Group Layer: %s", exception.getMessage());
+			LOGGER.error(error, exception);
+			throw new Exception(error);
 		}
 
 		// Balance the Styles and the Layers
@@ -190,7 +198,7 @@ public class GroupDeployer {
 		sendGeoServerLayerGroup(layerGroupModel, method);
 
 		// If it didn't exist before, mark that the Layer Group now exists.
-		if (deploymentGroup.getHasGisServerLayer() == false) {
+		if (!deploymentGroup.getHasGisServerLayer()) {
 			accessor.updateDeploymentGroupCreated(deploymentGroup.deploymentGroupId, true);
 		}
 	}
@@ -204,8 +212,8 @@ public class GroupDeployer {
 		// Create Request
 		HttpHeaders headers = deployer.getGeoServerHeaders();
 		headers.setContentType(MediaType.APPLICATION_JSON);
-		HttpEntity<String> request = new HttpEntity<String>(headers);
-		String url = String.format("http://%s:%s/geoserver/rest/workspaces/piazza/layergroups/%s.json", GEOSERVER_HOST, GEOSERVER_PORT,
+		HttpEntity<String> request = new HttpEntity<>(headers);
+		String url = String.format("http://%s:%s/geoserver/rest/workspaces/piazza/layergroups/%s.json", geoserverHost, geoserverPort,
 				deploymentGroup.deploymentGroupId);
 
 		// Execute
@@ -219,8 +227,10 @@ public class GroupDeployer {
 				// If the Resource was deleted already, or doesn't exist - then
 				// ignore this error.
 			} else {
-				throw new Exception(String.format("Could not delete Layer Group %s on GeoServer. Failed with Code %s : %s",
-						deploymentGroup.deploymentGroupId, exception.getStatusCode().toString(), exception.getResponseBodyAsString()));
+				String error = String.format("Could not delete Layer Group %s on GeoServer. Failed with Code %s : %s",
+						deploymentGroup.deploymentGroupId, exception.getStatusCode().toString(), exception.getResponseBodyAsString());
+				LOGGER.error(error, exception);
+				throw new Exception(error);
 			}
 		}
 
@@ -244,10 +254,10 @@ public class GroupDeployer {
 	private LayerGroupModel getLayerGroupFromGeoServer(String deploymentGroupId) throws Exception {
 		HttpHeaders headers = deployer.getGeoServerHeaders();
 		headers.setContentType(MediaType.APPLICATION_JSON);
-		HttpEntity<String> request = new HttpEntity<String>(headers);
+		HttpEntity<String> request = new HttpEntity<>(headers);
 		// Note that XML format is used. This is a work-around because JSON currently has a bug with GeoServer that
 		// prevents a correct response from returning when Layer count is above 5.
-		String url = String.format("http://%s:%s/geoserver/rest/workspaces/piazza/layergroups/%s.xml", GEOSERVER_HOST, GEOSERVER_PORT,
+		String url = String.format("http://%s:%s/geoserver/rest/workspaces/piazza/layergroups/%s.xml", geoserverHost, geoserverPort,
 				deploymentGroupId);
 
 		// Execute the request to get the Layer Group
@@ -255,8 +265,10 @@ public class GroupDeployer {
 		try {
 			response = restTemplate.exchange(url, HttpMethod.GET, request, String.class);
 		} catch (HttpStatusCodeException exception) {
-			throw new Exception(String.format("Could not fetch Layer Group %s. Status code %s was returned by GeoServer with error: %s",
-					deploymentGroupId, exception.getStatusCode().toString(), exception.getMessage()));
+			String error = String.format("Could not fetch Layer Group %s. Status code %s was returned by GeoServer with error: %s",
+					deploymentGroupId, exception.getStatusCode().toString(), exception.getMessage());
+			LOGGER.error(error, exception);
+			throw new Exception(error);
 		}
 
 		// Convert the GeoServer response into the Layer Group Model
@@ -281,12 +293,16 @@ public class GroupDeployer {
 			}
 
 		} catch (HttpClientErrorException | HttpServerErrorException exception) {
-			throw new Exception(String.format(
+			String error = String.format(
 					"Could not read in Layer Group from GeoServer response for %s: %s. Expected back a Layer Group description, but GeoServer responded with Code %s and Body %s",
-					deploymentGroupId, exception.getMessage(), exception.getStatusCode().toString(), exception.getResponseBodyAsString()));
+					deploymentGroupId, exception.getMessage(), exception.getStatusCode().toString(), exception.getResponseBodyAsString());
+			LOGGER.error(error, exception);
+			throw new Exception();
 		} catch (Exception exception) {
-			throw new Exception(String.format("Could not read in Layer Group from GeoServer response for %s: %s", deploymentGroupId,
-					exception.getMessage()));
+			String error = String.format("Could not read in Layer Group from GeoServer response for %s: %s", deploymentGroupId,
+					exception.getMessage());
+			LOGGER.error(error, exception);
+			throw new Exception(error);
 		}
 
 		return layerGroupJson;
@@ -309,15 +325,16 @@ public class GroupDeployer {
 		String payload = null;
 		try {
 			payload = new ObjectMapper().writeValueAsString(layerGroup);
-			request = new HttpEntity<String>(payload, headers);
+			request = new HttpEntity<>(payload, headers);
 		} catch (Exception exception) {
-			throw new Exception(
-					String.format("Error serializing Request Body to GeoServer for updating Layer Group: %s", exception.getMessage()));
+			String error = String.format("Error serializing Request Body to GeoServer for updating Layer Group: %s", exception.getMessage());
+			LOGGER.error(error, exception);
+			throw new Exception(error);
 		}
 		String url = String.format(
 				method.equals(HttpMethod.PUT) ? "http://%s:%s/geoserver/rest/workspaces/piazza/layergroups/%s.json"
 						: "http://%s:%s/geoserver/rest/workspaces/piazza/layergroups.json",
-				GEOSERVER_HOST, GEOSERVER_PORT, layerGroup.layerGroup.name);
+				geoserverHost, geoserverPort, layerGroup.layerGroup.name);
 
 		// Send
 		ResponseEntity<String> response = null;
@@ -326,6 +343,7 @@ public class GroupDeployer {
 		} catch (HttpClientErrorException | HttpServerErrorException exception) {
 			String error = String.format("Error sending Layer Group %s to GeoServer HTTP %s to %s. Server responded with: %s",
 					layerGroup.layerGroup.name, method.toString(), url, exception.getResponseBodyAsString());
+			LOGGER.error(error, exception);
 			logger.log(error, PiazzaLogger.ERROR);
 			logger.log(String.format("Request Payload for failed request was: %s", payload), PiazzaLogger.ERROR);
 			throw new Exception(error);
@@ -371,7 +389,9 @@ public class GroupDeployer {
 				}
 			}
 		} catch (Exception exception) {
-			throw new Exception(String.format("Error updating layer Styles for Deployments: %s", exception.getMessage()));
+			String error = String.format("Error updating layer Styles for Deployments: %s", exception.getMessage());
+			LOGGER.error(error, exception);
+			throw new Exception(error);
 		}
 	}
 }

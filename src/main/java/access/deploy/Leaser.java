@@ -46,14 +46,14 @@ public class Leaser {
 	@Autowired
 	private Deployer deployer;
 	@Autowired
-	private PiazzaLogger logger;
+	private PiazzaLogger pzLogger;
 	@Autowired
 	private UUIDFactory uuidFactory;
 	@Autowired
 	private Accessor accessor;
 	private static final Integer DEFAULT_LEASE_PERIOD_DAYS = 21;
 	
-	private final static Logger LOGGER = LoggerFactory.getLogger(Leaser.class);
+	private static final Logger LOGGER = LoggerFactory.getLogger(Leaser.class);
 
 	/**
 	 * Renews the existing Deployment. This Deployment must exist in the Deployments collection.
@@ -75,9 +75,9 @@ public class Leaser {
 			if (expirationDate.isBeforeNow()) {
 				// If the Lease has expired, then the Lease will be extended for
 				// the default Lease period.
-				durationDays = ((durationDays != null) && (durationDays.intValue() > 0)) ? durationDays : DEFAULT_LEASE_PERIOD_DAYS;
-				accessor.updateLeaseExpirationDate(lease.getLeaseId(), DateTime.now().plusDays(durationDays.intValue()).toString());
-				logger.log(String.format("Updating Deployment Lease for Deployment %s on host %s for %s", deployment.getDeploymentId(),
+				Integer updatedDurationDays = ((durationDays != null) && (durationDays.intValue() > 0)) ? durationDays : DEFAULT_LEASE_PERIOD_DAYS;
+				accessor.updateLeaseExpirationDate(lease.getLeaseId(), DateTime.now().plusDays(updatedDurationDays.intValue()).toString());
+				pzLogger.log(String.format("Updating Deployment Lease for Deployment %s on host %s for %s", deployment.getDeploymentId(),
 						deployment.getHost(), deployment.getDataId()), PiazzaLogger.INFO);
 			} else {
 				// If the Lease has not expired, then the Lease will not be
@@ -99,14 +99,14 @@ public class Leaser {
 	public Lease createDeploymentLease(Deployment deployment, Integer durationDays) {
 		// Create the Lease
 		String leaseId = uuidFactory.getUUID();
-		durationDays = ((durationDays != null) && (durationDays.intValue() > 0)) ? durationDays : DEFAULT_LEASE_PERIOD_DAYS;
-		Lease lease = new Lease(leaseId, deployment.getDeploymentId(), DateTime.now().plusDays(durationDays.intValue()).toString());
+		Integer updatedDurationDays = ((durationDays != null) && (durationDays.intValue() > 0)) ? durationDays : DEFAULT_LEASE_PERIOD_DAYS;
+		Lease lease = new Lease(leaseId, deployment.getDeploymentId(), DateTime.now().plusDays(updatedDurationDays.intValue()).toString());
 
 		// Commit the Lease to the Database
 		accessor.insertLease(lease);
 
 		// Return reference
-		logger.log(String.format("Creating Deployment Lease for Deployment %s on host %s for %s", deployment.getDeploymentId(),
+		pzLogger.log(String.format("Creating Deployment Lease for Deployment %s on host %s for %s", deployment.getDeploymentId(),
 				deployment.getHost(), deployment.getDataId()), PiazzaLogger.INFO);
 		return lease;
 	}
@@ -130,11 +130,11 @@ public class Leaser {
 	@Scheduled(cron = "0 0 3 * * ?")
 	public void reapExpiredLeases() {
 		// Log the initiation of reaping.
-		logger.log("Running scheduled daily reaping of expired Deployment Leases.", PiazzaLogger.INFO);
+		pzLogger.log("Running scheduled daily reaping of expired Deployment Leases.", PiazzaLogger.INFO);
 
 		// Determine if GeoServer is reaching capacity of its resources.
 		// TODO: Not sure if this is needed just yet.
-		logger.log("GeoServer not at capacity. No reaping of resources required.", PiazzaLogger.INFO);
+		pzLogger.log("GeoServer not at capacity. No reaping of resources required.", PiazzaLogger.INFO);
 
 		// Query for all leases that have gone past their expiration date.
 		BasicDBObject query = new BasicDBObject("expirationDate", new BasicDBObject("$lt", DateTime.now().toString()));
@@ -146,21 +146,20 @@ public class Leaser {
 				try {
 					deployer.undeploy(expiredLease.getDeploymentId());
 					// Log the removal
-					logger.log(
+					pzLogger.log(
 							String.format("Expired Lease with Id %s with expiration date %s for Deployment %s has been removed.",
 									expiredLease.getLeaseId(), expiredLease.getExpiresOn(), expiredLease.getDeploymentId()),
 							PiazzaLogger.INFO);
 				} catch (Exception exception) {
 					String error = String.format("Error reaping Expired Lease with Id %s: %s. This expired lease may still persist.",
 							expiredLease.getLeaseId(), exception.getMessage());
-					LOGGER.error(error);
-					logger.log(error, PiazzaLogger.ERROR);
+					LOGGER.error(error, exception);
+					pzLogger.log(error, PiazzaLogger.ERROR);
 				}
 			} while (cursor.hasNext());
 		} else {
 			// Nothing to do
-			logger.log("There were no expired Deployment Leases to reap.", PiazzaLogger.INFO);
+			pzLogger.log("There were no expired Deployment Leases to reap.", PiazzaLogger.INFO);
 		}
-
 	}
 }

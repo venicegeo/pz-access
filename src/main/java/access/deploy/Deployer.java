@@ -59,7 +59,7 @@ import util.UUIDFactory;
 @Component
 public class Deployer {
 	@Autowired
-	private PiazzaLogger logger;
+	private PiazzaLogger pzLogger;
 	@Autowired
 	private UUIDFactory uuidFactory;
 	@Autowired
@@ -67,13 +67,13 @@ public class Deployer {
 	@Autowired
 	private Accessor accessor;
 	@Value("${vcap.services.pz-geoserver-efs.credentials.geoserver.hostname}")
-	private String GEOSERVER_HOST;
+	private String geoserverHost;
 	@Value("${vcap.services.pz-geoserver-efs.credentials.geoserver.port}")
-	private String GEOSERVER_PORT;
+	private String geoserverPort;
 	@Value("${vcap.services.pz-geoserver-efs.credentials.geoserver.username}")
-	private String GEOSERVER_USERNAME;
+	private String geoserverUsername;
 	@Value("${vcap.services.pz-geoserver-efs.credentials.geoserver.password}")
-	private String GEOSERVER_PASSWORD;
+	private String geoserverPassword;
 	@Autowired
 	private RestTemplate restTemplate;
 
@@ -82,7 +82,7 @@ public class Deployer {
 	private static final String ADD_LAYER_ENDPOINT = "/geoserver/rest/workspaces/piazza/datastores/piazza/featuretypes/";
 	private static final String CAPABILITIES_URL = "/geoserver/piazza/wfs?service=wfs&version=2.0.0&request=GetCapabilities";
 	
-	private final static Logger LOGGER = LoggerFactory.getLogger(Deployer.class);
+	private static final Logger LOGGER = LoggerFactory.getLogger(Deployer.class);
 
 	/**
 	 * Creates a new deployment from the dataResource object.
@@ -109,7 +109,7 @@ public class Deployer {
 			}
 		} catch (Exception exception) {
 			String error = String.format("There was an error deploying the to GeoServer instance: %s", exception.getMessage());
-			LOGGER.error(error);
+			LOGGER.error(error, exception);
 			throw new Exception(error);
 		}
 
@@ -118,7 +118,7 @@ public class Deployer {
 		accessor.insertDeployment(deployment);
 
 		// Log information
-		logger.log(String.format("Created Deployment %s for Data %s on host %s", deployment.getDeploymentId(), deployment.getDataId(),
+		pzLogger.log(String.format("Created Deployment %s for Data %s on host %s", deployment.getDeploymentId(), deployment.getDataId(),
 				deployment.getHost()), PiazzaLogger.INFO);
 
 		// Return Deployment reference
@@ -161,20 +161,16 @@ public class Deployer {
 
 		// Ensure the Status Code is OK
 		if (statusCode != HttpStatus.CREATED) {
-			logger.log(String.format("Failed to Deploy PostGIS Table name %s for Resource %s to GeoServer. HTTP Code: %s", tableName,
+			pzLogger.log(String.format("Failed to Deploy PostGIS Table name %s for Resource %s to GeoServer. HTTP Code: %s", tableName,
 					dataResource.getDataId(), statusCode), PiazzaLogger.ERROR);
 			throw new Exception("Failed to Deploy to GeoServer; the Status returned a non-OK response code: " + statusCode);
 		}
 
 		// Create a new Deployment for this Resource
 		String deploymentId = uuidFactory.getUUID();
-		String capabilitiesUrl = String.format(HOST_ADDRESS, GEOSERVER_HOST, GEOSERVER_PORT, CAPABILITIES_URL);
+		String capabilitiesUrl = String.format(HOST_ADDRESS, geoserverHost, geoserverPort, CAPABILITIES_URL);
 
-		Deployment deployment = new Deployment(deploymentId, dataResource.getDataId(), GEOSERVER_HOST, GEOSERVER_PORT, tableName,
-				capabilitiesUrl);
-
-		// Return the newly created Deployment
-		return deployment;
+		return new Deployment(deploymentId, dataResource.getDataId(), geoserverHost, geoserverPort, tableName, capabilitiesUrl);
 	}
 
 	/**
@@ -192,23 +188,24 @@ public class Deployer {
 		// Create the Request that will upload the File
 		HttpHeaders headers = getGeoServerHeaders();
 		headers.add("Content-type", "image/tiff");
-		HttpEntity<byte[]> request = new HttpEntity<byte[]>(fileBytes, headers);
+		HttpEntity<byte[]> request = new HttpEntity<>(fileBytes, headers);
 
 		// Send the Request
-		String url = String.format("http://%s:%s/geoserver/rest/workspaces/piazza/coveragestores/%s/file.geotiff", GEOSERVER_HOST,
-				GEOSERVER_PORT, dataResource.getDataId());
+		String url = String.format("http://%s:%s/geoserver/rest/workspaces/piazza/coveragestores/%s/file.geotiff", geoserverHost,
+				geoserverPort, dataResource.getDataId());
 		try {
 			restTemplate.exchange(url, HttpMethod.PUT, request, String.class);
 		} catch (HttpClientErrorException | HttpServerErrorException exception) {
 			if (exception.getStatusCode() == HttpStatus.METHOD_NOT_ALLOWED) {
 				// If 405 NOT ALLOWED is encountered, then the layer may already exist on the GeoServer. Check if it
 				// exists already. If it does, then use this layer for the Deployment.
-				if (doesGeoServerLayerExist(dataResource.getDataId()) == false) {
+				if (!doesGeoServerLayerExist(dataResource.getDataId())) {
 					// If it doesn't exist, throw an error. Something went wrong.
 					String error = String.format(
 							"GeoServer would not allow for layer creation, despite an existing layer not being present: url: %s, statusCode: %s, exceptionBody: %s", url,
 							exception.getStatusCode().toString(), exception.getResponseBodyAsString());
-					logger.log(error, PiazzaLogger.ERROR);
+					pzLogger.log(error, PiazzaLogger.ERROR);
+					LOGGER.error(error, exception);					
 					throw new Exception(error);
 				}
 			} else if ((exception.getStatusCode() == HttpStatus.INTERNAL_SERVER_ERROR)
@@ -220,26 +217,24 @@ public class Deployer {
 				String error = String.format(
 						"Creating Layer on GeoServer at URL %s returned HTTP Status %s with Body: %s. This may be the result of GeoServer processing this Data Id simultaneously by another request. Please try again.",
 						url, exception.getStatusCode().toString(), exception.getResponseBodyAsString());
-				logger.log(error, PiazzaLogger.ERROR);
+				pzLogger.log(error, PiazzaLogger.ERROR);
+				LOGGER.error(error, exception);									
 				throw new Exception(error);
 			} else {
 				// For any other errors, report back this error to the user and fail the job.
 				String error = String.format("Creating Layer on GeoServer at URL %s returned HTTP Status %s with Body: %s", url,
 						exception.getStatusCode().toString(), exception.getResponseBodyAsString());
-				logger.log(error, PiazzaLogger.ERROR);
+				pzLogger.log(error, PiazzaLogger.ERROR);
+				LOGGER.error(error, exception);				
 				throw new Exception(error);
 			}
 		}
 
 		// Create a Deployment for this Resource
 		String deploymentId = uuidFactory.getUUID();
-		String capabilitiesUrl = String.format(HOST_ADDRESS, GEOSERVER_HOST, GEOSERVER_PORT, CAPABILITIES_URL);
+		String capabilitiesUrl = String.format(HOST_ADDRESS, geoserverHost, geoserverPort, CAPABILITIES_URL);
 		String deploymentLayerName = dataResource.getDataId();
-		Deployment deployment = new Deployment(deploymentId, dataResource.getDataId(), GEOSERVER_HOST, GEOSERVER_PORT, deploymentLayerName,
-				capabilitiesUrl);
-
-		// Return the newly Created Deployment
-		return deployment;
+		return new Deployment(deploymentId, dataResource.getDataId(), geoserverHost, geoserverPort, deploymentLayerName, capabilitiesUrl);
 	}
 
 	/**
@@ -261,43 +256,47 @@ public class Deployer {
 		HttpHeaders headers = getGeoServerHeaders();
 		headers.setContentType(MediaType.APPLICATION_JSON);
 		HttpEntity<String> request = new HttpEntity<String>(headers);
-		String url = String.format("http://%s:%s/geoserver/rest/layers/%s", GEOSERVER_HOST, GEOSERVER_PORT, deployment.getLayer());
+		String url = String.format("http://%s:%s/geoserver/rest/layers/%s", geoserverHost, geoserverPort, deployment.getLayer());
 		try {
 			restTemplate.exchange(url, HttpMethod.DELETE, request, String.class);
 		} catch (HttpClientErrorException | HttpServerErrorException exception) {
 			// Check the status code. If it's a 404, then the layer has likely
 			// already been deleted by some other means.
 			if (exception.getStatusCode() == HttpStatus.NOT_FOUND) {
-				logger.log(String.format(
+				String warning = String.format(
 						"Attempted to undeploy GeoServer layer %s while deleting the Deployment Id %s, but the layer was already deleted from GeoServer. This layer may have been removed by some other means. If this was a Vector Source, then this message can be safely ignored.",
-						deployment.getLayer(), deploymentId), PiazzaLogger.WARNING);
+						deployment.getLayer(), deploymentId);
+				pzLogger.log(warning, PiazzaLogger.WARNING);
 			} else {
 				// Some other exception occurred. Bubble it up.
 				String error = String.format("Error deleting GeoServer Layer for Deployment %s via request %s: Code %s with Error %s",
 						deploymentId, url, exception.getStatusCode(), exception.getResponseBodyAsString());
-				logger.log(error, PiazzaLogger.ERROR);
+				pzLogger.log(error, PiazzaLogger.ERROR);
+				LOGGER.error(error, exception);				
 				throw new Exception(error);
 			}
 		}
 
 		// If this was a Raster dataset that contained its own unique data store, then delete that Coverage Store.
-		url = String.format("http://%s:%s/geoserver/rest/workspaces/piazza/coveragestores/%s?purge=all&recurse=true", GEOSERVER_HOST,
-				GEOSERVER_PORT, deployment.getDataId());
+		url = String.format("http://%s:%s/geoserver/rest/workspaces/piazza/coveragestores/%s?purge=all&recurse=true", geoserverHost,
+				geoserverPort, deployment.getDataId());
 		try {
 			restTemplate.exchange(url, HttpMethod.DELETE, request, String.class);
 		} catch (HttpClientErrorException | HttpServerErrorException exception) {
 			// Check the status code. If it's a 404, then the layer has likely
 			// already been deleted by some other means.
 			if (exception.getStatusCode() == HttpStatus.NOT_FOUND) {
-				logger.log(String.format(
+				String warning = String.format(
 						"Attempted to delete Coverage Store for GeoServer %s while deleting the Deployment Id %s, but the Coverage Store was already deleted from GeoServer. This Store may have been removed by some other means.",
-						deployment.getLayer(), deploymentId), PiazzaLogger.WARNING);
+						deployment.getLayer(), deploymentId);
+				pzLogger.log(warning, PiazzaLogger.WARNING);
 			} else {
 				// Some other exception occurred. Bubble it up.
 				String error = String.format(
 						"Error deleting GeoServer Coverage Store for Deployment %s via request %s: Code %s with Error: %s", deploymentId,
 						url, exception.getStatusCode(), exception.getResponseBodyAsString());
-				logger.log(error, PiazzaLogger.ERROR);
+				pzLogger.log(error, PiazzaLogger.ERROR);
+				LOGGER.error(error, exception);				
 				throw new Exception(error);
 			}
 		}
@@ -317,13 +316,13 @@ public class Deployer {
 	 */
 	private HttpStatus postGeoServerFeatureType(String restURL, String featureType) throws Exception {
 		// Construct the URL for the Service
-		String url = String.format(HOST_ADDRESS, GEOSERVER_HOST, GEOSERVER_PORT, restURL);
-		System.out.println(String.format("Attempting to push a GeoServer Featuretype %s to URL %s", featureType, url));
+		String url = String.format(HOST_ADDRESS, geoserverHost, geoserverPort, restURL);
+		LOGGER.info(String.format("Attempting to push a GeoServer Featuretype %s to URL %s", featureType, url));
 
 		// Create the Request template and execute
 		HttpHeaders headers = getGeoServerHeaders();
 		headers.setContentType(MediaType.APPLICATION_XML);
-		HttpEntity<String> request = new HttpEntity<String>(featureType, headers);
+		HttpEntity<String> request = new HttpEntity<>(featureType, headers);
 
 		ResponseEntity<String> response = null;
 		try {
@@ -331,7 +330,8 @@ public class Deployer {
 		} catch (Exception exception) {
 			String error = String.format("There was an error creating the Coverage Layer to URL %s with errors %s", url,
 					exception.getMessage());
-			logger.log(error, PiazzaLogger.ERROR);
+			pzLogger.log(error, PiazzaLogger.ERROR);
+			LOGGER.error(error, exception);
 			throw new Exception(error);
 		}
 
@@ -349,8 +349,8 @@ public class Deployer {
 	public boolean doesGeoServerLayerExist(String layerId) throws Exception {
 		HttpHeaders headers = getGeoServerHeaders();
 		headers.setContentType(MediaType.APPLICATION_JSON);
-		HttpEntity<String> request = new HttpEntity<String>(headers);
-		String url = String.format("http://%s:%s/geoserver/rest/layers/%s.json", GEOSERVER_HOST, GEOSERVER_PORT, layerId);
+		HttpEntity<String> request = new HttpEntity<>(headers);
+		String url = String.format("http://%s:%s/geoserver/rest/layers/%s.json", geoserverHost, geoserverPort, layerId);
 		try {
 			ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, request, String.class);
 			if (response.getStatusCode().equals(HttpStatus.OK)) {
@@ -366,7 +366,8 @@ public class Deployer {
 				// Some other exception occurred. Bubble it up as an exception.
 				String error = String.format("Error while checking status of Layer %s. GeoServer returned with Code %s and error %s: ",
 						layerId, exception.getStatusCode(), exception.getResponseBodyAsString());
-				logger.log(error, PiazzaLogger.ERROR);
+				pzLogger.log(error, PiazzaLogger.ERROR);
+				LOGGER.error(error, exception);
 				throw new Exception(error);
 			}
 		}
@@ -380,7 +381,7 @@ public class Deployer {
 	 */
 	public HttpHeaders getGeoServerHeaders() {
 		// Get the Basic authentication Headers for GeoServer
-		String plainCredentials = String.format("%s:%s", GEOSERVER_USERNAME, GEOSERVER_PASSWORD);
+		String plainCredentials = String.format("%s:%s", geoserverUsername, geoserverPassword);
 		byte[] credentialBytes = plainCredentials.getBytes();
 		byte[] encodedCredentials = Base64.encodeBase64(credentialBytes);
 		String credentials = new String(encodedCredentials);
@@ -397,11 +398,6 @@ public class Deployer {
 	 * @return True if a deployment exists for the Data Id, false if not.
 	 */
 	public boolean doesDeploymentExist(String dataId) {
-		Deployment deployment = accessor.getDeploymentByDataId(dataId);
-		if (deployment != null) {
-			return true;
-		} else {
-			return false;
-		}
+		return accessor.getDeploymentByDataId(dataId) != null ? true : false;
 	}
 }

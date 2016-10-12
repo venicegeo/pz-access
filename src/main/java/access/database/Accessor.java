@@ -15,7 +15,6 @@
  **/
 package access.database;
 
-import java.net.UnknownHostException;
 import java.util.List;
 import java.util.regex.Pattern;
 
@@ -48,7 +47,6 @@ import model.response.DataResourceListResponse;
 import model.response.DeploymentListResponse;
 import model.response.Pagination;
 import util.GeoToolsUtil;
-import util.PiazzaLogger;
 
 /**
  * Handles Mongo access for the Deployer and the Leaser, and for the Resource collection which stores the Ingested
@@ -64,30 +62,36 @@ import util.PiazzaLogger;
 @Component
 public class Accessor {
 	@Value("${vcap.services.pz-mongodb.credentials.uri}")
-	private String DATABASE_URI;
+	private String databaseUri;
 	@Value("${vcap.services.pz-mongodb.credentials.database}")
-	private String DATABASE_NAME;
+	private String databaseName;
 	@Value("${mongo.db.collection.resources}")
-	private String RESOURCE_COLLECTION_NAME;
+	private String resourceCollectionName;
 	@Value("${mongo.db.collection.deployments}")
-	private String DEPLOYMENT_COLLECTION_NAME;
+	private String deploymentCollectionName;
 	@Value("${mongo.db.collection.deployment.groups}")
-	private String DEPLOYMENT_GROUP_COLLECTION_NAME;
+	private String deploymentGroupCollectionName;
 	@Value("${mongo.db.collection.leases}")
-	private String LEASE_COLLECTION_NAME;
+	private String leaseCollectionName;
 	@Value("${mongo.thread.multiplier}")
 	private int mongoThreadMultiplier;
+	
 	private MongoClient mongoClient;
 
-	private final static Logger LOGGER = LoggerFactory.getLogger(Accessor.class);
+	private static final String DATA_ID = "dataId";
+	private static final String DEPLOYMENT_ID = "deploymentId";
+	private static final String DEPLOYMENTGROUP_ID = "deploymentGroupId";
+	private static final String LEASE_ID = "leaseId";
+	private static final String INSTANCE_NOT_AVAILABLE_ERROR = "MongoDB instance not available.";
+	private static final Logger LOGGER = LoggerFactory.getLogger(Accessor.class);
 	
 	@PostConstruct
 	private void initialize() {
 		try {
-			mongoClient = new MongoClient(new MongoClientURI(DATABASE_URI + "?waitQueueMultiple=" + mongoThreadMultiplier));
+			mongoClient = new MongoClient(new MongoClientURI(databaseUri + "?waitQueueMultiple=" + mongoThreadMultiplier));
 		} catch (Exception exception) {
 			String error = "Error connecting to MongoDB Instance.";
-			LOGGER.error(error);
+			LOGGER.error(error, exception);
 		}
 	}
 
@@ -122,14 +126,15 @@ public class Accessor {
 	 *            The Id of the DataResource to check for a Deployment
 	 * @return The Deployment for the Resource, if any. Null, if none.
 	 */
-	public Deployment getDeploymentByDataId(String dataId) {
-		BasicDBObject query = new BasicDBObject("dataId", dataId);
+	public Deployment getDeploymentByDataId(String dataId) throws MongoException {
+		BasicDBObject query = new BasicDBObject(DATA_ID, dataId);
 		Deployment deployment;
 
 		try {
 			deployment = getDeploymentCollection().findOne(query);
 		} catch (MongoTimeoutException mte) {
-			throw new MongoException("MongoDB instance not available.");
+			LOGGER.error(INSTANCE_NOT_AVAILABLE_ERROR, mte);						
+			throw new MongoException(INSTANCE_NOT_AVAILABLE_ERROR);
 		}
 
 		return deployment;
@@ -142,14 +147,15 @@ public class Accessor {
 	 *            The Id of the Deployment Group
 	 * @return The Deployment Group
 	 */
-	public DeploymentGroup getDeploymentGroupById(String deploymentGroupId) {
-		BasicDBObject query = new BasicDBObject("deploymentGroupId", deploymentGroupId);
+	public DeploymentGroup getDeploymentGroupById(String deploymentGroupId) throws MongoException {
+		BasicDBObject query = new BasicDBObject(DEPLOYMENTGROUP_ID, deploymentGroupId);
 		DeploymentGroup deploymentGroup;
 
 		try {
 			deploymentGroup = getDeploymentGroupCollection().findOne(query);
 		} catch (MongoTimeoutException mte) {
-			throw new MongoException("MongoDB instance not available.");
+			LOGGER.error(INSTANCE_NOT_AVAILABLE_ERROR, mte);						
+			throw new MongoException(INSTANCE_NOT_AVAILABLE_ERROR);		
 		}
 
 		return deploymentGroup;
@@ -170,9 +176,9 @@ public class Accessor {
 	 * @param deployment
 	 *            The deployment to delete
 	 */
-	public void deleteDeployment(Deployment deployment) {
+	public void deleteDeployment(Deployment deployment) throws MongoException {
 		// Delete the deployment
-		getDeploymentCollection().remove(new BasicDBObject("deploymentId", deployment.getDeploymentId()));
+		getDeploymentCollection().remove(new BasicDBObject(DEPLOYMENT_ID, deployment.getDeploymentId()));
 		// If the deployment had a lease, then delete that too.
 		Lease lease = getDeploymentLease(deployment);
 		if (lease != null) {
@@ -186,8 +192,8 @@ public class Accessor {
 	 * @param deploymentGroup
 	 *            The group to delete.
 	 */
-	public void deleteDeploymentGroup(DeploymentGroup deploymentGroup) {
-		getDeploymentGroupCollection().remove(new BasicDBObject("deploymentGroupId", deploymentGroup.deploymentGroupId));
+	public void deleteDeploymentGroup(DeploymentGroup deploymentGroup) throws MongoException {
+		getDeploymentGroupCollection().remove(new BasicDBObject(DEPLOYMENTGROUP_ID, deploymentGroup.deploymentGroupId));
 	}
 
 	/**
@@ -201,8 +207,8 @@ public class Accessor {
 	 * @param lease
 	 *            The lease to delete.
 	 */
-	private void deleteLease(Lease lease) {
-		getLeaseCollection().remove(new BasicDBObject("leaseId", lease.getLeaseId()));
+	private void deleteLease(Lease lease) throws MongoException {
+		getLeaseCollection().remove(new BasicDBObject(LEASE_ID, lease.getLeaseId()));
 	}
 
 	/**
@@ -212,14 +218,15 @@ public class Accessor {
 	 *            The Deployment
 	 * @return The Lease for the Deployment, if it exists. Null if not.
 	 */
-	public Lease getDeploymentLease(Deployment deployment) {
-		BasicDBObject query = new BasicDBObject("deploymentId", deployment.getDeploymentId());
+	public Lease getDeploymentLease(Deployment deployment) throws MongoException {
+		BasicDBObject query = new BasicDBObject(DEPLOYMENT_ID, deployment.getDeploymentId());
 		Lease lease;
 
 		try {
 			lease = getLeaseCollection().findOne(query);
 		} catch (MongoTimeoutException mte) {
-			throw new MongoException("MongoDB instance not available.");
+			LOGGER.error(INSTANCE_NOT_AVAILABLE_ERROR, mte);						
+			throw new MongoException(INSTANCE_NOT_AVAILABLE_ERROR);		
 		}
 
 		return lease;
@@ -237,8 +244,8 @@ public class Accessor {
 	 *            The Id of the DataResource
 	 * @return DataResource object
 	 */
-	public DataResource getData(String dataId) {
-		BasicDBObject query = new BasicDBObject("dataId", dataId);
+	public DataResource getData(String dataId) throws MongoException {
+		BasicDBObject query = new BasicDBObject(DATA_ID, dataId);
 		DataResource data;
 
 		try {
@@ -246,7 +253,8 @@ public class Accessor {
 				return null;
 			}
 		} catch (MongoTimeoutException mte) {
-			throw new MongoException("MongoDB instance not available.");
+			LOGGER.error(INSTANCE_NOT_AVAILABLE_ERROR, mte);						
+			throw new MongoException(INSTANCE_NOT_AVAILABLE_ERROR);
 		}
 
 		return data;
@@ -259,8 +267,8 @@ public class Accessor {
 	 *            The deployment Id
 	 * @return The Deployment
 	 */
-	public Deployment getDeployment(String deploymentId) {
-		BasicDBObject query = new BasicDBObject("deploymentId", deploymentId);
+	public Deployment getDeployment(String deploymentId) throws MongoException {
+		BasicDBObject query = new BasicDBObject(DEPLOYMENT_ID, deploymentId);
 		Deployment deployment;
 
 		try {
@@ -268,7 +276,8 @@ public class Accessor {
 				return null;
 			}
 		} catch (MongoTimeoutException mte) {
-			throw new MongoException("MongoDB instance not available.");
+			LOGGER.error(INSTANCE_NOT_AVAILABLE_ERROR, mte);						
+			throw new MongoException(INSTANCE_NOT_AVAILABLE_ERROR);
 		}
 
 		return deployment;
@@ -282,8 +291,8 @@ public class Accessor {
 	 * @param expirationDate
 	 *            The new Expiration date. ISO8601 String.
 	 */
-	public void updateLeaseExpirationDate(String leaseId, String expirationDate) {
-		getLeaseCollection().update(DBQuery.is("leaseId", leaseId), DBUpdate.set("expirationDate", expirationDate));
+	public void updateLeaseExpirationDate(String leaseId, String expirationDate) throws MongoException {
+		getLeaseCollection().update(DBQuery.is(LEASE_ID, leaseId), DBUpdate.set("expirationDate", expirationDate));
 	}
 
 	/**
@@ -294,8 +303,8 @@ public class Accessor {
 	 * @param created
 	 *            Whether or not the Deployment Group has an accompanying Layer Group in the GeoServer instance.
 	 */
-	public void updateDeploymentGroupCreated(String deploymentGroupId, boolean created) {
-		getDeploymentGroupCollection().update(DBQuery.is("deploymentGroupId", deploymentGroupId),
+	public void updateDeploymentGroupCreated(String deploymentGroupId, boolean created) throws MongoException {
+		getDeploymentGroupCollection().update(DBQuery.is(DEPLOYMENTGROUP_ID, deploymentGroupId),
 				DBUpdate.set("hasGisServerLayer", created));
 	}
 
@@ -305,7 +314,7 @@ public class Accessor {
 	 * @param deployment
 	 *            Deployment to enter
 	 */
-	public void insertDeployment(Deployment deployment) {
+	public void insertDeployment(Deployment deployment) throws MongoException {
 		getDeploymentCollection().insert(deployment);
 	}
 
@@ -315,7 +324,7 @@ public class Accessor {
 	 * @param deploymentGroup
 	 *            Deployment Group to insert
 	 */
-	public void insertDeploymentGroup(DeploymentGroup deploymentGroup) {
+	public void insertDeploymentGroup(DeploymentGroup deploymentGroup) throws MongoException {
 		getDeploymentGroupCollection().insert(deploymentGroup);
 	}
 
@@ -325,7 +334,7 @@ public class Accessor {
 	 * @param lease
 	 *            Lease to enter
 	 */
-	public void insertLease(Lease lease) {
+	public void insertLease(Lease lease) throws MongoException {
 		getLeaseCollection().insert(lease);
 	}
 
@@ -335,7 +344,7 @@ public class Accessor {
 	 * @return Mongo collection for DataResources
 	 */
 	public JacksonDBCollection<DataResource, String> getDataResourceCollection() {
-		DBCollection collection = mongoClient.getDB(DATABASE_NAME).getCollection(RESOURCE_COLLECTION_NAME);
+		DBCollection collection = mongoClient.getDB(databaseName).getCollection(resourceCollectionName);
 		return JacksonDBCollection.wrap(collection, DataResource.class, String.class);
 	}
 
@@ -359,7 +368,7 @@ public class Accessor {
 	 * @return List of Data items
 	 */
 	public DataResourceListResponse getDataList(Integer page, Integer pageSize, String sortBy, String order, String keyword,
-			String userName, String createdByJobId) throws Exception {
+			String userName, String createdByJobId) throws MongoException {
 		Pattern regex = Pattern.compile(String.format("(?i)%s", keyword != null ? keyword : ""));
 		// Get a DB Cursor to the query for general data
 		DBCursor<DataResource> cursor = getDataResourceCollection().find().or(DBQuery.regex("metadata.name", regex),
@@ -372,9 +381,9 @@ public class Accessor {
 		}
 
 		// Sort and order
-		if (order.equalsIgnoreCase("asc")) {
+		if ("asc".equalsIgnoreCase(order)) {
 			cursor = cursor.sort(DBSort.asc(sortBy));
-		} else if (order.equalsIgnoreCase("desc")) {
+		} else if ("desc".equalsIgnoreCase(order)) {
 			cursor = cursor.sort(DBSort.desc(sortBy));
 		}
 
@@ -412,16 +421,16 @@ public class Accessor {
 	 * @return List of deployments
 	 */
 	public DeploymentListResponse getDeploymentList(Integer page, Integer pageSize, String sortBy, String order, String keyword)
-			throws Exception {
+			throws MongoException {
 		Pattern regex = Pattern.compile(String.format("(?i)%s", keyword != null ? keyword : ""));
 		// Get a DB Cursor to the query for general data
-		DBCursor<Deployment> cursor = getDeploymentCollection().find().or(DBQuery.regex("deploymentId", regex),
-				DBQuery.regex("dataId", regex), DBQuery.regex("capabilitiesUrl", regex));
+		DBCursor<Deployment> cursor = getDeploymentCollection().find().or(DBQuery.regex(DEPLOYMENT_ID, regex),
+				DBQuery.regex(DATA_ID, regex), DBQuery.regex("capabilitiesUrl", regex));
 
 		// Sort and order
-		if (order.equalsIgnoreCase("asc")) {
+		if ("asc".equalsIgnoreCase(order)) {
 			cursor = cursor.sort(DBSort.asc(sortBy));
-		} else if (order.equalsIgnoreCase("desc")) {
+		} else if ("desc".equalsIgnoreCase(order)) {
 			cursor = cursor.sort(DBSort.desc(sortBy));
 		}
 
@@ -440,7 +449,7 @@ public class Accessor {
 	 * @return Mongo collection for Deployments
 	 */
 	public JacksonDBCollection<Deployment, String> getDeploymentCollection() {
-		DBCollection collection = mongoClient.getDB(DATABASE_NAME).getCollection(DEPLOYMENT_COLLECTION_NAME);
+		DBCollection collection = mongoClient.getDB(databaseName).getCollection(deploymentCollectionName);
 		return JacksonDBCollection.wrap(collection, Deployment.class, String.class);
 	}
 
@@ -450,7 +459,7 @@ public class Accessor {
 	 * @return Mongo collection for Deployment Groups
 	 */
 	public JacksonDBCollection<DeploymentGroup, String> getDeploymentGroupCollection() {
-		DBCollection collection = mongoClient.getDB(DATABASE_NAME).getCollection(DEPLOYMENT_GROUP_COLLECTION_NAME);
+		DBCollection collection = mongoClient.getDB(databaseName).getCollection(deploymentGroupCollectionName);
 		return JacksonDBCollection.wrap(collection, DeploymentGroup.class, String.class);
 	}
 
@@ -460,7 +469,7 @@ public class Accessor {
 	 * @return Mongo collection for Leases
 	 */
 	public JacksonDBCollection<Lease, String> getLeaseCollection() {
-		DBCollection collection = mongoClient.getDB(DATABASE_NAME).getCollection(LEASE_COLLECTION_NAME);
+		DBCollection collection = mongoClient.getDB(databaseName).getCollection(leaseCollectionName);
 		return JacksonDBCollection.wrap(collection, Lease.class, String.class);
 	}
 }

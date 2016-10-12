@@ -56,31 +56,39 @@ import util.PiazzaLogger;
  */
 @Component
 public class AccessThreadManager {
-	private static final String ACCESS_TOPIC_NAME = AccessJob.class.getSimpleName();
+
 	@Autowired
-	private PiazzaLogger logger;
+	private PiazzaLogger pzLogger;
 	@Autowired
-	AccessWorker accessWorker;
+	private AccessWorker accessWorker;
+	@Autowired
+	private ObjectMapper objectMapper;
 
 	@Value("${vcap.services.pz-kafka.credentials.host}")
-	private String KAFKA_ADDRESS;
-	private String KAFKA_HOST;
-	private String KAFKA_PORT;
+	private String kafkaAddress;
+
+	private String kafkaHost;
+
+	private String kafkaPort;
+
 	@Value("#{'${kafka.group}' + '-' + '${SPACE}'}")
-	private String KAFKA_GROUP;
+	private String kafkaGroup;
+
 	@Value("${SPACE}")
-	private String SPACE;
+	private String space;
 
 	private Producer<String, String> producer;
 	private Map<String, Future<?>> runningJobs;
 	private final AtomicBoolean closed = new AtomicBoolean(false);
 
-	private final static Logger LOGGER = LoggerFactory.getLogger(AccessThreadManager.class);
-	
+	private static final Logger LOGGER = LoggerFactory.getLogger(AccessThreadManager.class);
+	private static final String ACCESS_TOPIC_NAME = AccessJob.class.getSimpleName();
+
 	/**
 	 * Manages the Access Jobs Thread Pools
 	 */
 	public AccessThreadManager() {
+		// Empty Constructor for unit tests
 	}
 
 	/**
@@ -89,16 +97,17 @@ public class AccessThreadManager {
 	@PostConstruct
 	public void initialize() {
 		// Initialize the Kafka Producer
-		KAFKA_HOST = KAFKA_ADDRESS.split(":")[0];
-		KAFKA_PORT = KAFKA_ADDRESS.split(":")[1];
-		producer = KafkaClientFactory.getProducer(KAFKA_HOST, KAFKA_PORT);
+		kafkaHost = kafkaAddress.split(":")[0];
+		kafkaPort = kafkaAddress.split(":")[1];
+		producer = KafkaClientFactory.getProducer(kafkaHost, kafkaPort);
 
 		// Initialize the Map of running Threads
-		runningJobs = new HashMap<String, Future<?>>();
+		runningJobs = new HashMap<>();
 
 		// Start polling for Kafka Jobs on the Group Consumer.
 		// Occurs on a separate Thread to not block Spring.
 		Thread accessJobsThread = new Thread() {
+			@Override
 			public void run() {
 				pollAccessJobs();
 			}
@@ -107,6 +116,7 @@ public class AccessThreadManager {
 
 		// Start polling for Kafka Abort Jobs on the unique Consumer.
 		Thread pollAbortThread = new Thread() {
+			@Override			
 			public void run() {
 				pollAbortJobs();
 			}
@@ -129,8 +139,8 @@ public class AccessThreadManager {
 			};
 
 			// Create the General Group Consumer
-			Consumer<String, String> generalConsumer = KafkaClientFactory.getConsumer(KAFKA_HOST, KAFKA_PORT, KAFKA_GROUP);
-			generalConsumer.subscribe(Arrays.asList(String.format("%s-%s", ACCESS_TOPIC_NAME, SPACE)));
+			Consumer<String, String> generalConsumer = KafkaClientFactory.getConsumer(kafkaHost, kafkaPort, kafkaGroup);
+			generalConsumer.subscribe(Arrays.asList(String.format("%s-%s", ACCESS_TOPIC_NAME, space)));
 
 			// Poll
 			while (!closed.get()) {
@@ -148,7 +158,9 @@ public class AccessThreadManager {
 			}
 			generalConsumer.close();
 		} catch (WakeupException exception) {
-			logger.log(String.format("Polling Thread forcefully closed: %s", exception.getMessage()), PiazzaLogger.FATAL);
+			String error = String.format("Polling Thread forcefully closed: %s", exception.getMessage());
+			LOGGER.error(error, exception);
+			pzLogger.log(error, PiazzaLogger.FATAL);
 		}
 	}
 
@@ -158,11 +170,9 @@ public class AccessThreadManager {
 	public void pollAbortJobs() {
 		try {
 			// Create the Unique Consumer
-			Consumer<String, String> uniqueConsumer = KafkaClientFactory.getConsumer(KAFKA_HOST, KAFKA_PORT,
-					String.format("%s-%s", KAFKA_GROUP, UUID.randomUUID().toString()));
-			uniqueConsumer.subscribe(Arrays.asList(String.format("%s-%s", JobMessageFactory.ABORT_JOB_TOPIC_NAME, SPACE)));
-
-			ObjectMapper mapper = new ObjectMapper();
+			Consumer<String, String> uniqueConsumer = KafkaClientFactory.getConsumer(kafkaHost, kafkaPort,
+					String.format("%s-%s", kafkaGroup, UUID.randomUUID().toString()));
+			uniqueConsumer.subscribe(Arrays.asList(String.format("%s-%s", JobMessageFactory.ABORT_JOB_TOPIC_NAME, space)));
 
 			// Poll
 			while (!closed.get()) {
@@ -171,15 +181,8 @@ public class AccessThreadManager {
 				for (ConsumerRecord<String, String> consumerRecord : consumerRecords) {
 					// Determine if this Job Id is being processed by this
 					// component.
-					String jobId = null;
-					try {
-						PiazzaJobRequest request = mapper.readValue(consumerRecord.value(), PiazzaJobRequest.class);
-						jobId = ((AbortJob) request.jobType).getJobId();
-					} catch (Exception exception) {
-						String error = String.format("Error Aborting Job. Could not get the Job ID from the Kafka Message with error:  %s", exception.getMessage());
-						LOGGER.error(error);
-						
-						logger.log(error, PiazzaLogger.ERROR);
+					String jobId = getJobId(consumerRecord.value());
+					if( jobId == null ) {
 						continue;
 					}
 
@@ -193,7 +196,9 @@ public class AccessThreadManager {
 			}
 			uniqueConsumer.close();
 		} catch (WakeupException exception) {
-			logger.log(String.format("Polling Thread forcefully closed: %s", exception.getMessage()), PiazzaLogger.FATAL);
+			String error = String.format("Polling Thread forcefully closed: %s", exception.getMessage());
+			LOGGER.error(error, exception);
+			pzLogger.log(error, PiazzaLogger.FATAL);
 		}
 	}
 
@@ -210,6 +215,18 @@ public class AccessThreadManager {
 	 * @return The list of Job Ids
 	 */
 	public List<String> getRunningJobIds() {
-		return new ArrayList<String>(runningJobs.keySet());
+		return new ArrayList<>(runningJobs.keySet());
+	}
+	
+	private String getJobId(String consumerRecordValue) {
+		try {
+			PiazzaJobRequest request = objectMapper.readValue(consumerRecordValue, PiazzaJobRequest.class);
+			return ((AbortJob) request.jobType).getJobId();
+		} catch (Exception exception) {
+			String error = String.format("Error Aborting Job. Could not get the Job ID from the Kafka Message with error:  %s", exception.getMessage());
+			LOGGER.error(error, exception);
+			pzLogger.log(error, PiazzaLogger.ERROR);
+			return null;
+		}
 	}
 }

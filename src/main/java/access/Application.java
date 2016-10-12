@@ -20,6 +20,8 @@ import java.util.concurrent.Executor;
 
 import org.apache.http.client.HttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.aop.interceptor.AsyncUncaughtExceptionHandler;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
@@ -51,6 +53,8 @@ public class Application extends SpringBootServletInitializer implements AsyncCo
 	@Value("${http.max.route}")
 	private int httpMaxRoute;
 
+	private static final Logger LOGGER = LoggerFactory.getLogger(Application.class);
+	
 	@Override
 	protected SpringApplicationBuilder configure(SpringApplicationBuilder builder) {
 		return builder.sources(Application.class);
@@ -83,9 +87,7 @@ public class Application extends SpringBootServletInitializer implements AsyncCo
 		return new AsyncUncaughtExceptionHandler() {
 			@Override
 			public void handleUncaughtException(Throwable ex, Method method, Object... params) {
-				String error = String.format("Uncaught Threading exception encountered in %s with details: %s", ex.getMessage(),
-						method.getName());
-				System.out.println(error);
+				LOGGER.error(String.format("Uncaught Threading exception encountered in %s with details: %s", ex.getMessage(), method.getName()));
 			}
 		};
 	}

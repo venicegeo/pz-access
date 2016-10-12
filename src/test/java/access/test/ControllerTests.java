@@ -42,6 +42,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
+import com.mongodb.MongoException;
 import com.vividsolutions.jts.geom.Coordinate;
 import com.vividsolutions.jts.geom.GeometryFactory;
 import com.vividsolutions.jts.geom.Point;
@@ -264,7 +265,7 @@ public class ControllerTests {
 		assertTrue(((DataResourceListResponse) response).data.size() == 1);
 
 		// Test Exception
-		Mockito.doThrow(new Exception()).when(accessor).getDataList(eq(0), eq(10), eq("dataId"), eq("asc"), eq("Raster"), eq("Test User"),
+		Mockito.doThrow(new MongoException("MongoDB instance not available.")).when(accessor).getDataList(eq(0), eq(10), eq("dataId"), eq("asc"), eq("Raster"), eq("Test User"),
 				eq("123"));
 		response = accessController.getAllData("123", 0, 10, "dataId", "asc", "Raster", "Test User").getBody();
 		assertTrue(response instanceof ErrorResponse);
@@ -289,7 +290,7 @@ public class ControllerTests {
 		assertTrue(((DeploymentListResponse) response).data.size() == 1);
 
 		// Test Exception
-		Mockito.doThrow(new Exception()).when(accessor).getDeploymentList(eq(0), eq(10), eq("dataId"), eq("asc"), eq("WFS"));
+		Mockito.doThrow(new MongoException("MongoDB instance not available.")).when(accessor).getDeploymentList(eq(0), eq(10), eq("dataId"), eq("asc"), eq("WFS"));
 		response = accessController.getAllDeployments(0, 10, "dataId", "asc", "WFS").getBody();
 		assertTrue(response instanceof ErrorResponse);
 	}
@@ -316,12 +317,12 @@ public class ControllerTests {
 		Deployment deployment = new Deployment();
 		deployment.setDeploymentId("123456");
 		when(accessor.getDeployment(eq("123456"))).thenReturn(deployment);
-		ResponseEntity<PiazzaResponse> response = accessController.deleteDeployment("123456", null);
+		ResponseEntity<PiazzaResponse> response = accessController.deleteDeployment("123456");
 		assertTrue(response.getStatusCode().compareTo(HttpStatus.OK) == 0);
 
 		// Test Exception
 		Mockito.doThrow(new Exception()).when(deployer).undeploy(eq("123456"));
-		response = accessController.deleteDeployment("123456", null);
+		response = accessController.deleteDeployment("123456");
 		assertTrue(response.getBody() instanceof ErrorResponse);
 
 		// Test reaping
