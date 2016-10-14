@@ -75,7 +75,7 @@ public class LayerGroupModel {
 		public String name;
 
 		public GroupLayer() {
-
+			// Needed for Jackson support.
 		}
 	}
 

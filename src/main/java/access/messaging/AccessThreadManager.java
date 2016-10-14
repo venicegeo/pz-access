@@ -107,22 +107,10 @@ public class AccessThreadManager {
 
 		// Start polling for Kafka Jobs on the Group Consumer.
 		// Occurs on a separate Thread to not block Spring.
-		Thread accessJobsThread = new Thread() {
-			@Override
-			public void run() {
-				pollAccessJobs();
-			}
-		};
-		accessJobsThread.start();
-
+		new Thread(() -> pollAccessJobs()).start();
+		
 		// Start polling for Kafka Abort Jobs on the unique Consumer.
-		Thread pollAbortThread = new Thread() {
-			@Override			
-			public void run() {
-				pollAbortJobs();
-			}
-		};
-		pollAbortThread.start();
+		new Thread(() -> pollAbortJobs()).start();
 	}
 
 	/**
@@ -132,12 +120,7 @@ public class AccessThreadManager {
 		try {
 			// Callback that will be invoked when a Worker completes. This will
 			// remove the Job Id from the running Jobs list.
-			WorkerCallback callback = new WorkerCallback() {
-				@Override
-				public void onComplete(String jobId) {
-					runningJobs.remove(jobId);
-				}
-			};
+			WorkerCallback callback = (jobId) ->  runningJobs.remove(jobId);
 
 			// Create the General Group Consumer
 			Consumer<String, String> generalConsumer = KafkaClientFactory.getConsumer(kafkaHost, kafkaPort, kafkaGroup);

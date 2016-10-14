@@ -51,7 +51,7 @@ public class LayerGroupModel2 {
 		public List<String> style = new ArrayList<>();
 
 		public LayerGroup2() {
-
+			// Needed for Jackson support.
 		}
 	}
 
