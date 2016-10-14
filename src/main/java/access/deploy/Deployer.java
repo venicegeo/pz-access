@@ -17,6 +17,7 @@ package access.deploy;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.tomcat.util.codec.binary.Base64;
@@ -86,7 +87,7 @@ public class Deployer {
 
 	private static final String ADD_LAYER_ENDPOINT = "/geoserver/rest/workspaces/piazza/datastores/piazza/featuretypes/";
 	private static final String CAPABILITIES_URL = "/geoserver/piazza/wfs?service=wfs&version=2.0.0&request=GetCapabilities";
-	
+
 	private static final Logger LOGGER = LoggerFactory.getLogger(Deployer.class);
 
 	/**
@@ -142,13 +143,25 @@ public class Deployer {
 	 *            The DataResource to deploy.
 	 * @return The Deployment
 	 * @throws GeoServerException
-	 * @throws IOException 
+	 * @throws IOException
 	 */
 	private Deployment deployPostGisTable(DataResource dataResource) throws GeoServerException, IOException {
 		// Create the JSON Payload for the Layer request to GeoServer
 		ClassLoader classLoader = getClass().getClassLoader();
-		String featureTypeRequestBody = IOUtils
-				.toString(classLoader.getResourceAsStream("templates" + File.separator + "featureTypeRequest.xml"));
+		InputStream templateStream = null;
+		String featureTypeRequestBody = null;
+		try {
+			templateStream = classLoader.getResourceAsStream("templates" + File.separator + "featureTypeRequest.xml");
+			featureTypeRequestBody = IOUtils.toString(templateStream);
+		} catch (Exception exception) {
+			LOGGER.error("Error reading GeoServer Template.", exception);
+		} finally {
+			try {
+				templateStream.close();
+			} catch (Exception exception) {
+				LOGGER.error("Error closing GeoServer Template Stream.", exception);
+			}
+		}
 
 		// Get the appropriate Table Name from the DataResource
 		String tableName = null;
@@ -188,11 +201,12 @@ public class Deployer {
 	 * @param dataResource
 	 *            The DataResource to deploy.
 	 * @return The Deployment
-	 * @throws InvalidInputException 
-	 * @throws IOException 
-	 * @throws AmazonClientException 
+	 * @throws InvalidInputException
+	 * @throws IOException
+	 * @throws AmazonClientException
 	 */
-	private Deployment deployRaster(DataResource dataResource) throws GeoServerException, AmazonClientException, IOException, InvalidInputException {
+	private Deployment deployRaster(DataResource dataResource)
+			throws GeoServerException, AmazonClientException, IOException, InvalidInputException {
 		// Get the File Bytes of the Raster to be uploaded
 		byte[] fileBytes = accessUtilities.getBytesForDataResource(dataResource);
 
@@ -213,10 +227,10 @@ public class Deployer {
 				if (!doesGeoServerLayerExist(dataResource.getDataId())) {
 					// If it doesn't exist, throw an error. Something went wrong.
 					String error = String.format(
-							"GeoServer would not allow for layer creation, despite an existing layer not being present: url: %s, statusCode: %s, exceptionBody: %s", url,
-							exception.getStatusCode().toString(), exception.getResponseBodyAsString());
+							"GeoServer would not allow for layer creation, despite an existing layer not being present: url: %s, statusCode: %s, exceptionBody: %s",
+							url, exception.getStatusCode().toString(), exception.getResponseBodyAsString());
 					pzLogger.log(error, PiazzaLogger.ERROR);
-					LOGGER.error(error, exception);					
+					LOGGER.error(error, exception);
 					throw new GeoServerException(error);
 				}
 			} else if ((exception.getStatusCode() == HttpStatus.INTERNAL_SERVER_ERROR)
@@ -229,14 +243,14 @@ public class Deployer {
 						"Creating Layer on GeoServer at URL %s returned HTTP Status %s with Body: %s. This may be the result of GeoServer processing this Data Id simultaneously by another request. Please try again.",
 						url, exception.getStatusCode().toString(), exception.getResponseBodyAsString());
 				pzLogger.log(error, PiazzaLogger.ERROR);
-				LOGGER.error(error, exception);									
+				LOGGER.error(error, exception);
 				throw new GeoServerException(error);
 			} else {
 				// For any other errors, report back this error to the user and fail the job.
 				String error = String.format("Creating Layer on GeoServer at URL %s returned HTTP Status %s with Body: %s", url,
 						exception.getStatusCode().toString(), exception.getResponseBodyAsString());
 				pzLogger.log(error, PiazzaLogger.ERROR);
-				LOGGER.error(error, exception);				
+				LOGGER.error(error, exception);
 				throw new GeoServerException(error);
 			}
 		}
@@ -285,7 +299,7 @@ public class Deployer {
 				String error = String.format("Error deleting GeoServer Layer for Deployment %s via request %s: Code %s with Error %s",
 						deploymentId, url, exception.getStatusCode(), exception.getResponseBodyAsString());
 				pzLogger.log(error, PiazzaLogger.ERROR);
-				LOGGER.error(error, exception);				
+				LOGGER.error(error, exception);
 				throw new GeoServerException(error);
 			}
 		}
@@ -309,7 +323,7 @@ public class Deployer {
 						"Error deleting GeoServer Coverage Store for Deployment %s via request %s: Code %s with Error: %s", deploymentId,
 						url, exception.getStatusCode(), exception.getResponseBodyAsString());
 				pzLogger.log(error, PiazzaLogger.ERROR);
-				LOGGER.error(error, exception);				
+				LOGGER.error(error, exception);
 				throw new GeoServerException(error);
 			}
 		}
