@@ -33,7 +33,7 @@ public class LayerGroupModel2 {
 	public LayerGroup2 layerGroup = new LayerGroup2();
 
 	public LayerGroupModel2() {
-
+		// Needed for Jackson support.
 	}
 
 	@JacksonXmlRootElement(localName = "layerGroup")
@@ -44,11 +44,11 @@ public class LayerGroupModel2 {
 
 		@JacksonXmlElementWrapper(localName = "publishables")
 		@JacksonXmlProperty(localName = "published")
-		public List<GroupLayer2> published = new ArrayList<GroupLayer2>();
+		public List<GroupLayer2> published = new ArrayList<>();
 
 		@JacksonXmlElementWrapper(localName = "styles")
 		@JacksonXmlProperty(localName = "style")
-		public List<String> style = new ArrayList<String>();
+		public List<String> style = new ArrayList<>();
 
 		public LayerGroup2() {
 
@@ -62,8 +62,7 @@ public class LayerGroupModel2 {
 		public String name;
 
 		public GroupLayer2() {
-
+			// Needed for Jackson support.
 		}
 	}
-
 }

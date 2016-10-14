@@ -35,10 +35,11 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 @JsonInclude(Include.NON_NULL)
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class LayerGroupModel {
+	
 	public LayerGroup layerGroup = new LayerGroup();
 
 	public LayerGroupModel() {
-
+		// Needed for Jackson support.
 	}
 
 	@JsonInclude(Include.NON_NULL)
@@ -51,7 +52,7 @@ public class LayerGroupModel {
 		public Styles styles = new Styles();
 
 		public LayerGroup() {
-
+			// Needed for Jackson support.
 		}
 	}
 
@@ -62,7 +63,7 @@ public class LayerGroupModel {
 		public List<GroupLayer> published = new ArrayList<GroupLayer>();
 
 		public Publishable() {
-
+			// Needed for Jackson support.
 		}
 	}
 
@@ -82,10 +83,10 @@ public class LayerGroupModel {
 	@JsonIgnoreProperties(ignoreUnknown = true)
 	public static class Styles {
 		@JsonFormat(with = JsonFormat.Feature.ACCEPT_SINGLE_VALUE_AS_ARRAY)
-		public List<String> style = new ArrayList<String>();
+		public List<String> style = new ArrayList<>();
 
 		public Styles() {
-
+			// Needed for Jackson support.
 		}
 	}
 }

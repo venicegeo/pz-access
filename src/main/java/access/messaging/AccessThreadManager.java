@@ -82,6 +82,7 @@ public class AccessThreadManager {
 	private final AtomicBoolean closed = new AtomicBoolean(false);
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(AccessThreadManager.class);
+	private static final String LOGGER_FORMAT = "%s-%s";
 	private static final String ACCESS_TOPIC_NAME = AccessJob.class.getSimpleName();
 
 	/**
@@ -140,7 +141,7 @@ public class AccessThreadManager {
 
 			// Create the General Group Consumer
 			Consumer<String, String> generalConsumer = KafkaClientFactory.getConsumer(kafkaHost, kafkaPort, kafkaGroup);
-			generalConsumer.subscribe(Arrays.asList(String.format("%s-%s", ACCESS_TOPIC_NAME, space)));
+			generalConsumer.subscribe(Arrays.asList(String.format(LOGGER_FORMAT, ACCESS_TOPIC_NAME, space)));
 
 			// Poll
 			while (!closed.get()) {
@@ -171,27 +172,15 @@ public class AccessThreadManager {
 		try {
 			// Create the Unique Consumer
 			Consumer<String, String> uniqueConsumer = KafkaClientFactory.getConsumer(kafkaHost, kafkaPort,
-					String.format("%s-%s", kafkaGroup, UUID.randomUUID().toString()));
-			uniqueConsumer.subscribe(Arrays.asList(String.format("%s-%s", JobMessageFactory.ABORT_JOB_TOPIC_NAME, space)));
+					String.format(LOGGER_FORMAT, kafkaGroup, UUID.randomUUID().toString()));
+			uniqueConsumer.subscribe(Arrays.asList(String.format(LOGGER_FORMAT, JobMessageFactory.ABORT_JOB_TOPIC_NAME, space)));
 
 			// Poll
 			while (!closed.get()) {
 				ConsumerRecords<String, String> consumerRecords = uniqueConsumer.poll(1000);
 				// Handle new Messages on this topic.
 				for (ConsumerRecord<String, String> consumerRecord : consumerRecords) {
-					// Determine if this Job Id is being processed by this
-					// component.
-					String jobId = getJobId(consumerRecord.value());
-					if( jobId == null ) {
-						continue;
-					}
-
-					if (runningJobs.containsKey(jobId)) {
-						// Cancel the Running Job
-						runningJobs.get(jobId).cancel(true);
-						// Remove it from the list of Running Jobs
-						runningJobs.remove(jobId);
-					}
+					handleNewMessages(consumerRecord);
 				}
 			}
 			uniqueConsumer.close();
@@ -199,6 +188,22 @@ public class AccessThreadManager {
 			String error = String.format("Polling Thread forcefully closed: %s", exception.getMessage());
 			LOGGER.error(error, exception);
 			pzLogger.log(error, PiazzaLogger.FATAL);
+		}
+	}
+	
+	private void handleNewMessages(ConsumerRecord<String,String> consumerRecord) {
+		// Determine if this Job Id is being processed by this
+		// component.
+		String jobId = getJobId(consumerRecord.value());
+		if( jobId == null ) {
+			return;
+		}
+
+		if (runningJobs.containsKey(jobId)) {
+			// Cancel the Running Job
+			runningJobs.get(jobId).cancel(true);
+			// Remove it from the list of Running Jobs
+			runningJobs.remove(jobId);
 		}
 	}
 
