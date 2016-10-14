@@ -15,10 +15,15 @@
  **/
 package access.util;
 
+import java.io.IOException;
+
 import org.apache.commons.io.IOUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import com.amazonaws.AmazonClientException;
+
+import exception.InvalidInputException;
 import model.data.DataResource;
 import model.data.location.FileAccessFactory;
 import model.data.location.FileLocation;
@@ -43,9 +48,11 @@ public class AccessUtilities {
 	 * @param dataResource
 	 *            The Data Resource
 	 * @return The byte array for the file
+	 * @throws InvalidInputException 
+	 * @throws AmazonClientException 
 	 * @throws Exception 
 	 */
-	public byte[] getBytesForDataResource(DataResource dataResource) throws Exception {
+	public byte[] getBytesForDataResource(DataResource dataResource) throws IOException, AmazonClientException, InvalidInputException {
 		FileLocation fileLocation = ((RasterDataType) dataResource.getDataType()).getLocation();
 		FileAccessFactory fileAccessFactory = new FileAccessFactory(amazonS3AccessKey, amazonS3PrivateKey);
 		return IOUtils.toByteArray(fileAccessFactory.getFile(fileLocation));

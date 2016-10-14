@@ -42,6 +42,8 @@ import access.deploy.geoserver.LayerGroupModel;
 import access.deploy.geoserver.LayerGroupModel.GroupLayer;
 import access.deploy.geoserver.LayerGroupModel.LayerGroup;
 import access.deploy.geoserver.LayerGroupModel2;
+import exception.DataInspectException;
+import exception.GeoServerException;
 import model.data.deployment.Deployment;
 import model.data.deployment.DeploymentGroup;
 import util.PiazzaLogger;
@@ -57,7 +59,7 @@ import util.UUIDFactory;
 @Component
 public class GroupDeployer {
 	@Autowired
-	private PiazzaLogger logger;
+	private PiazzaLogger pzLogger;
 	@Autowired
 	private UUIDFactory uuidFactory;
 	@Autowired
@@ -104,8 +106,10 @@ public class GroupDeployer {
 	 * @param createdBy
 	 *            The user who requests this creation
 	 * @return Deployment Group, containing an Id that can be used for future reference.
+	 * @throws GeoServerException
+	 * @throws DataInspectException
 	 */
-	public DeploymentGroup createDeploymentGroup(List<Deployment> deployments, String createdBy) throws Exception {
+	public DeploymentGroup createDeploymentGroup(List<Deployment> deployments, String createdBy) throws DataInspectException, GeoServerException {
 		// Create the Group.
 		DeploymentGroup deploymentGroup = new DeploymentGroup(uuidFactory.getUUID(), createdBy);
 
@@ -123,7 +127,7 @@ public class GroupDeployer {
 		} catch (Exception exception) {
 			String error = String.format("Error Updating Deployments for Group Layer: %s", exception.getMessage());
 			LOGGER.error(error, exception);
-			throw new Exception(error);
+			throw new DataInspectException(error);
 		}
 
 		// Update the Layer Styles for each Layer in the Group
@@ -152,8 +156,10 @@ public class GroupDeployer {
 	 *            The layer group to concatenate Layers to.
 	 * @param deployments
 	 *            The deployments to add to the Layer Group.
+	 * @throws GeoServerException
+	 * @throws DataInspectException
 	 */
-	public void updateDeploymentGroup(DeploymentGroup deploymentGroup, List<Deployment> deployments) throws Exception {
+	public void updateDeploymentGroup(DeploymentGroup deploymentGroup, List<Deployment> deployments) throws DataInspectException, GeoServerException {
 		// Check if the Layer Group exists. If it doesn't, then create it. If it
 		// does, then Grab the Model to edit.
 		LayerGroupModel layerGroupModel;
@@ -187,7 +193,7 @@ public class GroupDeployer {
 		} catch (Exception exception) {
 			String error = String.format("Error Updating Deployments for Group Layer: %s", exception.getMessage());
 			LOGGER.error(error, exception);
-			throw new Exception(error);
+			throw new DataInspectException(error);
 		}
 
 		// Balance the Styles and the Layers
@@ -207,8 +213,9 @@ public class GroupDeployer {
 	 * Deletes a Deployment Group. This will remove the corresponding Layer
 	 * 
 	 * @param deploymentGroup
+	 * @throws GeoServerException
 	 */
-	public void deleteDeploymentGroup(DeploymentGroup deploymentGroup) throws Exception {
+	public void deleteDeploymentGroup(DeploymentGroup deploymentGroup) throws GeoServerException {
 		// Create Request
 		HttpHeaders headers = deployer.getGeoServerHeaders();
 		headers.setContentType(MediaType.APPLICATION_JSON);
@@ -230,7 +237,7 @@ public class GroupDeployer {
 				String error = String.format("Could not delete Layer Group %s on GeoServer. Failed with Code %s : %s",
 						deploymentGroup.deploymentGroupId, exception.getStatusCode().toString(), exception.getResponseBodyAsString());
 				LOGGER.error(error, exception);
-				throw new Exception(error);
+				throw new GeoServerException(error);
 			}
 		}
 
@@ -250,8 +257,9 @@ public class GroupDeployer {
 	 * @param deploymentGroupId
 	 *            The Id of the layer group
 	 * @return The Layer Group Model
+	 * @throws GeoServerException
 	 */
-	private LayerGroupModel getLayerGroupFromGeoServer(String deploymentGroupId) throws Exception {
+	private LayerGroupModel getLayerGroupFromGeoServer(String deploymentGroupId) throws GeoServerException {
 		HttpHeaders headers = deployer.getGeoServerHeaders();
 		headers.setContentType(MediaType.APPLICATION_JSON);
 		HttpEntity<String> request = new HttpEntity<>(headers);
@@ -268,7 +276,7 @@ public class GroupDeployer {
 			String error = String.format("Could not fetch Layer Group %s. Status code %s was returned by GeoServer with error: %s",
 					deploymentGroupId, exception.getStatusCode().toString(), exception.getMessage());
 			LOGGER.error(error, exception);
-			throw new Exception(error);
+			throw new GeoServerException(error);
 		}
 
 		// Convert the GeoServer response into the Layer Group Model
@@ -297,12 +305,12 @@ public class GroupDeployer {
 					"Could not read in Layer Group from GeoServer response for %s: %s. Expected back a Layer Group description, but GeoServer responded with Code %s and Body %s",
 					deploymentGroupId, exception.getMessage(), exception.getStatusCode().toString(), exception.getResponseBodyAsString());
 			LOGGER.error(error, exception);
-			throw new Exception();
+			throw new GeoServerException(error);
 		} catch (Exception exception) {
 			String error = String.format("Could not read in Layer Group from GeoServer response for %s: %s", deploymentGroupId,
 					exception.getMessage());
 			LOGGER.error(error, exception);
-			throw new Exception(error);
+			throw new GeoServerException(error);
 		}
 
 		return layerGroupJson;
@@ -316,8 +324,10 @@ public class GroupDeployer {
 	 *            The Layer Group to update.
 	 * @param method
 	 *            POST to create a new Layer Group, and PUT to update an existing one.
+	 * @throws GeoServerException
+	 * @throws DataInspectException 
 	 */
-	private void sendGeoServerLayerGroup(LayerGroupModel layerGroup, HttpMethod method) throws Exception {
+	private void sendGeoServerLayerGroup(LayerGroupModel layerGroup, HttpMethod method) throws GeoServerException, DataInspectException {
 		// Create the Request
 		HttpHeaders headers = deployer.getGeoServerHeaders();
 		headers.setContentType(MediaType.APPLICATION_JSON);
@@ -329,7 +339,7 @@ public class GroupDeployer {
 		} catch (Exception exception) {
 			String error = String.format("Error serializing Request Body to GeoServer for updating Layer Group: %s", exception.getMessage());
 			LOGGER.error(error, exception);
-			throw new Exception(error);
+			throw new DataInspectException(error);
 		}
 		String url = String.format(
 				method.equals(HttpMethod.PUT) ? "http://%s:%s/geoserver/rest/workspaces/piazza/layergroups/%s.json"
@@ -344,14 +354,14 @@ public class GroupDeployer {
 			String error = String.format("Error sending Layer Group %s to GeoServer HTTP %s to %s. Server responded with: %s",
 					layerGroup.layerGroup.name, method.toString(), url, exception.getResponseBodyAsString());
 			LOGGER.error(error, exception);
-			logger.log(error, PiazzaLogger.ERROR);
-			logger.log(String.format("Request Payload for failed request was: %s", payload), PiazzaLogger.ERROR);
-			throw new Exception(error);
+			pzLogger.log(error, PiazzaLogger.ERROR);
+			pzLogger.log(String.format("Request Payload for failed request was: %s", payload), PiazzaLogger.ERROR);
+			throw new GeoServerException(error);
 		}
 		if (response.getStatusCode().equals(HttpStatus.CREATED) || (response.getStatusCode().equals(HttpStatus.OK))) {
 			// Updated
 		} else {
-			throw new Exception(String.format("Could not update GeoServer Layer Group %s. Request returned Status %s : %s",
+			throw new GeoServerException(String.format("Could not update GeoServer Layer Group %s. Request returned Status %s : %s",
 					layerGroup.layerGroup.name, response.getStatusCode().toString(), response.getBody()));
 		}
 	}
@@ -375,8 +385,9 @@ public class GroupDeployer {
 	 * 
 	 * @param layerGroupModel
 	 *            The Layer Group Model whose styles to balance
+	 * @throws DataInspectException
 	 */
-	private void updateLayerStyles(LayerGroupModel layerGroupModel) throws Exception {
+	private void updateLayerStyles(LayerGroupModel layerGroupModel) throws DataInspectException {
 		try {
 			LayerGroup layerGroup = layerGroupModel.layerGroup;
 			while (layerGroup.publishables.published.size() != layerGroup.styles.style.size()) {
@@ -391,7 +402,7 @@ public class GroupDeployer {
 		} catch (Exception exception) {
 			String error = String.format("Error updating layer Styles for Deployments: %s", exception.getMessage());
 			LOGGER.error(error, exception);
-			throw new Exception(error);
+			throw new DataInspectException(error);
 		}
 	}
 }

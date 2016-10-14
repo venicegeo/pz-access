@@ -37,6 +37,8 @@ import access.database.Accessor;
 import access.deploy.Deployer;
 import access.deploy.GroupDeployer;
 import access.deploy.Leaser;
+import exception.GeoServerException;
+import exception.InvalidInputException;
 import messaging.job.JobMessageFactory;
 import messaging.job.WorkerCallback;
 import model.data.DataResource;
@@ -91,11 +93,11 @@ public class AccessWorker {
 
 			// Validate inputs for the Kafka Message
 			if ((accessJob.getDataId() == null) || (accessJob.getDataId().isEmpty())) {
-				throw new Exception(String.format("An invalid or empty Data Id was specified: %s", accessJob.getDataId()));
+				throw new InvalidInputException(String.format("An invalid or empty Data Id was specified: %s", accessJob.getDataId()));
 			}
 
 			if ((accessJob.getDeploymentType() == null) || (accessJob.getDeploymentType().isEmpty())) {
-				throw new Exception(String.format("An invalid or empty Deployment Type was specified: %s", accessJob.getDataId()));
+				throw new InvalidInputException(String.format("An invalid or empty Deployment Type was specified: %s", accessJob.getDataId()));
 			}
 
 			// Logging
@@ -152,14 +154,14 @@ public class AccessWorker {
 						String error = String.format("Could not create Deployment Group: %s", exception.getMessage());
 						LOGGER.error(error, exception);
 						pzLogger.log(error, PiazzaLogger.ERROR);
-						throw new Exception(error);
+						throw new GeoServerException(error);
 					}
 
 					if (geoServerLayerExists) {
 						// First, Check if the Deployment Group exists
 						DeploymentGroup deploymentGroup = accessor.getDeploymentGroupById(accessJob.getDeploymentGroupId());
 						if (deploymentGroup == null) {
-							throw new Exception(
+							throw new InvalidInputException(
 									String.format("Deployment Group with Id %s does not exist.", accessJob.getDeploymentGroupId()));
 						}
 						// Add the Layer to the Deployment Group
@@ -173,7 +175,7 @@ public class AccessWorker {
 						String error = String.format("Could not create Deployment Group. The GeoServer layer for %s does not exist.",
 								deployment.getLayer());
 						pzLogger.log(error, PiazzaLogger.WARNING);
-						throw new Exception(error);
+						throw new GeoServerException(error);
 					}
 				}
 
@@ -191,7 +193,7 @@ public class AccessWorker {
 				LOGGER.info("Deployment Successfully Returned for Resource " + accessJob.getDataId());
 			} 
 			else {
-				throw new Exception("Unknown Deployment Type: " + accessJob.getDeploymentType());
+				throw new InvalidInputException("Unknown Deployment Type: " + accessJob.getDeploymentType());
 			}
 		} catch (MongoInterruptedException | InterruptedException exception) {
 			String error = String.format("Thread interrupt received for Job %s", consumerRecord.key());

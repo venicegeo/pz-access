@@ -16,6 +16,7 @@
 package access.deploy;
 
 import java.io.File;
+import java.io.IOException;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.tomcat.util.codec.binary.Base64;
@@ -35,8 +36,12 @@ import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestTemplate;
 
+import com.amazonaws.AmazonClientException;
+
 import access.database.Accessor;
 import access.util.AccessUtilities;
+import exception.GeoServerException;
+import exception.InvalidInputException;
 import model.data.DataResource;
 import model.data.deployment.Deployment;
 import model.data.type.GeoJsonDataType;
@@ -90,8 +95,9 @@ public class Deployer {
 	 * @param dataResource
 	 *            The resource metadata, describing the object to be deployed.
 	 * @return A deployment for the object.
+	 * @throws GeoServerException
 	 */
-	public Deployment createDeployment(DataResource dataResource) throws Exception {
+	public Deployment createDeployment(DataResource dataResource) throws GeoServerException {
 		// Create the GeoServer Deployment based on the Data Type
 		Deployment deployment;
 		try {
@@ -110,7 +116,7 @@ public class Deployer {
 		} catch (Exception exception) {
 			String error = String.format("There was an error deploying the to GeoServer instance: %s", exception.getMessage());
 			LOGGER.error(error, exception);
-			throw new Exception(error);
+			throw new GeoServerException(error);
 		}
 
 		// Insert the Deployment into the Database
@@ -135,8 +141,10 @@ public class Deployer {
 	 * @param dataResource
 	 *            The DataResource to deploy.
 	 * @return The Deployment
+	 * @throws GeoServerException
+	 * @throws IOException 
 	 */
-	private Deployment deployPostGisTable(DataResource dataResource) throws Exception {
+	private Deployment deployPostGisTable(DataResource dataResource) throws GeoServerException, IOException {
 		// Create the JSON Payload for the Layer request to GeoServer
 		ClassLoader classLoader = getClass().getClassLoader();
 		String featureTypeRequestBody = IOUtils
@@ -163,7 +171,7 @@ public class Deployer {
 		if (statusCode != HttpStatus.CREATED) {
 			pzLogger.log(String.format("Failed to Deploy PostGIS Table name %s for Resource %s to GeoServer. HTTP Code: %s", tableName,
 					dataResource.getDataId(), statusCode), PiazzaLogger.ERROR);
-			throw new Exception("Failed to Deploy to GeoServer; the Status returned a non-OK response code: " + statusCode);
+			throw new GeoServerException("Failed to Deploy to GeoServer; the Status returned a non-OK response code: " + statusCode);
 		}
 
 		// Create a new Deployment for this Resource
@@ -180,8 +188,11 @@ public class Deployer {
 	 * @param dataResource
 	 *            The DataResource to deploy.
 	 * @return The Deployment
+	 * @throws InvalidInputException 
+	 * @throws IOException 
+	 * @throws AmazonClientException 
 	 */
-	private Deployment deployRaster(DataResource dataResource) throws Exception {
+	private Deployment deployRaster(DataResource dataResource) throws GeoServerException, AmazonClientException, IOException, InvalidInputException {
 		// Get the File Bytes of the Raster to be uploaded
 		byte[] fileBytes = accessUtilities.getBytesForDataResource(dataResource);
 
@@ -206,7 +217,7 @@ public class Deployer {
 							exception.getStatusCode().toString(), exception.getResponseBodyAsString());
 					pzLogger.log(error, PiazzaLogger.ERROR);
 					LOGGER.error(error, exception);					
-					throw new Exception(error);
+					throw new GeoServerException(error);
 				}
 			} else if ((exception.getStatusCode() == HttpStatus.INTERNAL_SERVER_ERROR)
 					&& (exception.getResponseBodyAsString().contains("Error persisting"))) {
@@ -219,14 +230,14 @@ public class Deployer {
 						url, exception.getStatusCode().toString(), exception.getResponseBodyAsString());
 				pzLogger.log(error, PiazzaLogger.ERROR);
 				LOGGER.error(error, exception);									
-				throw new Exception(error);
+				throw new GeoServerException(error);
 			} else {
 				// For any other errors, report back this error to the user and fail the job.
 				String error = String.format("Creating Layer on GeoServer at URL %s returned HTTP Status %s with Body: %s", url,
 						exception.getStatusCode().toString(), exception.getResponseBodyAsString());
 				pzLogger.log(error, PiazzaLogger.ERROR);
 				LOGGER.error(error, exception);				
-				throw new Exception(error);
+				throw new GeoServerException(error);
 			}
 		}
 
@@ -243,19 +254,21 @@ public class Deployer {
 	 * 
 	 * @param deploymentId
 	 *            The Id of the deployment.
+	 * @throws GeoServerException
+	 * @throws InvalidInputException
 	 */
-	public void undeploy(String deploymentId) throws Exception {
+	public void undeploy(String deploymentId) throws GeoServerException, InvalidInputException {
 		// Get the Deployment from the Database to delete. If the Deployment had
 		// a lease, then the lease is automatically removed when the deployment
 		// is deleted.
 		Deployment deployment = accessor.getDeployment(deploymentId);
 		if (deployment == null) {
-			throw new Exception("Deployment does not exist matching Id " + deploymentId);
+			throw new InvalidInputException("Deployment does not exist matching Id " + deploymentId);
 		}
 		// Delete the Deployment Layer from GeoServer
 		HttpHeaders headers = getGeoServerHeaders();
 		headers.setContentType(MediaType.APPLICATION_JSON);
-		HttpEntity<String> request = new HttpEntity<String>(headers);
+		HttpEntity<String> request = new HttpEntity<>(headers);
 		String url = String.format("http://%s:%s/geoserver/rest/layers/%s", geoserverHost, geoserverPort, deployment.getLayer());
 		try {
 			restTemplate.exchange(url, HttpMethod.DELETE, request, String.class);
@@ -273,7 +286,7 @@ public class Deployer {
 						deploymentId, url, exception.getStatusCode(), exception.getResponseBodyAsString());
 				pzLogger.log(error, PiazzaLogger.ERROR);
 				LOGGER.error(error, exception);				
-				throw new Exception(error);
+				throw new GeoServerException(error);
 			}
 		}
 
@@ -297,7 +310,7 @@ public class Deployer {
 						url, exception.getStatusCode(), exception.getResponseBodyAsString());
 				pzLogger.log(error, PiazzaLogger.ERROR);
 				LOGGER.error(error, exception);				
-				throw new Exception(error);
+				throw new GeoServerException(error);
 			}
 		}
 
@@ -313,8 +326,9 @@ public class Deployer {
 	 * @return The HTTP Status code of the request to GeoServer for adding the layer. GeoServer will typically not
 	 *         return any payload in the response, so the HTTP Status is the best we can do in order to check for
 	 *         success.
+	 * @throws GeoServerException
 	 */
-	private HttpStatus postGeoServerFeatureType(String restURL, String featureType) throws Exception {
+	private HttpStatus postGeoServerFeatureType(String restURL, String featureType) throws GeoServerException {
 		// Construct the URL for the Service
 		String url = String.format(HOST_ADDRESS, geoserverHost, geoserverPort, restURL);
 		LOGGER.info(String.format("Attempting to push a GeoServer Featuretype %s to URL %s", featureType, url));
@@ -332,7 +346,7 @@ public class Deployer {
 					exception.getMessage());
 			pzLogger.log(error, PiazzaLogger.ERROR);
 			LOGGER.error(error, exception);
-			throw new Exception(error);
+			throw new GeoServerException(error);
 		}
 
 		// Return the HTTP Status
@@ -345,8 +359,9 @@ public class Deployer {
 	 * @param layerId
 	 *            The ID of the layer. Corresponds with the Data ID.
 	 * @return True if the layer exists on GeoServer, false if not.
+	 * @throws GeoServerException
 	 */
-	public boolean doesGeoServerLayerExist(String layerId) throws Exception {
+	public boolean doesGeoServerLayerExist(String layerId) throws GeoServerException {
 		HttpHeaders headers = getGeoServerHeaders();
 		headers.setContentType(MediaType.APPLICATION_JSON);
 		HttpEntity<String> request = new HttpEntity<>(headers);
@@ -368,7 +383,7 @@ public class Deployer {
 						layerId, exception.getStatusCode(), exception.getResponseBodyAsString());
 				pzLogger.log(error, PiazzaLogger.ERROR);
 				LOGGER.error(error, exception);
-				throw new Exception(error);
+				throw new GeoServerException(error);
 			}
 		}
 	}

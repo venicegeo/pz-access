@@ -15,6 +15,7 @@
  **/
 package access.database;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.regex.Pattern;
 
@@ -115,7 +116,7 @@ public class Accessor {
 	 * @return Data Store.
 	 */
 	public DataStore getPostGisDataStore(String host, String port, String schema, String dbName, String user, String password)
-			throws Exception {
+			throws IOException {
 		return GeoToolsUtil.getPostGisDataStore(host, port, schema, dbName, user, password);
 	}
 

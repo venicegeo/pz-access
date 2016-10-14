@@ -53,6 +53,7 @@ import access.deploy.Deployer;
 import access.deploy.GroupDeployer;
 import access.deploy.Leaser;
 import access.messaging.AccessThreadManager;
+import exception.GeoServerException;
 import model.data.DataResource;
 import model.data.deployment.Deployment;
 import model.data.deployment.DeploymentGroup;
@@ -321,7 +322,7 @@ public class ControllerTests {
 		assertTrue(response.getStatusCode().compareTo(HttpStatus.OK) == 0);
 
 		// Test Exception
-		Mockito.doThrow(new Exception()).when(deployer).undeploy(eq("123456"));
+		Mockito.doThrow(new GeoServerException("Test")).when(deployer).undeploy(eq("123456"));
 		response = accessController.deleteDeployment("123456");
 		assertTrue(response.getBody() instanceof ErrorResponse);
 
@@ -375,7 +376,7 @@ public class ControllerTests {
 		assertTrue(response.getBody() instanceof SuccessResponse);
 
 		// Test an Exception
-		Mockito.doThrow(new Exception("Error")).when(groupDeployer).deleteDeploymentGroup(Mockito.any());
+		Mockito.doThrow(new GeoServerException("Error")).when(groupDeployer).deleteDeploymentGroup(Mockito.any());
 		response = accessController.deleteDeploymentGroup("123456");
 		assertTrue(response.getBody() instanceof ErrorResponse);
 	}

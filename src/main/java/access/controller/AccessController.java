@@ -15,9 +15,9 @@
  **/
 package access.controller;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringWriter;
-import java.security.Principal;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -53,6 +53,7 @@ import access.deploy.Deployer;
 import access.deploy.GroupDeployer;
 import access.deploy.Leaser;
 import access.messaging.AccessThreadManager;
+import exception.InvalidInputException;
 import model.data.DataResource;
 import model.data.FileRepresentation;
 import model.data.deployment.Deployment;
@@ -124,6 +125,8 @@ public class AccessController {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(AccessController.class);
 	
+	private static final String ACCESS_COMPONENT_NAME = "Access";
+
 	/**
 	 * Healthcheck required for all Piazza Core Services
 	 * 
@@ -151,7 +154,7 @@ public class AccessController {
 
 			if (data == null) {
 				pzLogger.log(String.format("Data not found for requested Id %s", dataId), PiazzaLogger.WARNING);
-				return new ResponseEntity<>(new ErrorResponse(String.format("Data not found: %s", dataId), "Access"),
+				return new ResponseEntity<>(new ErrorResponse(String.format("Data not found: %s", dataId), ACCESS_COMPONENT_NAME),
 						HttpStatus.NOT_FOUND);
 			}
 
@@ -172,7 +175,7 @@ public class AccessController {
 				String message = String.format("File download not available for Data Id %s; type is %s", dataId,
 						data.getDataType().getClass().getSimpleName());
 				pzLogger.log(message, PiazzaLogger.WARNING);
-				throw new Exception(message);
+				throw new InvalidInputException(message);
 			} else {
 				// Get the File Bytes from wherever the File Location
 				FileAccessFactory fileFactory = new FileAccessFactory(amazonS3AccessKey, amazonS3PrivateKey);
@@ -193,7 +196,7 @@ public class AccessController {
 			String error = String.format("Error fetching Data %s: %s", dataId, exception.getMessage());
 			LOGGER.error(error, exception);
 			pzLogger.log(error, PiazzaLogger.ERROR);
-			return new ResponseEntity<>(new ErrorResponse("Error fetching File: " + exception.getMessage(), "Access"),
+			return new ResponseEntity<>(new ErrorResponse("Error fetching File: " + exception.getMessage(), ACCESS_COMPONENT_NAME),
 					HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
@@ -209,13 +212,13 @@ public class AccessController {
 	public ResponseEntity<PiazzaResponse> getData(@PathVariable(value = "dataId") String dataId) {
 		try {
 			if (dataId.isEmpty()) {
-				throw new Exception("No Data Id specified.");
+				throw new InvalidInputException("No Data Id specified.");
 			}
 			// Query for the Data Id
 			DataResource data = accessor.getData(dataId);
 			if (data == null) {
 				pzLogger.log(String.format("Data not found for requested Id %s", dataId), PiazzaLogger.WARNING);
-				return new ResponseEntity<>(new ErrorResponse(String.format("Data not found: %s", dataId), "Access"),
+				return new ResponseEntity<>(new ErrorResponse(String.format("Data not found: %s", dataId), ACCESS_COMPONENT_NAME),
 						HttpStatus.NOT_FOUND);
 			}
 
@@ -226,7 +229,7 @@ public class AccessController {
 			String error = String.format("Error fetching Data %s: %s", dataId, exception.getMessage());
 			LOGGER.error(error, exception);
 			pzLogger.log(error, PiazzaLogger.ERROR);
-			return new ResponseEntity<>(new ErrorResponse("Error fetching Data: " + exception.getMessage(), "Access"),
+			return new ResponseEntity<>(new ErrorResponse("Error fetching Data: " + exception.getMessage(), ACCESS_COMPONENT_NAME),
 					HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
@@ -244,14 +247,14 @@ public class AccessController {
 	public ResponseEntity<PiazzaResponse> getDeployment(@PathVariable(value = "deploymentId") String deploymentId) {
 		try {
 			if (deploymentId.isEmpty()) {
-				throw new Exception("No Deployment Id specified.");
+				throw new InvalidInputException("No Deployment Id specified.");
 			}
 			// Query for the Deployment Id
 			Deployment deployment = accessor.getDeployment(deploymentId);
 			if (deployment == null) {
 				pzLogger.log(String.format("Deployment not found for requested Id %s", deploymentId), PiazzaLogger.WARNING);
 				return new ResponseEntity<>(
-						new ErrorResponse(String.format("Deployment not found: %s", deploymentId), "Access"), HttpStatus.NOT_FOUND);
+						new ErrorResponse(String.format("Deployment not found: %s", deploymentId), ACCESS_COMPONENT_NAME), HttpStatus.NOT_FOUND);
 			}
 
 			// Get the expiration date for this Deployment
@@ -268,7 +271,7 @@ public class AccessController {
 			String error = String.format("Error fetching Deployment %s: %s", deploymentId, exception.getMessage());
 			LOGGER.error(error, exception);
 			pzLogger.log(error, PiazzaLogger.ERROR);
-			return new ResponseEntity<>(new ErrorResponse("Error fetching Deployment: " + exception.getMessage(), "Access"),
+			return new ResponseEntity<>(new ErrorResponse("Error fetching Deployment: " + exception.getMessage(), ACCESS_COMPONENT_NAME),
 					HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
@@ -299,7 +302,7 @@ public class AccessController {
 			String error = String.format("Error Querying Data: %s", exception.getMessage());
 			LOGGER.error(error, exception);
 			pzLogger.log(error, PiazzaLogger.ERROR);
-			return new ResponseEntity<>(new ErrorResponse("Error Querying Data: " + exception.getMessage(), "Access"),
+			return new ResponseEntity<>(new ErrorResponse("Error Querying Data: " + exception.getMessage(), ACCESS_COMPONENT_NAME),
 					HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
@@ -328,7 +331,7 @@ public class AccessController {
 			String error = String.format("Error Querying Deployment: %s", exception.getMessage());
 			LOGGER.error(error, exception);
 			pzLogger.log(error, PiazzaLogger.ERROR);
-			return new ResponseEntity<>(new ErrorResponse("Error Querying Deployment: " + exception.getMessage(), "Access"),
+			return new ResponseEntity<>(new ErrorResponse("Error Querying Deployment: " + exception.getMessage(), ACCESS_COMPONENT_NAME),
 					HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
@@ -358,19 +361,19 @@ public class AccessController {
 			if (deployment == null) {
 				pzLogger.log(String.format("Deployment not found for requested Id %s", deploymentId), PiazzaLogger.WARNING);
 				return new ResponseEntity<>(
-						new ErrorResponse(String.format("Deployment not found: %s", deploymentId), "Access"), HttpStatus.NOT_FOUND);
+						new ErrorResponse(String.format("Deployment not found: %s", deploymentId), ACCESS_COMPONENT_NAME), HttpStatus.NOT_FOUND);
 			}
 
 			// Delete the Deployment
 			deployer.undeploy(deploymentId);
 			// Return OK
 			return new ResponseEntity<>(
-					new SuccessResponse("Deployment " + deploymentId + " was deleted successfully", "Access"), HttpStatus.OK);
+					new SuccessResponse("Deployment " + deploymentId + " was deleted successfully", ACCESS_COMPONENT_NAME), HttpStatus.OK);
 		} catch (Exception exception) {
 			String error = String.format("Error Deleting Deployment %s: %s", deploymentId, exception.getMessage());
 			LOGGER.error(error, exception);
 			pzLogger.log(error, PiazzaLogger.ERROR);
-			return new ResponseEntity<>(new ErrorResponse(error, "Access"), HttpStatus.INTERNAL_SERVER_ERROR);
+			return new ResponseEntity<>(new ErrorResponse(error, ACCESS_COMPONENT_NAME), HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
 
@@ -393,7 +396,7 @@ public class AccessController {
 			String error = String.format("Error Creating DeploymentGroup for user %s : %s", createdBy, exception.getMessage());
 			LOGGER.error(error, exception);
 			pzLogger.log(error, PiazzaLogger.ERROR);
-			return new ResponseEntity<>(new ErrorResponse(error, "Access"), HttpStatus.INTERNAL_SERVER_ERROR);
+			return new ResponseEntity<>(new ErrorResponse(error, ACCESS_COMPONENT_NAME), HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
 
@@ -408,31 +411,31 @@ public class AccessController {
 	public ResponseEntity<PiazzaResponse> deleteDeploymentGroup(@PathVariable(value = "deploymentGroupId") String deploymentGroupId) {
 		try {
 			if ((deploymentGroupId == null) || (deploymentGroupId.isEmpty())) {
-				return new ResponseEntity<>(new ErrorResponse("DeploymentGroup Id not specified.", "Access"),
+				return new ResponseEntity<>(new ErrorResponse("DeploymentGroup Id not specified.", ACCESS_COMPONENT_NAME),
 						HttpStatus.BAD_REQUEST);
 			}
 			// Delete the DeploymentGroup from GeoServer, and remove it from
 			// the Piazza DB persistence
 			DeploymentGroup deploymentGroup = accessor.getDeploymentGroupById(deploymentGroupId);
 			if (deploymentGroup == null) {
-				return new ResponseEntity<>(new ErrorResponse("DeploymentGroup does not exist.", "Access"),
+				return new ResponseEntity<>(new ErrorResponse("DeploymentGroup does not exist.", ACCESS_COMPONENT_NAME),
 						HttpStatus.NOT_FOUND);
 			}
 			groupDeployer.deleteDeploymentGroup(deploymentGroup);
-			return new ResponseEntity<>(new SuccessResponse("Group Deleted.", "Access"), HttpStatus.OK);
+			return new ResponseEntity<>(new SuccessResponse("Group Deleted.", ACCESS_COMPONENT_NAME), HttpStatus.OK);
 		} catch (HttpStatusCodeException httpException) {
 			// Return the HTTP Error code from GeoServer
 			String error = String.format("Could not delete DeploymentGroup. Response from GeoServer returned code %s with reason %s",
 					httpException.getStatusCode().toString(), httpException.getMessage());
 			LOGGER.error(error, httpException);			
 			pzLogger.log(error, PiazzaLogger.ERROR);
-			return new ResponseEntity<>(new ErrorResponse(error, "Access"), httpException.getStatusCode());
+			return new ResponseEntity<>(new ErrorResponse(error, ACCESS_COMPONENT_NAME), httpException.getStatusCode());
 		} catch (Exception exception) {
 			// Return the 500 Internal error
 			String error = String.format("Could not delete DeploymentGroup. An unexpected error occurred: %s", exception.getMessage());
 			LOGGER.error(error, exception);			
 			pzLogger.log(error, PiazzaLogger.ERROR);
-			return new ResponseEntity<>(new ErrorResponse(error, "Access"), HttpStatus.INTERNAL_SERVER_ERROR);
+			return new ResponseEntity<>(new ErrorResponse(error, ACCESS_COMPONENT_NAME), HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
 
@@ -487,7 +490,7 @@ public class AccessController {
 	 * @return stringbuilder of geojson
 	 * @throws Exception
 	 */
-	private StringBuilder getPostGISGeoJSON(DataResource data) throws Exception {
+	private StringBuilder getPostGISGeoJSON(DataResource data) throws IOException {
 		// Connect to POSTGIS and gather geoJSON info
 		DataStore postGisStore = accessor.getPostGisDataStore(postgresHost, postgresPort, postgresSchema, postgresDBName,
 				postgresUser, postgresPassword);
