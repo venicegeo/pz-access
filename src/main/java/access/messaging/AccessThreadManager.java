@@ -120,7 +120,7 @@ public class AccessThreadManager {
 		try {
 			// Callback that will be invoked when a Worker completes. This will
 			// remove the Job Id from the running Jobs list.
-			WorkerCallback callback = (jobId) ->  runningJobs.remove(jobId);
+			WorkerCallback callback = jobId ->  runningJobs.remove(jobId);
 
 			// Create the General Group Consumer
 			Consumer<String, String> generalConsumer = KafkaClientFactory.getConsumer(kafkaHost, kafkaPort, kafkaGroup);

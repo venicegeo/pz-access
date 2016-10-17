@@ -52,7 +52,7 @@ public class AccessUtilities {
 	 * @throws AmazonClientException 
 	 * @throws Exception 
 	 */
-	public byte[] getBytesForDataResource(DataResource dataResource) throws IOException, AmazonClientException, InvalidInputException {
+	public byte[] getBytesForDataResource(DataResource dataResource) throws IOException, InvalidInputException {
 		FileLocation fileLocation = ((RasterDataType) dataResource.getDataType()).getLocation();
 		FileAccessFactory fileAccessFactory = new FileAccessFactory(amazonS3AccessKey, amazonS3PrivateKey);
 		return IOUtils.toByteArray(fileAccessFactory.getFile(fileLocation));

@@ -15,7 +15,6 @@
  **/
 package access;
 
-import java.lang.reflect.Method;
 import java.util.concurrent.Executor;
 
 import org.apache.http.client.HttpClient;
@@ -84,8 +83,7 @@ public class Application extends SpringBootServletInitializer implements AsyncCo
 
 	@Override
 	public AsyncUncaughtExceptionHandler getAsyncUncaughtExceptionHandler() {
-		return (ex, method, params) -> {
-			LOGGER.error(String.format("Uncaught Threading exception encountered in %s with details: %s", ex.getMessage(), method.getName())); 
-		};
+		return (ex, method, params) -> 
+			LOGGER.error(String.format("Uncaught Threading exception encountered in %s with details: %s", ex.getMessage(), method.getName()));
 	}
 }

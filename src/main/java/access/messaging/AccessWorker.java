@@ -129,7 +129,7 @@ public class AccessWorker {
 					// Obtain the Data to be deployed
 					DataResource dataToDeploy = accessor.getData(accessJob.getDataId());
 					if (dataToDeploy == null) {
-						throw new Exception(String.format("Data with Id %s does not exist.", accessJob.getDataId()));
+						throw new InvalidInputException(String.format("Data with Id %s does not exist.", accessJob.getDataId()));
 					}
 					// Create the Deployment
 					deployment = deployer.createDeployment(dataToDeploy);

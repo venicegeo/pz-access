@@ -206,7 +206,7 @@ public class Deployer {
 	 * @throws AmazonClientException
 	 */
 	private Deployment deployRaster(DataResource dataResource)
-			throws GeoServerException, AmazonClientException, IOException, InvalidInputException {
+			throws GeoServerException, IOException, InvalidInputException {
 		// Get the File Bytes of the Raster to be uploaded
 		byte[] fileBytes = accessUtilities.getBytesForDataResource(dataResource);
 
@@ -382,11 +382,7 @@ public class Deployer {
 		String url = String.format("http://%s:%s/geoserver/rest/layers/%s.json", geoserverHost, geoserverPort, layerId);
 		try {
 			ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, request, String.class);
-			if (response.getStatusCode().equals(HttpStatus.OK)) {
-				return true;
-			} else {
-				return false;
-			}
+			return response.getStatusCode().equals(HttpStatus.OK);
 		} catch (HttpClientErrorException | HttpServerErrorException exception) {
 			// Check the status code. If it's a 404, then the layer does not exist.
 			if (exception.getStatusCode() == HttpStatus.NOT_FOUND) {
