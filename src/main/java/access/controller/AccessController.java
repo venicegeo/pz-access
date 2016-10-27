@@ -237,7 +237,7 @@ public class AccessController {
 	/**
 	 * Gets Deployment information for an active deployment, including URL and Data Id.
 	 * 
-	 * @see http://pz-swagger.stage.geointservices.io/#!/Deployment/ get_deployment_deploymentId
+	 * @see http://pz-swagger/#!/Deployment/ get_deployment_deploymentId
 	 * 
 	 * @param deploymentId
 	 *            The Id of the deployment to fetch
