@@ -28,6 +28,7 @@ import com.mongodb.BasicDBObject;
 import access.database.Accessor;
 import model.data.deployment.Deployment;
 import model.data.deployment.Lease;
+import model.logger.AuditElement;
 import model.logger.Severity;
 import util.PiazzaLogger;
 import util.UUIDFactory;
@@ -52,7 +53,7 @@ public class Leaser {
 	@Autowired
 	private Accessor accessor;
 	private static final Integer DEFAULT_LEASE_PERIOD_DAYS = 21;
-	
+
 	private static final Logger LOGGER = LoggerFactory.getLogger(Leaser.class);
 
 	/**
@@ -75,10 +76,13 @@ public class Leaser {
 			if (expirationDate.isBeforeNow()) {
 				// If the Lease has expired, then the Lease will be extended for
 				// the default Lease period.
-				Integer updatedDurationDays = ((durationDays != null) && (durationDays.intValue() > 0)) ? durationDays : DEFAULT_LEASE_PERIOD_DAYS;
+				Integer updatedDurationDays = ((durationDays != null) && (durationDays.intValue() > 0)) ? durationDays
+						: DEFAULT_LEASE_PERIOD_DAYS;
 				accessor.updateLeaseExpirationDate(lease.getLeaseId(), DateTime.now().plusDays(updatedDurationDays.intValue()).toString());
-				pzLogger.log(String.format("Updating Deployment Lease for Deployment %s on host %s for %s", deployment.getDeploymentId(),
-						deployment.getHost(), deployment.getDataId()), Severity.INFORMATIONAL);
+				pzLogger.log(
+						String.format("Updating Deployment Lease for Deployment %s on host %s for %s", deployment.getDeploymentId(),
+								deployment.getHost(), deployment.getDataId()),
+						Severity.INFORMATIONAL, new AuditElement("access", "renewDeploymentLease", deployment.getDeploymentId()));
 			} else {
 				// If the Lease has not expired, then the Lease will not be
 				// extended. It will simply be reused.
@@ -106,8 +110,10 @@ public class Leaser {
 		accessor.insertLease(lease);
 
 		// Return reference
-		pzLogger.log(String.format("Creating Deployment Lease for Deployment %s on host %s for %s", deployment.getDeploymentId(),
-				deployment.getHost(), deployment.getDataId()), Severity.INFORMATIONAL);
+		pzLogger.log(
+				String.format("Creating Deployment Lease for Deployment %s on host %s for %s", deployment.getDeploymentId(),
+						deployment.getHost(), deployment.getDataId()),
+				Severity.INFORMATIONAL, new AuditElement("access", "createDeploymentLease", leaseId));
 		return lease;
 	}
 
@@ -149,7 +155,7 @@ public class Leaser {
 					pzLogger.log(
 							String.format("Expired Lease with Id %s with expiration date %s for Deployment %s has been removed.",
 									expiredLease.getLeaseId(), expiredLease.getExpiresOn(), expiredLease.getDeploymentId()),
-							Severity.INFORMATIONAL);
+							Severity.INFORMATIONAL, new AuditElement("access", "reapExpiredLease", expiredLease.getDeploymentId()));
 				} catch (Exception exception) {
 					String error = String.format("Error reaping Expired Lease with Id %s: %s. This expired lease may still persist.",
 							expiredLease.getLeaseId(), exception.getMessage());

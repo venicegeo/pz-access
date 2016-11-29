@@ -49,6 +49,7 @@ import model.data.type.GeoJsonDataType;
 import model.data.type.PostGISDataType;
 import model.data.type.RasterDataType;
 import model.data.type.ShapefileDataType;
+import model.logger.AuditElement;
 import model.logger.Severity;
 import util.PiazzaLogger;
 import util.UUIDFactory;
@@ -126,8 +127,10 @@ public class Deployer {
 		accessor.insertDeployment(deployment);
 
 		// Log information
-		pzLogger.log(String.format("Created Deployment %s for Data %s on host %s", deployment.getDeploymentId(), deployment.getDataId(),
-				deployment.getHost()), Severity.INFORMATIONAL);
+		pzLogger.log(
+				String.format("Created Deployment %s for Data %s on host %s", deployment.getDeploymentId(), deployment.getDataId(),
+						deployment.getHost()),
+				Severity.INFORMATIONAL, new AuditElement("access", "createNewDeployment", deployment.getDeploymentId()));
 
 		// Return Deployment reference
 		return deployment;
@@ -183,14 +186,19 @@ public class Deployer {
 
 		// Ensure the Status Code is OK
 		if (statusCode != HttpStatus.CREATED) {
-			pzLogger.log(String.format("Failed to Deploy PostGIS Table name %s for Resource %s to GeoServer. HTTP Code: %s", tableName,
-					dataResource.getDataId(), statusCode), Severity.ERROR);
+			pzLogger.log(
+					String.format("Failed to Deploy PostGIS Table name %s for Resource %s to GeoServer. HTTP Code: %s", tableName,
+							dataResource.getDataId(), statusCode),
+					Severity.ERROR, new AuditElement("access", "failedToCreatePostGisTable", dataResource.getDataId()));
 			throw new GeoServerException("Failed to Deploy to GeoServer; the Status returned a non-OK response code: " + statusCode);
 		}
 
 		// Create a new Deployment for this Resource
 		String deploymentId = uuidFactory.getUUID();
 		String capabilitiesUrl = String.format(HOST_ADDRESS, geoserverHost, geoserverPort, CAPABILITIES_URL);
+
+		pzLogger.log(String.format("Created PostGIS Table for Resource %s", dataResource.getDataId()), Severity.INFORMATIONAL,
+				new AuditElement("access", "createPostGisTable", dataResource.getDataId()));
 
 		return new Deployment(deploymentId, dataResource.getDataId(), geoserverHost, geoserverPort, tableName, capabilitiesUrl);
 	}
@@ -206,8 +214,7 @@ public class Deployer {
 	 * @throws IOException
 	 * @throws AmazonClientException
 	 */
-	private Deployment deployRaster(DataResource dataResource)
-			throws GeoServerException, IOException, InvalidInputException {
+	private Deployment deployRaster(DataResource dataResource) throws GeoServerException, IOException, InvalidInputException {
 		// Get the File Bytes of the Raster to be uploaded
 		byte[] fileBytes = accessUtilities.getBytesForDataResource(dataResource);
 
@@ -220,6 +227,8 @@ public class Deployer {
 		String url = String.format("http://%s:%s/geoserver/rest/workspaces/piazza/coveragestores/%s/file.geotiff", geoserverHost,
 				geoserverPort, dataResource.getDataId());
 		try {
+			pzLogger.log(String.format("Creating new Raster Deployment to %s", url), Severity.INFORMATIONAL,
+					new AuditElement("access", "deployGeoServerRasterLayer", dataResource.getDataId()));
 			restTemplate.exchange(url, HttpMethod.PUT, request, String.class);
 		} catch (HttpClientErrorException | HttpServerErrorException exception) {
 			if (exception.getStatusCode() == HttpStatus.METHOD_NOT_ALLOWED) {
@@ -243,14 +252,14 @@ public class Deployer {
 				String error = String.format(
 						"Creating Layer on GeoServer at URL %s returned HTTP Status %s with Body: %s. This may be the result of GeoServer processing this Data Id simultaneously by another request. Please try again.",
 						url, exception.getStatusCode().toString(), exception.getResponseBodyAsString());
-				pzLogger.log(error, Severity.ERROR);
+				pzLogger.log(error, Severity.ERROR, new AuditElement("access", "failedToDeployRaster", dataResource.getDataId()));
 				LOGGER.error(error, exception);
 				throw new GeoServerException(error);
 			} else {
 				// For any other errors, report back this error to the user and fail the job.
 				String error = String.format("Creating Layer on GeoServer at URL %s returned HTTP Status %s with Body: %s", url,
 						exception.getStatusCode().toString(), exception.getResponseBodyAsString());
-				pzLogger.log(error, Severity.ERROR);
+				pzLogger.log(error, Severity.ERROR, new AuditElement("access", "failedToDeployRaster", dataResource.getDataId()));
 				LOGGER.error(error, exception);
 				throw new GeoServerException(error);
 			}
@@ -286,6 +295,8 @@ public class Deployer {
 		HttpEntity<String> request = new HttpEntity<>(headers);
 		String url = String.format("http://%s:%s/geoserver/rest/layers/%s", geoserverHost, geoserverPort, deployment.getLayer());
 		try {
+			pzLogger.log(String.format("Deleting Deployment from Resource %s", url), Severity.INFORMATIONAL,
+					new AuditElement("access", "undeployGeoServerLayer", deploymentId));
 			restTemplate.exchange(url, HttpMethod.DELETE, request, String.class);
 		} catch (HttpClientErrorException | HttpServerErrorException exception) {
 			// Check the status code. If it's a 404, then the layer has likely
@@ -299,7 +310,7 @@ public class Deployer {
 				// Some other exception occurred. Bubble it up.
 				String error = String.format("Error deleting GeoServer Layer for Deployment %s via request %s: Code %s with Error %s",
 						deploymentId, url, exception.getStatusCode(), exception.getResponseBodyAsString());
-				pzLogger.log(error, Severity.ERROR);
+				pzLogger.log(error, Severity.ERROR, new AuditElement("access", "failedToDeleteGeoServerLayer", deploymentId));
 				LOGGER.error(error, exception);
 				throw new GeoServerException(error);
 			}
@@ -309,6 +320,8 @@ public class Deployer {
 		url = String.format("http://%s:%s/geoserver/rest/workspaces/piazza/coveragestores/%s?purge=all&recurse=true", geoserverHost,
 				geoserverPort, deployment.getDataId());
 		try {
+			pzLogger.log(String.format("Deleting Coverage Store from Resource %s", url), Severity.INFORMATIONAL,
+					new AuditElement("access", "deleteGeoServerCoverageStore", deployment.getDataId()));
 			restTemplate.exchange(url, HttpMethod.DELETE, request, String.class);
 		} catch (HttpClientErrorException | HttpServerErrorException exception) {
 			// Check the status code. If it's a 404, then the layer has likely
@@ -323,7 +336,7 @@ public class Deployer {
 				String error = String.format(
 						"Error deleting GeoServer Coverage Store for Deployment %s via request %s: Code %s with Error: %s", deploymentId,
 						url, exception.getStatusCode(), exception.getResponseBodyAsString());
-				pzLogger.log(error, Severity.ERROR);
+				pzLogger.log(error, Severity.ERROR, new AuditElement("access", "failedToUndeployLayer", deploymentId));
 				LOGGER.error(error, exception);
 				throw new GeoServerException(error);
 			}
@@ -355,11 +368,13 @@ public class Deployer {
 
 		ResponseEntity<String> response = null;
 		try {
+			pzLogger.log(String.format("Creating GeoServer Feature Type for Resource %s", url), Severity.INFORMATIONAL,
+					new AuditElement("access", "createGeoServerFeatureType", url));
 			response = restTemplate.exchange(url, HttpMethod.POST, request, String.class);
 		} catch (Exception exception) {
 			String error = String.format("There was an error creating the Coverage Layer to URL %s with errors %s", url,
 					exception.getMessage());
-			pzLogger.log(error, Severity.ERROR);
+			pzLogger.log(error, Severity.ERROR, new AuditElement("access", "failedToCreateGeoServerFeatureType", url));
 			LOGGER.error(error, exception);
 			throw new GeoServerException(error);
 		}
@@ -382,6 +397,8 @@ public class Deployer {
 		HttpEntity<String> request = new HttpEntity<>(headers);
 		String url = String.format("http://%s:%s/geoserver/rest/layers/%s.json", geoserverHost, geoserverPort, layerId);
 		try {
+			pzLogger.log(String.format("Checking GeoServer if Layer Exists %s", layerId), Severity.INFORMATIONAL,
+					new AuditElement("access", "checkGeoServerLayerExists", url));
 			ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, request, String.class);
 			return response.getStatusCode().equals(HttpStatus.OK);
 		} catch (HttpClientErrorException | HttpServerErrorException exception) {
@@ -392,7 +409,7 @@ public class Deployer {
 				// Some other exception occurred. Bubble it up as an exception.
 				String error = String.format("Error while checking status of Layer %s. GeoServer returned with Code %s and error %s: ",
 						layerId, exception.getStatusCode(), exception.getResponseBodyAsString());
-				pzLogger.log(error, Severity.ERROR);
+				pzLogger.log(error, Severity.ERROR, new AuditElement("access", "failedToCheckGeoServerLayerStatus", layerId));
 				LOGGER.error(error, exception);
 				throw new GeoServerException(error);
 			}

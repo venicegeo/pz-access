@@ -18,6 +18,7 @@ package access.util;
 import java.io.IOException;
 
 import org.apache.commons.io.IOUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -28,6 +29,9 @@ import model.data.DataResource;
 import model.data.location.FileAccessFactory;
 import model.data.location.FileLocation;
 import model.data.type.RasterDataType;
+import model.logger.AuditElement;
+import model.logger.Severity;
+import util.PiazzaLogger;
 
 /**
  * Utility class to handle common functionality required by access components
@@ -41,6 +45,8 @@ public class AccessUtilities {
 	private String amazonS3AccessKey;
 	@Value("${vcap.services.pz-blobstore.credentials.secret_access_key}")
 	private String amazonS3PrivateKey;
+	@Autowired
+	private PiazzaLogger pzLogger;
 
 	/**
 	 * Gets the Bytes for a Data Resource
@@ -48,11 +54,13 @@ public class AccessUtilities {
 	 * @param dataResource
 	 *            The Data Resource
 	 * @return The byte array for the file
-	 * @throws InvalidInputException 
-	 * @throws AmazonClientException 
-	 * @throws Exception 
+	 * @throws InvalidInputException
+	 * @throws AmazonClientException
+	 * @throws Exception
 	 */
 	public byte[] getBytesForDataResource(DataResource dataResource) throws IOException, InvalidInputException {
+		pzLogger.log("Fetching Bytes for Data Item", Severity.INFORMATIONAL,
+				new AuditElement("access", "getBytesForData", dataResource.getDataId()));
 		FileLocation fileLocation = ((RasterDataType) dataResource.getDataType()).getLocation();
 		FileAccessFactory fileAccessFactory = new FileAccessFactory(amazonS3AccessKey, amazonS3PrivateKey);
 		return IOUtils.toByteArray(fileAccessFactory.getFile(fileLocation));

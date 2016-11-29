@@ -44,6 +44,7 @@ import messaging.job.KafkaClientFactory;
 import messaging.job.WorkerCallback;
 import model.job.type.AbortJob;
 import model.job.type.AccessJob;
+import model.logger.AuditElement;
 import model.logger.Severity;
 import model.request.PiazzaJobRequest;
 import util.PiazzaLogger;
@@ -109,7 +110,7 @@ public class AccessThreadManager {
 		// Start polling for Kafka Jobs on the Group Consumer.
 		// Occurs on a separate Thread to not block Spring.
 		new Thread(() -> pollAccessJobs()).start();
-		
+
 		// Start polling for Kafka Abort Jobs on the unique Consumer.
 		new Thread(() -> pollAbortJobs()).start();
 	}
@@ -121,7 +122,7 @@ public class AccessThreadManager {
 		try {
 			// Callback that will be invoked when a Worker completes. This will
 			// remove the Job Id from the running Jobs list.
-			WorkerCallback callback = jobId ->  runningJobs.remove(jobId);
+			WorkerCallback callback = jobId -> runningJobs.remove(jobId);
 
 			// Create the General Group Consumer
 			Consumer<String, String> generalConsumer = KafkaClientFactory.getConsumer(kafkaHost, kafkaPort, kafkaGroup);
@@ -144,7 +145,7 @@ public class AccessThreadManager {
 			generalConsumer.close();
 		} catch (WakeupException exception) {
 			String error = String.format("Polling Thread forcefully closed: %s", exception.getMessage());
-			LOGGER.error(error, exception);
+			LOGGER.error(error, exception, new AuditElement("access", "kafkaListenerShutDown", ""));
 			pzLogger.log(error, Severity.ERROR);
 		}
 	}
@@ -174,12 +175,12 @@ public class AccessThreadManager {
 			pzLogger.log(error, Severity.ERROR);
 		}
 	}
-	
-	private void handleNewMessages(ConsumerRecord<String,String> consumerRecord) {
+
+	private void handleNewMessages(ConsumerRecord<String, String> consumerRecord) {
 		// Determine if this Job Id is being processed by this
 		// component.
 		String jobId = getJobId(consumerRecord.value());
-		if( jobId == null ) {
+		if (jobId == null) {
 			return;
 		}
 
@@ -206,13 +207,14 @@ public class AccessThreadManager {
 	public List<String> getRunningJobIds() {
 		return new ArrayList<>(runningJobs.keySet());
 	}
-	
+
 	private String getJobId(String consumerRecordValue) {
 		try {
 			PiazzaJobRequest request = objectMapper.readValue(consumerRecordValue, PiazzaJobRequest.class);
 			return ((AbortJob) request.jobType).getJobId();
 		} catch (Exception exception) {
-			String error = String.format("Error Aborting Job. Could not get the Job ID from the Kafka Message with error:  %s", exception.getMessage());
+			String error = String.format("Error Aborting Job. Could not get the Job ID from the Kafka Message with error:  %s",
+					exception.getMessage());
 			LOGGER.error(error, exception);
 			pzLogger.log(error, Severity.ERROR);
 			return null;

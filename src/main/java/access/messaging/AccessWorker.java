@@ -48,6 +48,7 @@ import model.job.Job;
 import model.job.result.type.DeploymentResult;
 import model.job.result.type.ErrorResult;
 import model.job.type.AccessJob;
+import model.logger.AuditElement;
 import model.logger.Severity;
 import model.status.StatusUpdate;
 import util.PiazzaLogger;
@@ -78,7 +79,7 @@ public class AccessWorker {
 	private String space;
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(AccessWorker.class);
-	
+
 	/**
 	 * Listens for Kafka Access messages for creating Deployments for Access of Resources
 	 */
@@ -98,12 +99,15 @@ public class AccessWorker {
 			}
 
 			if ((accessJob.getDeploymentType() == null) || (accessJob.getDeploymentType().isEmpty())) {
-				throw new InvalidInputException(String.format("An invalid or empty Deployment Type was specified: %s", accessJob.getDataId()));
+				throw new InvalidInputException(
+						String.format("An invalid or empty Deployment Type was specified: %s", accessJob.getDataId()));
 			}
 
 			// Logging
-			pzLogger.log(String.format("Received Request to Access Data %s of Type %s under Job Id %s", accessJob.getDataId(),
-					accessJob.getDeploymentType(), job.getJobId()), Severity.INFORMATIONAL);
+			pzLogger.log(
+					String.format("Received Request to Access Data %s of Type %s under Job Id %s", accessJob.getDataId(),
+							accessJob.getDeploymentType(), job.getJobId()),
+					Severity.INFORMATIONAL, new AuditElement(job.getJobId(), "requestAccessData", accessJob.getDataId()));
 
 			if (Thread.interrupted()) {
 				throw new InterruptedException();
@@ -114,7 +118,7 @@ public class AccessWorker {
 			producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate, space));
 
 			// Depending on how the user wants to Access the Resource
-			if( accessJob.getDeploymentType().equals(AccessJob.ACCESS_TYPE_GEOSERVER) ) {
+			if (accessJob.getDeploymentType().equals(AccessJob.ACCESS_TYPE_GEOSERVER)) {
 				Deployment deployment = null;
 
 				// Check if a Deployment already exists
@@ -190,15 +194,15 @@ public class AccessWorker {
 				producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate, space));
 
 				// Console Logging
-				pzLogger.log(String.format("GeoServer Deployment successul for Resource %s", accessJob.getDataId()), Severity.INFORMATIONAL);
+				pzLogger.log(String.format("GeoServer Deployment successul for Resource %s", accessJob.getDataId()), Severity.INFORMATIONAL,
+						new AuditElement(job.getJobId(), "accessData", accessJob.getDataId()));
 				LOGGER.info("Deployment Successfully Returned for Resource " + accessJob.getDataId());
-			} 
-			else {
+			} else {
 				throw new InvalidInputException("Unknown Deployment Type: " + accessJob.getDeploymentType());
 			}
 		} catch (MongoInterruptedException | InterruptedException exception) {
 			String error = String.format("Thread interrupt received for Job %s", consumerRecord.key());
-			LOGGER.error(error, exception);
+			LOGGER.error(error, exception, new AuditElement(consumerRecord.key(), "accessJobTerminated", ""));
 			pzLogger.log(error, Severity.INFORMATIONAL);
 			StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_CANCELLED);
 			try {
@@ -212,9 +216,9 @@ public class AccessWorker {
 			}
 		} catch (Exception exception) {
 			String error = String.format("Error Accessing Data under Job %s with Error: %s", consumerRecord.key(), exception.getMessage());
-			LOGGER.error(error, exception);
+			LOGGER.error(error, exception, new AuditElement(consumerRecord.key(), "failedAccessData", ""));
 			pzLogger.log(error, Severity.ERROR);
-			
+
 			try {
 				// Send the failure message to the Job Manager.
 				StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_ERROR);
@@ -223,7 +227,9 @@ public class AccessWorker {
 			} catch (JsonProcessingException jsonException) {
 				// If the Kafka message fails to send, at least log
 				// something in the console.
-				String errorJson = String.format("Could not update Job Manager with failure event in Ingest Worker. Error creating message: %s", jsonException.getMessage());
+				String errorJson = String.format(
+						"Could not update Job Manager with failure event in Ingest Worker. Error creating message: %s",
+						jsonException.getMessage());
 				LOGGER.error(errorJson, jsonException);
 				pzLogger.log(errorJson, Severity.ERROR);
 			}
