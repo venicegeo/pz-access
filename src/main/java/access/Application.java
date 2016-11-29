@@ -53,7 +53,7 @@ public class Application extends SpringBootServletInitializer implements AsyncCo
 	private int httpMaxRoute;
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(Application.class);
-	
+
 	@Override
 	protected SpringApplicationBuilder configure(SpringApplicationBuilder builder) {
 		return builder.sources(Application.class);
@@ -68,7 +68,7 @@ public class Application extends SpringBootServletInitializer implements AsyncCo
 	}
 
 	public static void main(String[] args) {
-		SpringApplication.run(Application.class, args); //NOSONAR
+		SpringApplication.run(Application.class, args); // NOSONAR
 	}
 
 	@Override
@@ -83,7 +83,7 @@ public class Application extends SpringBootServletInitializer implements AsyncCo
 
 	@Override
 	public AsyncUncaughtExceptionHandler getAsyncUncaughtExceptionHandler() {
-		return (ex, method, params) -> 
-			LOGGER.error(String.format("Uncaught Threading exception encountered in %s with details: %s", ex.getMessage(), method.getName()));
+		return (ex, method, params) -> LOGGER
+				.error(String.format("Uncaught Threading exception encountered in %s with details: %s", ex.getMessage(), method.getName()));
 	}
 }

@@ -46,6 +46,8 @@ import exception.DataInspectException;
 import exception.GeoServerException;
 import model.data.deployment.Deployment;
 import model.data.deployment.DeploymentGroup;
+import model.logger.AuditElement;
+import model.logger.Severity;
 import util.PiazzaLogger;
 import util.UUIDFactory;
 
@@ -94,6 +96,8 @@ public class GroupDeployer {
 		DeploymentGroup deploymentGroup = new DeploymentGroup(uuidFactory.getUUID(), createdBy);
 		deploymentGroup.setHasGisServerLayer(false);
 		accessor.insertDeploymentGroup(deploymentGroup);
+		pzLogger.log("Inserting Deployment Group into Mongo Database" + deploymentGroup.deploymentGroupId, Severity.INFORMATIONAL,
+				new AuditElement("access", "insertedDeploymentGroup", deploymentGroup.deploymentGroupId));
 		return deploymentGroup;
 	}
 
@@ -109,7 +113,8 @@ public class GroupDeployer {
 	 * @throws GeoServerException
 	 * @throws DataInspectException
 	 */
-	public DeploymentGroup createDeploymentGroup(List<Deployment> deployments, String createdBy) throws DataInspectException, GeoServerException {
+	public DeploymentGroup createDeploymentGroup(List<Deployment> deployments, String createdBy)
+			throws DataInspectException, GeoServerException {
 		// Create the Group.
 		DeploymentGroup deploymentGroup = new DeploymentGroup(uuidFactory.getUUID(), createdBy);
 
@@ -140,6 +145,9 @@ public class GroupDeployer {
 		deploymentGroup.setHasGisServerLayer(true);
 		accessor.insertDeploymentGroup(deploymentGroup);
 
+		pzLogger.log(String.format("Inserting Deployment Group into Mongo Database %s", deploymentGroup.deploymentGroupId),
+				Severity.INFORMATIONAL, new AuditElement("access", "insertDeploymentGroup", deploymentGroup.deploymentGroupId));
+
 		// Return the Group
 		return deploymentGroup;
 	}
@@ -159,7 +167,8 @@ public class GroupDeployer {
 	 * @throws GeoServerException
 	 * @throws DataInspectException
 	 */
-	public void updateDeploymentGroup(DeploymentGroup deploymentGroup, List<Deployment> deployments) throws DataInspectException, GeoServerException {
+	public void updateDeploymentGroup(DeploymentGroup deploymentGroup, List<Deployment> deployments)
+			throws DataInspectException, GeoServerException {
 		// Check if the Layer Group exists. If it doesn't, then create it. If it
 		// does, then Grab the Model to edit.
 		LayerGroupModel layerGroupModel;
@@ -207,6 +216,9 @@ public class GroupDeployer {
 		if (!deploymentGroup.getHasGisServerLayer()) {
 			accessor.updateDeploymentGroupCreated(deploymentGroup.deploymentGroupId, true);
 		}
+
+		pzLogger.log(String.format("Updated Deployment Group into Mongo Database %s", deploymentGroup.deploymentGroupId),
+				Severity.INFORMATIONAL, new AuditElement("access", "updateDeploymentGroup", deploymentGroup.deploymentGroupId));
 	}
 
 	/**
@@ -225,6 +237,8 @@ public class GroupDeployer {
 
 		// Execute
 		try {
+			pzLogger.log(String.format("Deleting GeoServer Deployment Group %s", deploymentGroup.deploymentGroupId), Severity.INFORMATIONAL,
+					new AuditElement("access", "deleteGeoServerDeploymentGroup", url));
 			restTemplate.exchange(url, HttpMethod.DELETE, request, String.class);
 		} catch (HttpClientErrorException | HttpServerErrorException exception) {
 			// If the delete to GeoServer failed, then check why. Perhaps it's
@@ -240,6 +254,9 @@ public class GroupDeployer {
 				throw new GeoServerException(error);
 			}
 		}
+
+		pzLogger.log(String.format("Deleted Deployment Group into Mongo Database %s", deploymentGroup.deploymentGroupId),
+				Severity.INFORMATIONAL, new AuditElement("access", "deleteDeploymentGroup", deploymentGroup.deploymentGroupId));
 
 		// Remove the Deployment Group reference from Mongo
 		accessor.deleteDeploymentGroup(deploymentGroup);
@@ -271,11 +288,13 @@ public class GroupDeployer {
 		// Execute the request to get the Layer Group
 		ResponseEntity<String> response;
 		try {
+			pzLogger.log(String.format("Getting GeoServer Layer Group Metadata: %s", deploymentGroupId), Severity.INFORMATIONAL,
+					new AuditElement("access", "readGeoServerLayerGroupMetadata", url));
 			response = restTemplate.exchange(url, HttpMethod.GET, request, String.class);
 		} catch (HttpStatusCodeException exception) {
 			String error = String.format("Could not fetch Layer Group %s. Status code %s was returned by GeoServer with error: %s",
 					deploymentGroupId, exception.getStatusCode().toString(), exception.getMessage());
-			LOGGER.error(error, exception);
+			LOGGER.error(error, exception, new AuditElement("access", "failedToFetchGeoServerLayerGroup", deploymentGroupId));
 			throw new GeoServerException(error);
 		}
 
@@ -304,7 +323,7 @@ public class GroupDeployer {
 			String error = String.format(
 					"Could not read in Layer Group from GeoServer response for %s: %s. Expected back a Layer Group description, but GeoServer responded with Code %s and Body %s",
 					deploymentGroupId, exception.getMessage(), exception.getStatusCode().toString(), exception.getResponseBodyAsString());
-			LOGGER.error(error, exception);
+			LOGGER.error(error, exception, new AuditElement("access", "failedToParseGeoServerLayerGroup", deploymentGroupId));
 			throw new GeoServerException(error);
 		} catch (Exception exception) {
 			String error = String.format("Could not read in Layer Group from GeoServer response for %s: %s", deploymentGroupId,
@@ -325,7 +344,7 @@ public class GroupDeployer {
 	 * @param method
 	 *            POST to create a new Layer Group, and PUT to update an existing one.
 	 * @throws GeoServerException
-	 * @throws DataInspectException 
+	 * @throws DataInspectException
 	 */
 	private void sendGeoServerLayerGroup(LayerGroupModel layerGroup, HttpMethod method) throws GeoServerException, DataInspectException {
 		// Create the Request
@@ -337,8 +356,9 @@ public class GroupDeployer {
 			payload = new ObjectMapper().writeValueAsString(layerGroup);
 			request = new HttpEntity<>(payload, headers);
 		} catch (Exception exception) {
-			String error = String.format("Error serializing Request Body to GeoServer for updating Layer Group: %s", exception.getMessage());
-			LOGGER.error(error, exception);
+			String error = String.format("Error serializing Request Body to GeoServer for updating Layer Group: %s",
+					exception.getMessage());
+			LOGGER.error(error, exception, new AuditElement("access", "errorSerializingGeoServerLayerGroup", ""));
 			throw new DataInspectException(error);
 		}
 		String url = String.format(
@@ -349,17 +369,19 @@ public class GroupDeployer {
 		// Send
 		ResponseEntity<String> response = null;
 		try {
+			pzLogger.log(String.format("Creating GeoServer Layer Group: %s", layerGroup.layerGroup.name), Severity.INFORMATIONAL,
+					new AuditElement("access", "readGeoServerLayerGroupMetadata", layerGroup.layerGroup.name));
 			response = restTemplate.exchange(url, method, request, String.class);
 		} catch (HttpClientErrorException | HttpServerErrorException exception) {
 			String error = String.format("Error sending Layer Group %s to GeoServer HTTP %s to %s. Server responded with: %s",
 					layerGroup.layerGroup.name, method.toString(), url, exception.getResponseBodyAsString());
 			LOGGER.error(error, exception);
-			pzLogger.log(error, PiazzaLogger.ERROR);
-			pzLogger.log(String.format("Request Payload for failed request was: %s", payload), PiazzaLogger.ERROR);
+			pzLogger.log(error, Severity.ERROR, new AuditElement("access", "failedToSendGeoServerLayerGroup", url));
+			pzLogger.log(String.format("Request Payload for failed request was: %s", payload), Severity.ERROR);
 			throw new GeoServerException(error);
 		}
 		if (response.getStatusCode().equals(HttpStatus.CREATED) || (response.getStatusCode().equals(HttpStatus.OK))) {
-			// Updated
+			pzLogger.log("Updated Layer Group.", Severity.INFORMATIONAL, new AuditElement("access", "updatedGeoServerLayerGroup", url));
 		} else {
 			throw new GeoServerException(String.format("Could not update GeoServer Layer Group %s. Request returned Status %s : %s",
 					layerGroup.layerGroup.name, response.getStatusCode().toString(), response.getBody()));
