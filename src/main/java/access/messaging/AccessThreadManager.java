@@ -44,6 +44,7 @@ import messaging.job.KafkaClientFactory;
 import messaging.job.WorkerCallback;
 import model.job.type.AbortJob;
 import model.job.type.AccessJob;
+import model.logger.Severity;
 import model.request.PiazzaJobRequest;
 import util.PiazzaLogger;
 
@@ -144,7 +145,7 @@ public class AccessThreadManager {
 		} catch (WakeupException exception) {
 			String error = String.format("Polling Thread forcefully closed: %s", exception.getMessage());
 			LOGGER.error(error, exception);
-			pzLogger.log(error, PiazzaLogger.FATAL);
+			pzLogger.log(error, Severity.ERROR);
 		}
 	}
 
@@ -170,7 +171,7 @@ public class AccessThreadManager {
 		} catch (WakeupException exception) {
 			String error = String.format("Polling Thread forcefully closed: %s", exception.getMessage());
 			LOGGER.error(error, exception);
-			pzLogger.log(error, PiazzaLogger.FATAL);
+			pzLogger.log(error, Severity.ERROR);
 		}
 	}
 	
@@ -213,7 +214,7 @@ public class AccessThreadManager {
 		} catch (Exception exception) {
 			String error = String.format("Error Aborting Job. Could not get the Job ID from the Kafka Message with error:  %s", exception.getMessage());
 			LOGGER.error(error, exception);
-			pzLogger.log(error, PiazzaLogger.ERROR);
+			pzLogger.log(error, Severity.ERROR);
 			return null;
 		}
 	}

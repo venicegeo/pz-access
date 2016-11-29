@@ -48,6 +48,7 @@ import model.job.Job;
 import model.job.result.type.DeploymentResult;
 import model.job.result.type.ErrorResult;
 import model.job.type.AccessJob;
+import model.logger.Severity;
 import model.status.StatusUpdate;
 import util.PiazzaLogger;
 
@@ -102,7 +103,7 @@ public class AccessWorker {
 
 			// Logging
 			pzLogger.log(String.format("Received Request to Access Data %s of Type %s under Job Id %s", accessJob.getDataId(),
-					accessJob.getDeploymentType(), job.getJobId()), PiazzaLogger.INFO);
+					accessJob.getDeploymentType(), job.getJobId()), Severity.INFORMATIONAL);
 
 			if (Thread.interrupted()) {
 				throw new InterruptedException();
@@ -153,7 +154,7 @@ public class AccessWorker {
 					} catch (Exception exception) {
 						String error = String.format("Could not create Deployment Group: %s", exception.getMessage());
 						LOGGER.error(error, exception);
-						pzLogger.log(error, PiazzaLogger.ERROR);
+						pzLogger.log(error, Severity.ERROR);
 						throw new GeoServerException(error);
 					}
 
@@ -174,7 +175,7 @@ public class AccessWorker {
 						// an error back to the user to try again later.
 						String error = String.format("Could not create Deployment Group. The GeoServer layer for %s does not exist.",
 								deployment.getLayer());
-						pzLogger.log(error, PiazzaLogger.WARNING);
+						pzLogger.log(error, Severity.WARNING);
 						throw new GeoServerException(error);
 					}
 				}
@@ -189,7 +190,7 @@ public class AccessWorker {
 				producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate, space));
 
 				// Console Logging
-				pzLogger.log(String.format("GeoServer Deployment successul for Resource %s", accessJob.getDataId()), PiazzaLogger.INFO);
+				pzLogger.log(String.format("GeoServer Deployment successul for Resource %s", accessJob.getDataId()), Severity.INFORMATIONAL);
 				LOGGER.info("Deployment Successfully Returned for Resource " + accessJob.getDataId());
 			} 
 			else {
@@ -198,7 +199,7 @@ public class AccessWorker {
 		} catch (MongoInterruptedException | InterruptedException exception) {
 			String error = String.format("Thread interrupt received for Job %s", consumerRecord.key());
 			LOGGER.error(error, exception);
-			pzLogger.log(error, PiazzaLogger.INFO);
+			pzLogger.log(error, Severity.INFORMATIONAL);
 			StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_CANCELLED);
 			try {
 				producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate, space));
@@ -207,12 +208,12 @@ public class AccessWorker {
 						"Error sending Cancelled Status from Job %s: %s. The Job was cancelled, but its status will not be updated in the Job Manager.",
 						consumerRecord.key(), jsonException.getMessage());
 				LOGGER.error(error, jsonException);
-				pzLogger.log(error, PiazzaLogger.ERROR);
+				pzLogger.log(error, Severity.ERROR);
 			}
 		} catch (Exception exception) {
 			String error = String.format("Error Accessing Data under Job %s with Error: %s", consumerRecord.key(), exception.getMessage());
 			LOGGER.error(error, exception);
-			pzLogger.log(error, PiazzaLogger.ERROR);
+			pzLogger.log(error, Severity.ERROR);
 			
 			try {
 				// Send the failure message to the Job Manager.
@@ -224,7 +225,7 @@ public class AccessWorker {
 				// something in the console.
 				String errorJson = String.format("Could not update Job Manager with failure event in Ingest Worker. Error creating message: %s", jsonException.getMessage());
 				LOGGER.error(errorJson, jsonException);
-				pzLogger.log(errorJson, PiazzaLogger.ERROR);
+				pzLogger.log(errorJson, Severity.ERROR);
 			}
 		} finally {
 			if (callback != null) {

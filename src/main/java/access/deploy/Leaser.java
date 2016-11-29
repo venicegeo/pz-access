@@ -15,9 +15,6 @@
  **/
 package access.deploy;
 
-import model.data.deployment.Deployment;
-import model.data.deployment.Lease;
-
 import org.joda.time.DateTime;
 import org.mongojack.DBCursor;
 import org.slf4j.Logger;
@@ -26,11 +23,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import com.mongodb.BasicDBObject;
+
+import access.database.Accessor;
+import model.data.deployment.Deployment;
+import model.data.deployment.Lease;
+import model.logger.Severity;
 import util.PiazzaLogger;
 import util.UUIDFactory;
-import access.database.Accessor;
-
-import com.mongodb.BasicDBObject;
 
 /**
  * Handles the leasing of deployments of Resources. When a Resource is deployed, it is assigned a lease for a certain
@@ -78,7 +78,7 @@ public class Leaser {
 				Integer updatedDurationDays = ((durationDays != null) && (durationDays.intValue() > 0)) ? durationDays : DEFAULT_LEASE_PERIOD_DAYS;
 				accessor.updateLeaseExpirationDate(lease.getLeaseId(), DateTime.now().plusDays(updatedDurationDays.intValue()).toString());
 				pzLogger.log(String.format("Updating Deployment Lease for Deployment %s on host %s for %s", deployment.getDeploymentId(),
-						deployment.getHost(), deployment.getDataId()), PiazzaLogger.INFO);
+						deployment.getHost(), deployment.getDataId()), Severity.INFORMATIONAL);
 			} else {
 				// If the Lease has not expired, then the Lease will not be
 				// extended. It will simply be reused.
@@ -107,7 +107,7 @@ public class Leaser {
 
 		// Return reference
 		pzLogger.log(String.format("Creating Deployment Lease for Deployment %s on host %s for %s", deployment.getDeploymentId(),
-				deployment.getHost(), deployment.getDataId()), PiazzaLogger.INFO);
+				deployment.getHost(), deployment.getDataId()), Severity.INFORMATIONAL);
 		return lease;
 	}
 
@@ -130,11 +130,11 @@ public class Leaser {
 	@Scheduled(cron = "0 0 3 * * ?")
 	public void reapExpiredLeases() {
 		// Log the initiation of reaping.
-		pzLogger.log("Running scheduled daily reaping of expired Deployment Leases.", PiazzaLogger.INFO);
+		pzLogger.log("Running scheduled daily reaping of expired Deployment Leases.", Severity.INFORMATIONAL);
 
 		// Determine if GeoServer is reaching capacity of its resources.
 		// TODO: Not sure if this is needed just yet.
-		pzLogger.log("GeoServer not at capacity. No reaping of resources required.", PiazzaLogger.INFO);
+		pzLogger.log("GeoServer not at capacity. No reaping of resources required.", Severity.INFORMATIONAL);
 
 		// Query for all leases that have gone past their expiration date.
 		BasicDBObject query = new BasicDBObject("expirationDate", new BasicDBObject("$lt", DateTime.now().toString()));
@@ -149,17 +149,17 @@ public class Leaser {
 					pzLogger.log(
 							String.format("Expired Lease with Id %s with expiration date %s for Deployment %s has been removed.",
 									expiredLease.getLeaseId(), expiredLease.getExpiresOn(), expiredLease.getDeploymentId()),
-							PiazzaLogger.INFO);
+							Severity.INFORMATIONAL);
 				} catch (Exception exception) {
 					String error = String.format("Error reaping Expired Lease with Id %s: %s. This expired lease may still persist.",
 							expiredLease.getLeaseId(), exception.getMessage());
 					LOGGER.error(error, exception);
-					pzLogger.log(error, PiazzaLogger.ERROR);
+					pzLogger.log(error, Severity.ERROR);
 				}
 			} while (cursor.hasNext());
 		} else {
 			// Nothing to do
-			pzLogger.log("There were no expired Deployment Leases to reap.", PiazzaLogger.INFO);
+			pzLogger.log("There were no expired Deployment Leases to reap.", Severity.INFORMATIONAL);
 		}
 	}
 }

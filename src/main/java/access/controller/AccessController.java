@@ -62,6 +62,7 @@ import model.data.deployment.Lease;
 import model.data.location.FileAccessFactory;
 import model.data.type.PostGISDataType;
 import model.data.type.TextDataType;
+import model.logger.Severity;
 import model.response.DataResourceResponse;
 import model.response.DeploymentGroupResponse;
 import model.response.DeploymentResponse;
@@ -124,7 +125,7 @@ public class AccessController {
 	private static final String DEFAULT_ORDER = "asc";
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(AccessController.class);
-	
+
 	private static final String ACCESS_COMPONENT_NAME = "Access";
 
 	/**
@@ -151,9 +152,10 @@ public class AccessController {
 			// Get the DataResource item
 			DataResource data = accessor.getData(dataId);
 			String fileName = StringUtils.isNullOrEmpty(name) ? dataId : name;
+			pzLogger.log(String.format("Processing Data File for %s", dataId), Severity.INFORMATIONAL);
 
 			if (data == null) {
-				pzLogger.log(String.format("Data not found for requested Id %s", dataId), PiazzaLogger.WARNING);
+				pzLogger.log(String.format("Data not found for requested Id %s", dataId), Severity.WARNING);
 				return new ResponseEntity<>(new ErrorResponse(String.format("Data not found: %s", dataId), ACCESS_COMPONENT_NAME),
 						HttpStatus.NOT_FOUND);
 			}
@@ -167,14 +169,14 @@ public class AccessController {
 				StringBuilder geoJSON = getPostGISGeoJSON(data);
 
 				// Log the Request
-				pzLogger.log(String.format("Returning Bytes for %s of length %s", dataId, geoJSON.length()), PiazzaLogger.INFO);
+				pzLogger.log(String.format("Returning Bytes for %s of length %s", dataId, geoJSON.length()), Severity.INFORMATIONAL);
 
 				// Stream the Bytes back
 				return getResponse(MediaType.TEXT_PLAIN, String.format("%s%s", fileName, ".geojson"), geoJSON.toString().getBytes());
 			} else if (!(data.getDataType() instanceof FileRepresentation)) {
 				String message = String.format("File download not available for Data Id %s; type is %s", dataId,
 						data.getDataType().getClass().getSimpleName());
-				pzLogger.log(message, PiazzaLogger.WARNING);
+				pzLogger.log(message, Severity.WARNING);
 				throw new InvalidInputException(message);
 			} else {
 				// Get the File Bytes from wherever the File Location
@@ -183,7 +185,7 @@ public class AccessController {
 				byte[] bytes = StreamUtils.copyToByteArray(byteStream);
 
 				// Log the Request
-				pzLogger.log(String.format("Returning Bytes for %s of length %s", dataId, bytes.length), PiazzaLogger.INFO);
+				pzLogger.log(String.format("Returning Bytes for %s of length %s", dataId, bytes.length), Severity.INFORMATIONAL);
 
 				// Preserve the file extension from the original file.
 				String originalFileName = ((FileRepresentation) data.getDataType()).getLocation().getFileName();
@@ -195,7 +197,7 @@ public class AccessController {
 		} catch (Exception exception) {
 			String error = String.format("Error fetching Data %s: %s", dataId, exception.getMessage());
 			LOGGER.error(error, exception);
-			pzLogger.log(error, PiazzaLogger.ERROR);
+			pzLogger.log(error, Severity.ERROR);
 			return new ResponseEntity<>(new ErrorResponse("Error fetching File: " + exception.getMessage(), ACCESS_COMPONENT_NAME),
 					HttpStatus.INTERNAL_SERVER_ERROR);
 		}
@@ -217,18 +219,18 @@ public class AccessController {
 			// Query for the Data Id
 			DataResource data = accessor.getData(dataId);
 			if (data == null) {
-				pzLogger.log(String.format("Data not found for requested Id %s", dataId), PiazzaLogger.WARNING);
+				pzLogger.log(String.format("Data not found for requested Id %s", dataId), Severity.WARNING);
 				return new ResponseEntity<>(new ErrorResponse(String.format("Data not found: %s", dataId), ACCESS_COMPONENT_NAME),
 						HttpStatus.NOT_FOUND);
 			}
 
 			// Return the Data Resource item
-			pzLogger.log(String.format("Returning Data Metadata for %s", dataId), PiazzaLogger.INFO);
+			pzLogger.log(String.format("Returning Data Metadata for %s", dataId), Severity.INFORMATIONAL);
 			return new ResponseEntity<>(new DataResourceResponse(data), HttpStatus.OK);
 		} catch (Exception exception) {
 			String error = String.format("Error fetching Data %s: %s", dataId, exception.getMessage());
 			LOGGER.error(error, exception);
-			pzLogger.log(error, PiazzaLogger.ERROR);
+			pzLogger.log(error, Severity.ERROR);
 			return new ResponseEntity<>(new ErrorResponse("Error fetching Data: " + exception.getMessage(), ACCESS_COMPONENT_NAME),
 					HttpStatus.INTERNAL_SERVER_ERROR);
 		}
@@ -252,9 +254,10 @@ public class AccessController {
 			// Query for the Deployment Id
 			Deployment deployment = accessor.getDeployment(deploymentId);
 			if (deployment == null) {
-				pzLogger.log(String.format("Deployment not found for requested Id %s", deploymentId), PiazzaLogger.WARNING);
+				pzLogger.log(String.format("Deployment not found for requested Id %s", deploymentId), Severity.WARNING);
 				return new ResponseEntity<>(
-						new ErrorResponse(String.format("Deployment not found: %s", deploymentId), ACCESS_COMPONENT_NAME), HttpStatus.NOT_FOUND);
+						new ErrorResponse(String.format("Deployment not found: %s", deploymentId), ACCESS_COMPONENT_NAME),
+						HttpStatus.NOT_FOUND);
 			}
 
 			// Get the expiration date for this Deployment
@@ -265,12 +268,12 @@ public class AccessController {
 			}
 
 			// Return the Data Resource item
-			pzLogger.log(String.format("Returning Deployment Metadata for %s", deploymentId), PiazzaLogger.INFO);
+			pzLogger.log(String.format("Returning Deployment Metadata for %s", deploymentId), Severity.INFORMATIONAL);
 			return new ResponseEntity<>(new DeploymentResponse(deployment, expiresOn), HttpStatus.OK);
 		} catch (Exception exception) {
 			String error = String.format("Error fetching Deployment %s: %s", deploymentId, exception.getMessage());
 			LOGGER.error(error, exception);
-			pzLogger.log(error, PiazzaLogger.ERROR);
+			pzLogger.log(error, Severity.ERROR);
 			return new ResponseEntity<>(new ErrorResponse("Error fetching Deployment: " + exception.getMessage(), ACCESS_COMPONENT_NAME),
 					HttpStatus.INTERNAL_SERVER_ERROR);
 		}
@@ -296,12 +299,12 @@ public class AccessController {
 			if (!("asc".equalsIgnoreCase(order)) && !("desc".equalsIgnoreCase(order))) {
 				orderToUse = "asc";
 			}
-			return new ResponseEntity<>(
-					accessor.getDataList(page, pageSize, sortBy, orderToUse, keyword, userName, createdByJobId), HttpStatus.OK);
+			return new ResponseEntity<>(accessor.getDataList(page, pageSize, sortBy, orderToUse, keyword, userName, createdByJobId),
+					HttpStatus.OK);
 		} catch (Exception exception) {
 			String error = String.format("Error Querying Data: %s", exception.getMessage());
 			LOGGER.error(error, exception);
-			pzLogger.log(error, PiazzaLogger.ERROR);
+			pzLogger.log(error, Severity.ERROR);
 			return new ResponseEntity<>(new ErrorResponse("Error Querying Data: " + exception.getMessage(), ACCESS_COMPONENT_NAME),
 					HttpStatus.INTERNAL_SERVER_ERROR);
 		}
@@ -321,7 +324,7 @@ public class AccessController {
 			@RequestParam(value = "order", required = false, defaultValue = DEFAULT_ORDER) String order,
 			@RequestParam(value = "keyword", required = false) String keyword) {
 		try {
-			String orderToUse = order;			
+			String orderToUse = order;
 			// Don't allow for invalid orders
 			if (!("asc".equalsIgnoreCase(order)) && !("desc".equalsIgnoreCase(order))) {
 				orderToUse = "asc";
@@ -330,7 +333,7 @@ public class AccessController {
 		} catch (Exception exception) {
 			String error = String.format("Error Querying Deployment: %s", exception.getMessage());
 			LOGGER.error(error, exception);
-			pzLogger.log(error, PiazzaLogger.ERROR);
+			pzLogger.log(error, Severity.ERROR);
 			return new ResponseEntity<>(new ErrorResponse("Error Querying Deployment: " + exception.getMessage(), ACCESS_COMPONENT_NAME),
 					HttpStatus.INTERNAL_SERVER_ERROR);
 		}
@@ -359,9 +362,10 @@ public class AccessController {
 			// Query for the Deployment Id
 			Deployment deployment = accessor.getDeployment(deploymentId);
 			if (deployment == null) {
-				pzLogger.log(String.format("Deployment not found for requested Id %s", deploymentId), PiazzaLogger.WARNING);
+				pzLogger.log(String.format("Deployment not found for requested Id %s", deploymentId), Severity.WARNING);
 				return new ResponseEntity<>(
-						new ErrorResponse(String.format("Deployment not found: %s", deploymentId), ACCESS_COMPONENT_NAME), HttpStatus.NOT_FOUND);
+						new ErrorResponse(String.format("Deployment not found: %s", deploymentId), ACCESS_COMPONENT_NAME),
+						HttpStatus.NOT_FOUND);
 			}
 
 			// Delete the Deployment
@@ -372,7 +376,7 @@ public class AccessController {
 		} catch (Exception exception) {
 			String error = String.format("Error Deleting Deployment %s: %s", deploymentId, exception.getMessage());
 			LOGGER.error(error, exception);
-			pzLogger.log(error, PiazzaLogger.ERROR);
+			pzLogger.log(error, Severity.ERROR);
 			return new ResponseEntity<>(new ErrorResponse(error, ACCESS_COMPONENT_NAME), HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
@@ -395,7 +399,7 @@ public class AccessController {
 		} catch (Exception exception) {
 			String error = String.format("Error Creating DeploymentGroup for user %s : %s", createdBy, exception.getMessage());
 			LOGGER.error(error, exception);
-			pzLogger.log(error, PiazzaLogger.ERROR);
+			pzLogger.log(error, Severity.ERROR);
 			return new ResponseEntity<>(new ErrorResponse(error, ACCESS_COMPONENT_NAME), HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
@@ -427,14 +431,14 @@ public class AccessController {
 			// Return the HTTP Error code from GeoServer
 			String error = String.format("Could not delete DeploymentGroup. Response from GeoServer returned code %s with reason %s",
 					httpException.getStatusCode().toString(), httpException.getMessage());
-			LOGGER.error(error, httpException);			
-			pzLogger.log(error, PiazzaLogger.ERROR);
+			LOGGER.error(error, httpException);
+			pzLogger.log(error, Severity.ERROR);
 			return new ResponseEntity<>(new ErrorResponse(error, ACCESS_COMPONENT_NAME), httpException.getStatusCode());
 		} catch (Exception exception) {
 			// Return the 500 Internal error
 			String error = String.format("Could not delete DeploymentGroup. An unexpected error occurred: %s", exception.getMessage());
-			LOGGER.error(error, exception);			
-			pzLogger.log(error, PiazzaLogger.ERROR);
+			LOGGER.error(error, exception);
+			pzLogger.log(error, Severity.ERROR);
 			return new ResponseEntity<>(new ErrorResponse(error, ACCESS_COMPONENT_NAME), HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
@@ -492,8 +496,8 @@ public class AccessController {
 	 */
 	private StringBuilder getPostGISGeoJSON(DataResource data) throws IOException {
 		// Connect to POSTGIS and gather geoJSON info
-		DataStore postGisStore = accessor.getPostGisDataStore(postgresHost, postgresPort, postgresSchema, postgresDBName,
-				postgresUser, postgresPassword);
+		DataStore postGisStore = accessor.getPostGisDataStore(postgresHost, postgresPort, postgresSchema, postgresDBName, postgresUser,
+				postgresPassword);
 
 		PostGISDataType resource = (PostGISDataType) (data.getDataType());
 		SimpleFeatureSource simpleFeatureSource = postGisStore.getFeatureSource(resource.getTable());

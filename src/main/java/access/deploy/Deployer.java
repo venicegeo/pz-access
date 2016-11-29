@@ -49,6 +49,7 @@ import model.data.type.GeoJsonDataType;
 import model.data.type.PostGISDataType;
 import model.data.type.RasterDataType;
 import model.data.type.ShapefileDataType;
+import model.logger.Severity;
 import util.PiazzaLogger;
 import util.UUIDFactory;
 
@@ -126,7 +127,7 @@ public class Deployer {
 
 		// Log information
 		pzLogger.log(String.format("Created Deployment %s for Data %s on host %s", deployment.getDeploymentId(), deployment.getDataId(),
-				deployment.getHost()), PiazzaLogger.INFO);
+				deployment.getHost()), Severity.INFORMATIONAL);
 
 		// Return Deployment reference
 		return deployment;
@@ -183,7 +184,7 @@ public class Deployer {
 		// Ensure the Status Code is OK
 		if (statusCode != HttpStatus.CREATED) {
 			pzLogger.log(String.format("Failed to Deploy PostGIS Table name %s for Resource %s to GeoServer. HTTP Code: %s", tableName,
-					dataResource.getDataId(), statusCode), PiazzaLogger.ERROR);
+					dataResource.getDataId(), statusCode), Severity.ERROR);
 			throw new GeoServerException("Failed to Deploy to GeoServer; the Status returned a non-OK response code: " + statusCode);
 		}
 
@@ -229,7 +230,7 @@ public class Deployer {
 					String error = String.format(
 							"GeoServer would not allow for layer creation, despite an existing layer not being present: url: %s, statusCode: %s, exceptionBody: %s",
 							url, exception.getStatusCode().toString(), exception.getResponseBodyAsString());
-					pzLogger.log(error, PiazzaLogger.ERROR);
+					pzLogger.log(error, Severity.ERROR);
 					LOGGER.error(error, exception);
 					throw new GeoServerException(error);
 				}
@@ -242,14 +243,14 @@ public class Deployer {
 				String error = String.format(
 						"Creating Layer on GeoServer at URL %s returned HTTP Status %s with Body: %s. This may be the result of GeoServer processing this Data Id simultaneously by another request. Please try again.",
 						url, exception.getStatusCode().toString(), exception.getResponseBodyAsString());
-				pzLogger.log(error, PiazzaLogger.ERROR);
+				pzLogger.log(error, Severity.ERROR);
 				LOGGER.error(error, exception);
 				throw new GeoServerException(error);
 			} else {
 				// For any other errors, report back this error to the user and fail the job.
 				String error = String.format("Creating Layer on GeoServer at URL %s returned HTTP Status %s with Body: %s", url,
 						exception.getStatusCode().toString(), exception.getResponseBodyAsString());
-				pzLogger.log(error, PiazzaLogger.ERROR);
+				pzLogger.log(error, Severity.ERROR);
 				LOGGER.error(error, exception);
 				throw new GeoServerException(error);
 			}
@@ -293,12 +294,12 @@ public class Deployer {
 				String warning = String.format(
 						"Attempted to undeploy GeoServer layer %s while deleting the Deployment Id %s, but the layer was already deleted from GeoServer. This layer may have been removed by some other means. If this was a Vector Source, then this message can be safely ignored.",
 						deployment.getLayer(), deploymentId);
-				pzLogger.log(warning, PiazzaLogger.WARNING);
+				pzLogger.log(warning, Severity.WARNING);
 			} else {
 				// Some other exception occurred. Bubble it up.
 				String error = String.format("Error deleting GeoServer Layer for Deployment %s via request %s: Code %s with Error %s",
 						deploymentId, url, exception.getStatusCode(), exception.getResponseBodyAsString());
-				pzLogger.log(error, PiazzaLogger.ERROR);
+				pzLogger.log(error, Severity.ERROR);
 				LOGGER.error(error, exception);
 				throw new GeoServerException(error);
 			}
@@ -316,13 +317,13 @@ public class Deployer {
 				String warning = String.format(
 						"Attempted to delete Coverage Store for GeoServer %s while deleting the Deployment Id %s, but the Coverage Store was already deleted from GeoServer. This Store may have been removed by some other means.",
 						deployment.getLayer(), deploymentId);
-				pzLogger.log(warning, PiazzaLogger.WARNING);
+				pzLogger.log(warning, Severity.WARNING);
 			} else {
 				// Some other exception occurred. Bubble it up.
 				String error = String.format(
 						"Error deleting GeoServer Coverage Store for Deployment %s via request %s: Code %s with Error: %s", deploymentId,
 						url, exception.getStatusCode(), exception.getResponseBodyAsString());
-				pzLogger.log(error, PiazzaLogger.ERROR);
+				pzLogger.log(error, Severity.ERROR);
 				LOGGER.error(error, exception);
 				throw new GeoServerException(error);
 			}
@@ -358,7 +359,7 @@ public class Deployer {
 		} catch (Exception exception) {
 			String error = String.format("There was an error creating the Coverage Layer to URL %s with errors %s", url,
 					exception.getMessage());
-			pzLogger.log(error, PiazzaLogger.ERROR);
+			pzLogger.log(error, Severity.ERROR);
 			LOGGER.error(error, exception);
 			throw new GeoServerException(error);
 		}
@@ -391,7 +392,7 @@ public class Deployer {
 				// Some other exception occurred. Bubble it up as an exception.
 				String error = String.format("Error while checking status of Layer %s. GeoServer returned with Code %s and error %s: ",
 						layerId, exception.getStatusCode(), exception.getResponseBodyAsString());
-				pzLogger.log(error, PiazzaLogger.ERROR);
+				pzLogger.log(error, Severity.ERROR);
 				LOGGER.error(error, exception);
 				throw new GeoServerException(error);
 			}

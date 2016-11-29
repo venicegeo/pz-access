@@ -46,6 +46,7 @@ import exception.DataInspectException;
 import exception.GeoServerException;
 import model.data.deployment.Deployment;
 import model.data.deployment.DeploymentGroup;
+import model.logger.Severity;
 import util.PiazzaLogger;
 import util.UUIDFactory;
 
@@ -354,8 +355,8 @@ public class GroupDeployer {
 			String error = String.format("Error sending Layer Group %s to GeoServer HTTP %s to %s. Server responded with: %s",
 					layerGroup.layerGroup.name, method.toString(), url, exception.getResponseBodyAsString());
 			LOGGER.error(error, exception);
-			pzLogger.log(error, PiazzaLogger.ERROR);
-			pzLogger.log(String.format("Request Payload for failed request was: %s", payload), PiazzaLogger.ERROR);
+			pzLogger.log(error, Severity.ERROR);
+			pzLogger.log(String.format("Request Payload for failed request was: %s", payload), Severity.ERROR);
 			throw new GeoServerException(error);
 		}
 		if (response.getStatusCode().equals(HttpStatus.CREATED) || (response.getStatusCode().equals(HttpStatus.OK))) {
