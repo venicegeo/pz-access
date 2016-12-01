@@ -133,7 +133,7 @@ public class AccessThreadManager {
 				ConsumerRecords<String, String> consumerRecords = generalConsumer.poll(1000);
 				// Handle new Messages on this topic.
 				for (ConsumerRecord<String, String> consumerRecord : consumerRecords) {
-
+					pzLogger.log(String.format("Processing Job ID %s on Access Worker Thread.", consumerRecord.key()), Severity.INFORMATIONAL);
 					// Create a new worker to process this message and add it to
 					// the thread pool.
 					Future<?> workerFuture = accessWorker.run(consumerRecord, producer, callback);

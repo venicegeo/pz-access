@@ -231,7 +231,7 @@ public class AccessWorker {
 						"Could not update Job Manager with failure event in Ingest Worker. Error creating message: %s",
 						jsonException.getMessage());
 				LOGGER.error(errorJson, jsonException);
-				pzLogger.log(errorJson, Severity.ERROR);
+				pzLogger.log(errorJson, Severity.ERROR, new AuditElement(consumerRecord.key(), "failedAccessData", errorJson));
 			}
 		} finally {
 			if (callback != null) {

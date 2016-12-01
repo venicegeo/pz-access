@@ -62,6 +62,7 @@ import model.data.deployment.Lease;
 import model.data.location.FileAccessFactory;
 import model.data.type.PostGISDataType;
 import model.data.type.TextDataType;
+import model.logger.AuditElement;
 import model.logger.Severity;
 import model.response.DataResourceResponse;
 import model.response.DeploymentGroupResponse;
@@ -152,7 +153,7 @@ public class AccessController {
 			// Get the DataResource item
 			DataResource data = accessor.getData(dataId);
 			String fileName = StringUtils.isNullOrEmpty(name) ? dataId : name;
-			pzLogger.log(String.format("Processing Data File for %s", dataId), Severity.INFORMATIONAL);
+			pzLogger.log(String.format("Processing Data File for %s", dataId), Severity.INFORMATIONAL, new AuditElement("access", "beginProcessingFile", dataId));
 
 			if (data == null) {
 				pzLogger.log(String.format("Data not found for requested Id %s", dataId), Severity.WARNING);
@@ -163,20 +164,21 @@ public class AccessController {
 			if (data.getDataType() instanceof TextDataType) {
 				// Stream the Bytes back
 				TextDataType textData = (TextDataType) data.getDataType();
+				pzLogger.log(String.format("Returning Bytes for %s", dataId), Severity.INFORMATIONAL, new AuditElement("access", "returningFileBytes", dataId));
 				return getResponse(MediaType.TEXT_PLAIN, String.format("%s%s", fileName, ".txt"), textData.getContent().getBytes());
 			} else if (data.getDataType() instanceof PostGISDataType) {
 				// Obtain geoJSON from postGIS
 				StringBuilder geoJSON = getPostGISGeoJSON(data);
 
 				// Log the Request
-				pzLogger.log(String.format("Returning Bytes for %s of length %s", dataId, geoJSON.length()), Severity.INFORMATIONAL);
+				pzLogger.log(String.format("Returning Bytes for %s of length %s", dataId, geoJSON.length()), Severity.INFORMATIONAL, new AuditElement("access", "returningFileBytes", dataId));
 
 				// Stream the Bytes back
 				return getResponse(MediaType.TEXT_PLAIN, String.format("%s%s", fileName, ".geojson"), geoJSON.toString().getBytes());
 			} else if (!(data.getDataType() instanceof FileRepresentation)) {
 				String message = String.format("File download not available for Data Id %s; type is %s", dataId,
 						data.getDataType().getClass().getSimpleName());
-				pzLogger.log(message, Severity.WARNING);
+				pzLogger.log(message, Severity.WARNING, new AuditElement("access", "accessBytesError", ""));
 				throw new InvalidInputException(message);
 			} else {
 				// Get the File Bytes from wherever the File Location
@@ -185,7 +187,7 @@ public class AccessController {
 				byte[] bytes = StreamUtils.copyToByteArray(byteStream);
 
 				// Log the Request
-				pzLogger.log(String.format("Returning Bytes for %s of length %s", dataId, bytes.length), Severity.INFORMATIONAL);
+				pzLogger.log(String.format("Returning Bytes for %s of length %s", dataId, bytes.length), Severity.INFORMATIONAL, new AuditElement("access", "returningFileBytes", dataId));
 
 				// Preserve the file extension from the original file.
 				String originalFileName = ((FileRepresentation) data.getDataType()).getLocation().getFileName();
@@ -197,7 +199,7 @@ public class AccessController {
 		} catch (Exception exception) {
 			String error = String.format("Error fetching Data %s: %s", dataId, exception.getMessage());
 			LOGGER.error(error, exception);
-			pzLogger.log(error, Severity.ERROR);
+			pzLogger.log(error, Severity.ERROR, new AuditElement("access", "errorAccessingBytes", dataId));
 			return new ResponseEntity<>(new ErrorResponse("Error fetching File: " + exception.getMessage(), ACCESS_COMPONENT_NAME),
 					HttpStatus.INTERNAL_SERVER_ERROR);
 		}
@@ -230,7 +232,7 @@ public class AccessController {
 		} catch (Exception exception) {
 			String error = String.format("Error fetching Data %s: %s", dataId, exception.getMessage());
 			LOGGER.error(error, exception);
-			pzLogger.log(error, Severity.ERROR);
+			pzLogger.log(error, Severity.ERROR, new AuditElement("access", "errorGettingMetadata", dataId));
 			return new ResponseEntity<>(new ErrorResponse("Error fetching Data: " + exception.getMessage(), ACCESS_COMPONENT_NAME),
 					HttpStatus.INTERNAL_SERVER_ERROR);
 		}
@@ -273,7 +275,7 @@ public class AccessController {
 		} catch (Exception exception) {
 			String error = String.format("Error fetching Deployment %s: %s", deploymentId, exception.getMessage());
 			LOGGER.error(error, exception);
-			pzLogger.log(error, Severity.ERROR);
+			pzLogger.log(error, Severity.ERROR, new AuditElement("access", "errorReadingDeploymentMetadata", deploymentId));
 			return new ResponseEntity<>(new ErrorResponse("Error fetching Deployment: " + exception.getMessage(), ACCESS_COMPONENT_NAME),
 					HttpStatus.INTERNAL_SERVER_ERROR);
 		}
@@ -304,7 +306,7 @@ public class AccessController {
 		} catch (Exception exception) {
 			String error = String.format("Error Querying Data: %s", exception.getMessage());
 			LOGGER.error(error, exception);
-			pzLogger.log(error, Severity.ERROR);
+			pzLogger.log(error, Severity.ERROR, new AuditElement("access", "errorQueryingData", ""));
 			return new ResponseEntity<>(new ErrorResponse("Error Querying Data: " + exception.getMessage(), ACCESS_COMPONENT_NAME),
 					HttpStatus.INTERNAL_SERVER_ERROR);
 		}
@@ -333,7 +335,7 @@ public class AccessController {
 		} catch (Exception exception) {
 			String error = String.format("Error Querying Deployment: %s", exception.getMessage());
 			LOGGER.error(error, exception);
-			pzLogger.log(error, Severity.ERROR);
+			pzLogger.log(error, Severity.ERROR, new AuditElement("access", "errorReadingDeploymentList", ""));
 			return new ResponseEntity<>(new ErrorResponse("Error Querying Deployment: " + exception.getMessage(), ACCESS_COMPONENT_NAME),
 					HttpStatus.INTERNAL_SERVER_ERROR);
 		}
@@ -376,7 +378,7 @@ public class AccessController {
 		} catch (Exception exception) {
 			String error = String.format("Error Deleting Deployment %s: %s", deploymentId, exception.getMessage());
 			LOGGER.error(error, exception);
-			pzLogger.log(error, Severity.ERROR);
+			pzLogger.log(error, Severity.ERROR, new AuditElement("access", "errorReadingDeploymentId", deploymentId));
 			return new ResponseEntity<>(new ErrorResponse(error, ACCESS_COMPONENT_NAME), HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
@@ -399,7 +401,7 @@ public class AccessController {
 		} catch (Exception exception) {
 			String error = String.format("Error Creating DeploymentGroup for user %s : %s", createdBy, exception.getMessage());
 			LOGGER.error(error, exception);
-			pzLogger.log(error, Severity.ERROR);
+			pzLogger.log(error, Severity.ERROR, new AuditElement("access", "errorCreatingDeploymentGroup", ""));
 			return new ResponseEntity<>(new ErrorResponse(error, ACCESS_COMPONENT_NAME), HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
@@ -432,13 +434,13 @@ public class AccessController {
 			String error = String.format("Could not delete DeploymentGroup. Response from GeoServer returned code %s with reason %s",
 					httpException.getStatusCode().toString(), httpException.getMessage());
 			LOGGER.error(error, httpException);
-			pzLogger.log(error, Severity.ERROR);
+			pzLogger.log(error, Severity.ERROR, new AuditElement("access", "errorDeletingDeploymentGroup", deploymentGroupId));
 			return new ResponseEntity<>(new ErrorResponse(error, ACCESS_COMPONENT_NAME), httpException.getStatusCode());
 		} catch (Exception exception) {
 			// Return the 500 Internal error
 			String error = String.format("Could not delete DeploymentGroup. An unexpected error occurred: %s", exception.getMessage());
 			LOGGER.error(error, exception);
-			pzLogger.log(error, Severity.ERROR);
+			pzLogger.log(error, Severity.ERROR, new AuditElement("access", "errorDeletingDeploymentGroup", deploymentGroupId));
 			return new ResponseEntity<>(new ErrorResponse(error, ACCESS_COMPONENT_NAME), HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
