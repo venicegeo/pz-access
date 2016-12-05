@@ -28,6 +28,7 @@ import java.util.Map;
 
 import org.geotools.data.DataUtilities;
 import org.geotools.data.memory.MemoryDataStore;
+import org.geotools.feature.SchemaException;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
 import org.geotools.geometry.jts.JTSFactoryFinder;
 import org.junit.Before;
@@ -38,6 +39,8 @@ import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.simple.SimpleFeatureType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
@@ -98,16 +101,24 @@ public class ControllerTests {
 
 	private MemoryDataStore mockDataStore;
 
+	private static final Logger LOGGER = LoggerFactory.getLogger(ControllerTests.class);
+
 	/**
 	 * Initialize Mock objects.
 	 */
 	@Before
-	public void setup() throws Exception {
+	public void setup() throws SchemaException {
 		MockitoAnnotations.initMocks(this);
 
 		// Creating a Mock in-memory Data Store
 		mockDataStore = new MemoryDataStore();
-		SimpleFeatureType featureType = DataUtilities.createType("Test", "the_geom:Point:srid=4326");
+		SimpleFeatureType featureType = null;
+		try {
+			featureType = DataUtilities.createType("Test", "the_geom:Point:srid=4326");
+		} catch (Exception exception) {
+			LOGGER.error("Error inflating test in-memory Data Store. The tests cannot proceed.", exception);
+			throw exception;
+		}
 		SimpleFeatureBuilder featureBuilder = new SimpleFeatureBuilder(featureType);
 		GeometryFactory geometryFactory = JTSFactoryFinder.getGeometryFactory();
 		// Create some sample Test Points
@@ -266,8 +277,8 @@ public class ControllerTests {
 		assertTrue(((DataResourceListResponse) response).data.size() == 1);
 
 		// Test Exception
-		Mockito.doThrow(new MongoException("MongoDB instance not available.")).when(accessor).getDataList(eq(0), eq(10), eq("dataId"), eq("asc"), eq("Raster"), eq("Test User"),
-				eq("123"));
+		Mockito.doThrow(new MongoException("MongoDB instance not available.")).when(accessor).getDataList(eq(0), eq(10), eq("dataId"),
+				eq("asc"), eq("Raster"), eq("Test User"), eq("123"));
 		response = accessController.getAllData("123", 0, 10, "dataId", "asc", "Raster", "Test User").getBody();
 		assertTrue(response instanceof ErrorResponse);
 	}
@@ -291,7 +302,8 @@ public class ControllerTests {
 		assertTrue(((DeploymentListResponse) response).data.size() == 1);
 
 		// Test Exception
-		Mockito.doThrow(new MongoException("MongoDB instance not available.")).when(accessor).getDeploymentList(eq(0), eq(10), eq("dataId"), eq("asc"), eq("WFS"));
+		Mockito.doThrow(new MongoException("MongoDB instance not available.")).when(accessor).getDeploymentList(eq(0), eq(10), eq("dataId"),
+				eq("asc"), eq("WFS"));
 		response = accessController.getAllDeployments(0, 10, "dataId", "asc", "WFS").getBody();
 		assertTrue(response instanceof ErrorResponse);
 	}
