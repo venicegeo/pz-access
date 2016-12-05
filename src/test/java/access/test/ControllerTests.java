@@ -114,7 +114,7 @@ public class ControllerTests {
 		mockDataStore = new MemoryDataStore();
 		SimpleFeatureType featureType = null;
 		try {
-			featureType = DataUtilities.createType("Test", "the_geom:Point:srid=4326");
+			featureType = DataUtilities.createType("Test", "the_geom:Point");
 		} catch (Exception exception) {
 			LOGGER.error("Error inflating test in-memory Data Store. The tests cannot proceed.", exception);
 			throw exception;
