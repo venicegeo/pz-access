@@ -126,14 +126,19 @@ public class AccessThreadManager {
 
 			// Create the General Group Consumer
 			Consumer<String, String> generalConsumer = KafkaClientFactory.getConsumer(kafkaHost, kafkaPort, kafkaGroup);
-			generalConsumer.subscribe(Arrays.asList(String.format(LOGGER_FORMAT, ACCESS_TOPIC_NAME, space)));
+			List<String> topics = Arrays.asList(String.format(LOGGER_FORMAT, ACCESS_TOPIC_NAME, space));
+			// Log topics we're listening to
+			pzLogger.log(String.format("Begin listening to Kafka topics : %s", String.join(", ", topics)), Severity.INFORMATIONAL);
+			// Listen
+			generalConsumer.subscribe(topics);
 
 			// Poll
 			while (!closed.get()) {
 				ConsumerRecords<String, String> consumerRecords = generalConsumer.poll(1000);
 				// Handle new Messages on this topic.
 				for (ConsumerRecord<String, String> consumerRecord : consumerRecords) {
-					pzLogger.log(String.format("Processing Job ID %s on Access Worker Thread.", consumerRecord.key()), Severity.INFORMATIONAL);
+					pzLogger.log(String.format("Processing Job ID %s on Access Worker Thread.", consumerRecord.key()),
+							Severity.INFORMATIONAL);
 					// Create a new worker to process this message and add it to
 					// the thread pool.
 					Future<?> workerFuture = accessWorker.run(consumerRecord, producer, callback);
