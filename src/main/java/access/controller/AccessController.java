@@ -153,7 +153,8 @@ public class AccessController {
 			// Get the DataResource item
 			DataResource data = accessor.getData(dataId);
 			String fileName = StringUtils.isNullOrEmpty(name) ? dataId : name;
-			pzLogger.log(String.format("Processing Data File for %s", dataId), Severity.INFORMATIONAL, new AuditElement("access", "beginProcessingFile", dataId));
+			pzLogger.log(String.format("Processing Data File for %s", dataId), Severity.INFORMATIONAL,
+					new AuditElement("access", "beginProcessingFile", dataId));
 
 			if (data == null) {
 				pzLogger.log(String.format("Data not found for requested Id %s", dataId), Severity.WARNING);
@@ -164,14 +165,16 @@ public class AccessController {
 			if (data.getDataType() instanceof TextDataType) {
 				// Stream the Bytes back
 				TextDataType textData = (TextDataType) data.getDataType();
-				pzLogger.log(String.format("Returning Bytes for %s", dataId), Severity.INFORMATIONAL, new AuditElement("access", "returningFileBytes", dataId));
+				pzLogger.log(String.format("Returning Bytes for %s", dataId), Severity.INFORMATIONAL,
+						new AuditElement("access", "returningFileBytes", dataId));
 				return getResponse(MediaType.TEXT_PLAIN, String.format("%s%s", fileName, ".txt"), textData.getContent().getBytes());
 			} else if (data.getDataType() instanceof PostGISDataType) {
 				// Obtain geoJSON from postGIS
 				StringBuilder geoJSON = getPostGISGeoJSON(data);
 
 				// Log the Request
-				pzLogger.log(String.format("Returning Bytes for %s of length %s", dataId, geoJSON.length()), Severity.INFORMATIONAL, new AuditElement("access", "returningFileBytes", dataId));
+				pzLogger.log(String.format("Returning Bytes for %s of length %s", dataId, geoJSON.length()), Severity.INFORMATIONAL,
+						new AuditElement("access", "returningFileBytes", dataId));
 
 				// Stream the Bytes back
 				return getResponse(MediaType.TEXT_PLAIN, String.format("%s%s", fileName, ".geojson"), geoJSON.toString().getBytes());
@@ -187,7 +190,8 @@ public class AccessController {
 				byte[] bytes = StreamUtils.copyToByteArray(byteStream);
 
 				// Log the Request
-				pzLogger.log(String.format("Returning Bytes for %s of length %s", dataId, bytes.length), Severity.INFORMATIONAL, new AuditElement("access", "returningFileBytes", dataId));
+				pzLogger.log(String.format("Returning Bytes for %s of length %s", dataId, bytes.length), Severity.INFORMATIONAL,
+						new AuditElement("access", "returningFileBytes", dataId));
 
 				// Preserve the file extension from the original file.
 				String originalFileName = ((FileRepresentation) data.getDataType()).getLocation().getFileName();
@@ -349,6 +353,38 @@ public class AccessController {
 	@RequestMapping(value = "/data/count", method = RequestMethod.GET)
 	public long getDataCount() {
 		return accessor.getDataCount();
+	}
+
+	/**
+	 * Deletes a Deployment by it's Data ID. Internal method, should not be called by Gateway or other users. This is
+	 * called by Ingest for clean-up when deleting Data items via DELETE /data/{dataId}
+	 * 
+	 * @param dataId
+	 *            The Data ID to delete all deployments for.
+	 * @return Response indicating true or false success of the deletion.
+	 */
+	@RequestMapping(value = "/deployment", method = RequestMethod.DELETE, produces = MediaType.APPLICATION_JSON_VALUE)
+	public ResponseEntity<PiazzaResponse> deleteDeploymentByData(@RequestParam(value = "dataId", required = true) String dataId) {
+		try {
+			// Get the Deployment for this Data ID
+			Deployment deployment = accessor.getDeploymentByDataId(dataId);
+
+			if (deployment != null) {
+				// If it exists, Delete it
+				return deleteDeployment(deployment.getDeploymentId());
+			} else {
+				// If it doesn't exist, then simply return OK.
+				return new ResponseEntity<>(
+						new SuccessResponse(String.format("Deployment for Data ID %s does not exist. No action to take.", dataId),
+								ACCESS_COMPONENT_NAME),
+						HttpStatus.OK);
+			}
+		} catch (Exception exception) {
+			String error = String.format("Error Deleting Deployment for Data ID %s : %s", dataId, exception.getMessage());
+			LOGGER.error(error, exception);
+			pzLogger.log(error, Severity.ERROR, new AuditElement("access", "errorReadingDataIdDeployments", dataId));
+			return new ResponseEntity<>(new ErrorResponse(error, ACCESS_COMPONENT_NAME), HttpStatus.INTERNAL_SERVER_ERROR);
+		}
 	}
 
 	/**
