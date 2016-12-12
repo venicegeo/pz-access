@@ -105,8 +105,8 @@ public class AccessWorker {
 
 			// Logging
 			pzLogger.log(
-					String.format("Received Request to Access Data %s of Type %s under Job Id %s", accessJob.getDataId(),
-							accessJob.getDeploymentType(), job.getJobId()),
+					String.format("Received Request to Access Data %s of Type %s under Job Id %s by user %s", accessJob.getDataId(),
+							accessJob.getDeploymentType(), job.getJobId(), job.getCreatedBy()),
 					Severity.INFORMATIONAL, new AuditElement(job.getJobId(), "requestAccessData", accessJob.getDataId()));
 
 			if (Thread.interrupted()) {
@@ -194,7 +194,7 @@ public class AccessWorker {
 				producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate, space));
 
 				// Console Logging
-				pzLogger.log(String.format("GeoServer Deployment successul for Resource %s", accessJob.getDataId()), Severity.INFORMATIONAL,
+				pzLogger.log(String.format("GeoServer Deployment successul for Resource %s by user %s", accessJob.getDataId(), job.getCreatedBy()), Severity.INFORMATIONAL,
 						new AuditElement(job.getJobId(), "accessData", accessJob.getDataId()));
 				LOGGER.info("Deployment Successfully Returned for Resource " + accessJob.getDataId());
 			} else {
