@@ -58,7 +58,6 @@ import util.PiazzaLogger;
  */
 @Component
 public class AccessThreadManager {
-
 	@Autowired
 	private PiazzaLogger pzLogger;
 	@Autowired
@@ -68,14 +67,8 @@ public class AccessThreadManager {
 
 	@Value("${vcap.services.pz-kafka.credentials.host}")
 	private String kafkaAddress;
-
-	private String kafkaHost;
-
-	private String kafkaPort;
-
 	@Value("#{'${kafka.group}' + '-' + '${SPACE}'}")
 	private String kafkaGroup;
-
 	@Value("${SPACE}")
 	private String space;
 
@@ -100,9 +93,7 @@ public class AccessThreadManager {
 	@PostConstruct
 	public void initialize() {
 		// Initialize the Kafka Producer
-		kafkaHost = kafkaAddress.split(":")[0];
-		kafkaPort = kafkaAddress.split(":")[1];
-		producer = KafkaClientFactory.getProducer(kafkaHost, kafkaPort);
+		producer = KafkaClientFactory.getProducer(kafkaAddress);
 
 		// Initialize the Map of running Threads
 		runningJobs = new HashMap<>();
@@ -125,7 +116,7 @@ public class AccessThreadManager {
 			WorkerCallback callback = jobId -> runningJobs.remove(jobId);
 
 			// Create the General Group Consumer
-			Consumer<String, String> generalConsumer = KafkaClientFactory.getConsumer(kafkaHost, kafkaPort, kafkaGroup);
+			Consumer<String, String> generalConsumer = KafkaClientFactory.getConsumer(kafkaAddress, kafkaGroup);
 			List<String> topics = Arrays.asList(String.format(LOGGER_FORMAT, ACCESS_TOPIC_NAME, space));
 			// Log topics we're listening to
 			pzLogger.log(String.format("Begin listening to Kafka topics : %s", String.join(", ", topics)), Severity.INFORMATIONAL);
@@ -161,7 +152,7 @@ public class AccessThreadManager {
 	public void pollAbortJobs() {
 		try {
 			// Create the Unique Consumer
-			Consumer<String, String> uniqueConsumer = KafkaClientFactory.getConsumer(kafkaHost, kafkaPort,
+			Consumer<String, String> uniqueConsumer = KafkaClientFactory.getConsumer(kafkaAddress,
 					String.format(LOGGER_FORMAT, kafkaGroup, UUID.randomUUID().toString()));
 			uniqueConsumer.subscribe(Arrays.asList(String.format(LOGGER_FORMAT, JobMessageFactory.ABORT_JOB_TOPIC_NAME, space)));
 
