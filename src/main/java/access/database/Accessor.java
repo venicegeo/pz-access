@@ -36,6 +36,7 @@ import org.springframework.stereotype.Component;
 import com.mongodb.BasicDBObject;
 import com.mongodb.DBCollection;
 import com.mongodb.MongoClient;
+import com.mongodb.MongoClientOptions;
 import com.mongodb.MongoClientURI;
 import com.mongodb.MongoException;
 import com.mongodb.MongoTimeoutException;
@@ -76,7 +77,7 @@ public class Accessor {
 	private String leaseCollectionName;
 	@Value("${mongo.thread.multiplier}")
 	private int mongoThreadMultiplier;
-	
+
 	private MongoClient mongoClient;
 
 	private static final String DATA_ID = "dataId";
@@ -85,11 +86,13 @@ public class Accessor {
 	private static final String LEASE_ID = "leaseId";
 	private static final String INSTANCE_NOT_AVAILABLE_ERROR = "MongoDB instance not available.";
 	private static final Logger LOGGER = LoggerFactory.getLogger(Accessor.class);
-	
+
 	@PostConstruct
 	private void initialize() {
 		try {
-			mongoClient = new MongoClient(new MongoClientURI(databaseUri + "?waitQueueMultiple=" + mongoThreadMultiplier));
+			MongoClientOptions.Builder builder = new MongoClientOptions.Builder();
+			mongoClient = new MongoClient(
+					new MongoClientURI(databaseUri, builder.threadsAllowedToBlockForConnectionMultiplier(mongoThreadMultiplier)));
 		} catch (Exception exception) {
 			String error = "Error connecting to MongoDB Instance.";
 			LOGGER.error(error, exception);
@@ -134,7 +137,7 @@ public class Accessor {
 		try {
 			deployment = getDeploymentCollection().findOne(query);
 		} catch (MongoTimeoutException mte) {
-			LOGGER.error(INSTANCE_NOT_AVAILABLE_ERROR, mte);						
+			LOGGER.error(INSTANCE_NOT_AVAILABLE_ERROR, mte);
 			throw new MongoException(INSTANCE_NOT_AVAILABLE_ERROR);
 		}
 
@@ -155,8 +158,8 @@ public class Accessor {
 		try {
 			deploymentGroup = getDeploymentGroupCollection().findOne(query);
 		} catch (MongoTimeoutException mte) {
-			LOGGER.error(INSTANCE_NOT_AVAILABLE_ERROR, mte);						
-			throw new MongoException(INSTANCE_NOT_AVAILABLE_ERROR);		
+			LOGGER.error(INSTANCE_NOT_AVAILABLE_ERROR, mte);
+			throw new MongoException(INSTANCE_NOT_AVAILABLE_ERROR);
 		}
 
 		return deploymentGroup;
@@ -226,8 +229,8 @@ public class Accessor {
 		try {
 			lease = getLeaseCollection().findOne(query);
 		} catch (MongoTimeoutException mte) {
-			LOGGER.error(INSTANCE_NOT_AVAILABLE_ERROR, mte);						
-			throw new MongoException(INSTANCE_NOT_AVAILABLE_ERROR);		
+			LOGGER.error(INSTANCE_NOT_AVAILABLE_ERROR, mte);
+			throw new MongoException(INSTANCE_NOT_AVAILABLE_ERROR);
 		}
 
 		return lease;
@@ -254,7 +257,7 @@ public class Accessor {
 				return null;
 			}
 		} catch (MongoTimeoutException mte) {
-			LOGGER.error(INSTANCE_NOT_AVAILABLE_ERROR, mte);						
+			LOGGER.error(INSTANCE_NOT_AVAILABLE_ERROR, mte);
 			throw new MongoException(INSTANCE_NOT_AVAILABLE_ERROR);
 		}
 
@@ -277,7 +280,7 @@ public class Accessor {
 				return null;
 			}
 		} catch (MongoTimeoutException mte) {
-			LOGGER.error(INSTANCE_NOT_AVAILABLE_ERROR, mte);						
+			LOGGER.error(INSTANCE_NOT_AVAILABLE_ERROR, mte);
 			throw new MongoException(INSTANCE_NOT_AVAILABLE_ERROR);
 		}
 
