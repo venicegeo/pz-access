@@ -50,6 +50,9 @@ def deleteLayer(geoserverUri, username, password, layer):
 				print response.text
 				print 'Could not delete layer. Exiting.'
 				sys.exit(1)
+		else:
+			print 'Could not delete layer. Exiting.'
+			sys.exit(1)
 
 def main():
 	# Pull in required variables from command line
