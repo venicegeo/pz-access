@@ -16,6 +16,7 @@
 package access.database;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Pattern;
 
@@ -30,16 +31,21 @@ import org.mongojack.DBUpdate;
 import org.mongojack.JacksonDBCollection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 import com.mongodb.BasicDBObject;
 import com.mongodb.DBCollection;
 import com.mongodb.MongoClient;
 import com.mongodb.MongoClientOptions;
 import com.mongodb.MongoClientURI;
+import com.mongodb.MongoCredential;
 import com.mongodb.MongoException;
 import com.mongodb.MongoTimeoutException;
+import com.mongodb.ServerAddress;
 
 import model.data.DataResource;
 import model.data.deployment.Deployment;
@@ -64,9 +70,17 @@ import util.GeoToolsUtil;
 @Component
 public class Accessor {
 	@Value("${vcap.services.pz-mongodb.credentials.uri}")
-	private String databaseUri;
+	private String DATABASE_URI;
 	@Value("${vcap.services.pz-mongodb.credentials.database}")
-	private String databaseName;
+	private String DATABASE_NAME;
+	@Value("${vcap.services.pz-mongodb.credentials.host}")
+	private String DATABASE_HOST;
+	@Value("${vcap.services.pz-mongodb.credentials.port}")
+	private int DATABASE_PORT;
+	@Value("${vcap.services.pz-mongodb.credentials.username:}")
+	private String DATABASE_USERNAME;
+	@Value("${vcap.services.pz-mongodb.credentials.password:}")
+	private String DATABASE_CREDENTIAL;
 	@Value("${mongo.db.collection.resources}")
 	private String resourceCollectionName;
 	@Value("${mongo.db.collection.deployments}")
@@ -78,6 +92,9 @@ public class Accessor {
 	@Value("${mongo.thread.multiplier}")
 	private int mongoThreadMultiplier;
 
+	@Autowired
+	private Environment environment;
+	
 	private MongoClient mongoClient;
 
 	private static final String DATA_ID = "dataId";
@@ -91,11 +108,25 @@ public class Accessor {
 	private void initialize() {
 		try {
 			MongoClientOptions.Builder builder = new MongoClientOptions.Builder();
-			mongoClient = new MongoClient(
-					new MongoClientURI(databaseUri, builder.threadsAllowedToBlockForConnectionMultiplier(mongoThreadMultiplier)));
+			// Enable SSL if the `mongossl` Profile is enabled
+			if (Arrays.stream(environment.getActiveProfiles()).anyMatch(env -> env.equalsIgnoreCase("mongossl"))) {
+				builder.sslEnabled(true);
+				builder.sslInvalidHostNameAllowed(true);
+			}
+			// If a username and password are provided, then associate these credentials with the connection
+			if ((!StringUtils.isEmpty(DATABASE_USERNAME)) && (!StringUtils.isEmpty(DATABASE_CREDENTIAL))) {
+				mongoClient = new MongoClient(new ServerAddress(DATABASE_HOST, DATABASE_PORT),
+						Arrays.asList(
+								MongoCredential.createCredential(DATABASE_USERNAME, DATABASE_NAME, DATABASE_CREDENTIAL.toCharArray())),
+						builder.threadsAllowedToBlockForConnectionMultiplier(mongoThreadMultiplier).build());
+			} else {
+				mongoClient = new MongoClient(new ServerAddress(DATABASE_HOST, DATABASE_PORT),
+						builder.threadsAllowedToBlockForConnectionMultiplier(mongoThreadMultiplier).build());
+			}
+
 		} catch (Exception exception) {
-			String error = "Error connecting to MongoDB Instance.";
-			LOGGER.error(error, exception);
+			LOGGER.error(String.format("Error connecting to MongoDB Instance. %s", exception.getMessage()), exception);
+
 		}
 	}
 
@@ -348,7 +379,7 @@ public class Accessor {
 	 * @return Mongo collection for DataResources
 	 */
 	public JacksonDBCollection<DataResource, String> getDataResourceCollection() {
-		DBCollection collection = mongoClient.getDB(databaseName).getCollection(resourceCollectionName);
+		DBCollection collection = mongoClient.getDB(DATABASE_NAME).getCollection(resourceCollectionName);
 		return JacksonDBCollection.wrap(collection, DataResource.class, String.class);
 	}
 
@@ -453,7 +484,7 @@ public class Accessor {
 	 * @return Mongo collection for Deployments
 	 */
 	public JacksonDBCollection<Deployment, String> getDeploymentCollection() {
-		DBCollection collection = mongoClient.getDB(databaseName).getCollection(deploymentCollectionName);
+		DBCollection collection = mongoClient.getDB(DATABASE_NAME).getCollection(deploymentCollectionName);
 		return JacksonDBCollection.wrap(collection, Deployment.class, String.class);
 	}
 
@@ -463,7 +494,7 @@ public class Accessor {
 	 * @return Mongo collection for Deployment Groups
 	 */
 	public JacksonDBCollection<DeploymentGroup, String> getDeploymentGroupCollection() {
-		DBCollection collection = mongoClient.getDB(databaseName).getCollection(deploymentGroupCollectionName);
+		DBCollection collection = mongoClient.getDB(DATABASE_NAME).getCollection(deploymentGroupCollectionName);
 		return JacksonDBCollection.wrap(collection, DeploymentGroup.class, String.class);
 	}
 
@@ -473,7 +504,7 @@ public class Accessor {
 	 * @return Mongo collection for Leases
 	 */
 	public JacksonDBCollection<Lease, String> getLeaseCollection() {
-		DBCollection collection = mongoClient.getDB(databaseName).getCollection(leaseCollectionName);
+		DBCollection collection = mongoClient.getDB(DATABASE_NAME).getCollection(leaseCollectionName);
 		return JacksonDBCollection.wrap(collection, Lease.class, String.class);
 	}
 }
