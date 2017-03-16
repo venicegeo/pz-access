@@ -106,6 +106,16 @@ public class Deployer {
 		try {
 			if ((dataResource.getDataType() instanceof ShapefileDataType) || (dataResource.getDataType() instanceof PostGISDataType)
 					|| (dataResource.getDataType() instanceof GeoJsonDataType)) {
+				// GeoJSON allows for empty feature sets. If a GeoJSON with no features, then do not deploy.
+				if (dataResource.getDataType() instanceof GeoJsonDataType) {
+					if ((dataResource.getSpatialMetadata().getNumFeatures() != null)
+							&& (dataResource.getSpatialMetadata().getNumFeatures() == 0)) {
+						// If no GeoJSON features, then do not deploy.
+						throw new GeoServerException(
+								String.format("Could not create deployment for %s. This Data contains no features or feature schema.",
+										dataResource.getDataId()));
+					}
+				}
 				// Deploy from an existing PostGIS Table
 				deployment = deployPostGisTable(dataResource);
 			} else if (dataResource.getDataType() instanceof RasterDataType) {
