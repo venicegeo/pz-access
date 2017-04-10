@@ -16,7 +16,6 @@
 package access.controller;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.StringWriter;
 import java.util.HashMap;
 import java.util.Map;
@@ -38,7 +37,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
-import org.springframework.util.StreamUtils;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
@@ -53,13 +51,13 @@ import access.deploy.Deployer;
 import access.deploy.GroupDeployer;
 import access.deploy.Leaser;
 import access.messaging.AccessThreadManager;
+import access.util.AccessUtilities;
 import exception.InvalidInputException;
 import model.data.DataResource;
 import model.data.FileRepresentation;
 import model.data.deployment.Deployment;
 import model.data.deployment.DeploymentGroup;
 import model.data.deployment.Lease;
-import model.data.location.FileAccessFactory;
 import model.data.type.PostGISDataType;
 import model.data.type.TextDataType;
 import model.logger.AuditElement;
@@ -114,11 +112,8 @@ public class AccessController {
 	private Leaser leaser;
 	@Autowired
 	private ThreadPoolTaskExecutor threadPoolTaskExecutor;
-
-	@Value("${vcap.services.pz-blobstore.credentials.access_key_id}")
-	private String amazonS3AccessKey;
-	@Value("${vcap.services.pz-blobstore.credentials.secret_access_key}")
-	private String amazonS3PrivateKey;
+	@Autowired
+	private AccessUtilities accessUtilities;
 
 	private static final String DEFAULT_PAGE_SIZE = "10";
 	private static final String DEFAULT_PAGE = "0";
@@ -184,10 +179,7 @@ public class AccessController {
 				pzLogger.log(message, Severity.WARNING, new AuditElement("access", "accessBytesError", ""));
 				throw new InvalidInputException(message);
 			} else {
-				// Get the File Bytes from wherever the File Location
-				FileAccessFactory fileFactory = new FileAccessFactory(amazonS3AccessKey, amazonS3PrivateKey);
-				InputStream byteStream = fileFactory.getFile(((FileRepresentation) data.getDataType()).getLocation());
-				byte[] bytes = StreamUtils.copyToByteArray(byteStream);
+				byte[] bytes = accessUtilities.getBytesForDataResource(data);
 
 				// Log the Request
 				pzLogger.log(String.format("Returning Bytes for %s of length %s", dataId, bytes.length), Severity.INFORMATIONAL,

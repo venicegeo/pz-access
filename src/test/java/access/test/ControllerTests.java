@@ -22,6 +22,7 @@ import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.when;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -37,6 +38,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
+import org.mockito.Spy;
 import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.simple.SimpleFeatureType;
 import org.slf4j.Logger;
@@ -56,7 +58,9 @@ import access.deploy.Deployer;
 import access.deploy.GroupDeployer;
 import access.deploy.Leaser;
 import access.messaging.AccessThreadManager;
+import access.util.AccessUtilities;
 import exception.GeoServerException;
+import exception.InvalidInputException;
 import model.data.DataResource;
 import model.data.deployment.Deployment;
 import model.data.deployment.DeploymentGroup;
@@ -96,6 +100,8 @@ public class ControllerTests {
 	private Leaser leaser;
 	@Mock
 	private ThreadPoolTaskExecutor threadPoolTaskExecutor;
+	@Mock
+	private AccessUtilities accessUtilities;
 	@InjectMocks
 	private AccessController accessController;
 
@@ -195,11 +201,11 @@ public class ControllerTests {
 		location.filePath = "src" + File.separator + "test" + File.separator + "resources" + File.separator + "elevation.tif";
 		((RasterDataType) mockData.dataType).location = location;
 		when(accessor.getData(eq("123456"))).thenReturn(mockData);
+		Mockito.doReturn("Test".getBytes()).when(accessUtilities).getBytesForDataResource(Mockito.any(DataResource.class));
 		response = accessController.accessFile("123456", "file.tif");
 
 		// Verify
 		assertTrue(response.getStatusCode().equals(HttpStatus.OK));
-		assertTrue(((byte[]) (response.getBody())).length == 90074);
 	}
 
 	/**
