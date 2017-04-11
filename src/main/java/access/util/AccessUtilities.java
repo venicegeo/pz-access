@@ -67,7 +67,7 @@ public class AccessUtilities {
 	public byte[] getBytesForDataResource(DataResource dataResource) throws IOException, InvalidInputException {
 		logger.log("Fetching Bytes for Data Item", Severity.INFORMATIONAL,
 				new AuditElement("access", "getBytesForData", dataResource.getDataId()));
-		FileLocation fileLocation = ((RasterDataType) dataResource.getDataType()).getLocation();
+		FileLocation fileLocation = ((FileRepresentation) dataResource.getDataType()).getLocation();
 		FileAccessFactory fileAccessFactory = getFileFactoryForDataResource(dataResource);
 		return IOUtils.toByteArray(fileAccessFactory.getFile(fileLocation));
 	}
