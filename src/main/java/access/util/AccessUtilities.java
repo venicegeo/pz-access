@@ -49,7 +49,7 @@ public class AccessUtilities {
 	private String amazonS3PrivateKey;
 	@Value("${vcap.services.pz-blobstore.credentials.bucket:}")
 	private String PIAZZA_BUCKET;
-	@Value("${s3.kms.cmk.id:}")
+	@Value("${s3.kms.cmk.id}")
 	private String S3_KMS_CMK_ID;
 	@Autowired
 	private PiazzaLogger logger;
