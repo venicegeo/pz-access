@@ -26,8 +26,10 @@ import com.amazonaws.AmazonClientException;
 
 import exception.InvalidInputException;
 import model.data.DataResource;
+import model.data.FileRepresentation;
 import model.data.location.FileAccessFactory;
 import model.data.location.FileLocation;
+import model.data.location.S3FileStore;
 import model.data.type.RasterDataType;
 import model.logger.AuditElement;
 import model.logger.Severity;
@@ -45,8 +47,12 @@ public class AccessUtilities {
 	private String amazonS3AccessKey;
 	@Value("${vcap.services.pz-blobstore.credentials.secret_access_key}")
 	private String amazonS3PrivateKey;
+	@Value("${vcap.services.pz-blobstore.credentials.bucket:}")
+	private String PIAZZA_BUCKET;
+	@Value("${s3.kms.cmk.id}")
+	private String S3_KMS_CMK_ID;
 	@Autowired
-	private PiazzaLogger pzLogger;
+	private PiazzaLogger logger;
 
 	/**
 	 * Gets the Bytes for a Data Resource
@@ -59,10 +65,38 @@ public class AccessUtilities {
 	 * @throws Exception
 	 */
 	public byte[] getBytesForDataResource(DataResource dataResource) throws IOException, InvalidInputException {
-		pzLogger.log("Fetching Bytes for Data Item", Severity.INFORMATIONAL,
+		logger.log("Fetching Bytes for Data Item", Severity.INFORMATIONAL,
 				new AuditElement("access", "getBytesForData", dataResource.getDataId()));
 		FileLocation fileLocation = ((RasterDataType) dataResource.getDataType()).getLocation();
-		FileAccessFactory fileAccessFactory = new FileAccessFactory(amazonS3AccessKey, amazonS3PrivateKey);
+		FileAccessFactory fileAccessFactory = getFileFactoryForDataResource(dataResource);
 		return IOUtils.toByteArray(fileAccessFactory.getFile(fileLocation));
+	}
+
+	/**
+	 * Returns an instance of the File Factory, instantiated with the correct credentials for the use of obtaining file
+	 * bytes for the specified Data Resource. Such as if the Resource is a file, or an S3 Bucket, or an Encrypted S3
+	 * bucket. TODO: Move this into JobCommon
+	 * 
+	 * @param dataResource
+	 *            The Data Resource
+	 * @return FileAccessFactory
+	 */
+	public FileAccessFactory getFileFactoryForDataResource(DataResource dataResource) {
+		// If S3 store, determine if this is the Piazza bucket (use encryption) or not (dont use encryption)
+		FileAccessFactory fileFactory = new FileAccessFactory();
+		FileLocation fileLocation = ((FileRepresentation) dataResource.getDataType()).getLocation();
+		if (fileLocation instanceof S3FileStore) {
+			if (PIAZZA_BUCKET.equals(((S3FileStore) fileLocation))) {
+				// Use encryption
+				fileFactory = new FileAccessFactory(amazonS3AccessKey, amazonS3PrivateKey, S3_KMS_CMK_ID);
+			} else {
+				// Don't use
+				fileFactory = new FileAccessFactory(amazonS3AccessKey, amazonS3PrivateKey);
+			}
+		} else {
+			// No AWS Creds needed
+			fileFactory = new FileAccessFactory();
+		}
+		return fileFactory;
 	}
 }
