@@ -86,7 +86,7 @@ public class AccessUtilities {
 		FileAccessFactory fileFactory = new FileAccessFactory();
 		FileLocation fileLocation = ((FileRepresentation) dataResource.getDataType()).getLocation();
 		if (fileLocation instanceof S3FileStore) {
-			if (PIAZZA_BUCKET.equals(((S3FileStore) fileLocation))) {
+			if (PIAZZA_BUCKET.equals(((S3FileStore) fileLocation).getBucketName())) {
 				// Use encryption
 				fileFactory = new FileAccessFactory(amazonS3AccessKey, amazonS3PrivateKey, S3_KMS_CMK_ID);
 			} else {
