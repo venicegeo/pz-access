@@ -1,5 +1,5 @@
 /**
- * Copyright 2016, RadiantBlue Technologies, Inc.
+f_ * Copyright 2016, RadiantBlue Technologies, Inc.
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -91,7 +91,7 @@ public class AccessWorker {
 			// Parse Job information from Kafka
 			ObjectMapper mapper = new ObjectMapper();
 			Job job = mapper.readValue(consumerRecord.value(), Job.class);
-			accessJob = (AccessJob) job.jobType;
+			accessJob = (AccessJob) job.getJobType();
 
 			// Validate inputs for the Kafka Message
 			if ((accessJob.getDataId() == null) || (accessJob.getDataId().isEmpty())) {
@@ -164,7 +164,7 @@ public class AccessWorker {
 
 		// Depending on how the user wants to Access the Resource
 		if (accessJob.getDeploymentType().equals(AccessJob.ACCESS_TYPE_GEOSERVER)) {
-			Deployment deployment = null;
+			Deployment deployment;
 
 			// Check if a Deployment already exists
 			boolean exists = deployer.doesDeploymentExist(accessJob.getDataId());

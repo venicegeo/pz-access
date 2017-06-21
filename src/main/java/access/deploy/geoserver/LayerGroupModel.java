@@ -36,23 +36,63 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class LayerGroupModel {
 	
-	public LayerGroup layerGroup = new LayerGroup();
+	private LayerGroup layerGroup = new LayerGroup();
 
 	public LayerGroupModel() {
 		// Needed for Jackson support.
 	}
 
+	public LayerGroup getLayerGroup() {
+		return layerGroup;
+	}
+
+	public void setLayerGroup(LayerGroup layerGroup) {
+		this.layerGroup = layerGroup;
+	}
+
 	@JsonInclude(Include.NON_NULL)
 	@JsonIgnoreProperties(ignoreUnknown = true)
 	public static class LayerGroup {
-		public String name;
-		public String mode = "SINGLE";
+		private String name;
+		private String mode = "SINGLE";
 
-		public Publishable publishables = new Publishable();
-		public Styles styles = new Styles();
+		private Publishable publishables = new Publishable();
+		private Styles styles = new Styles();
 
 		public LayerGroup() {
 			// Needed for Jackson support.
+		}
+
+		public String getName() {
+			return name;
+		}
+
+		public void setName(String name) {
+			this.name = name;
+		}
+
+		public Publishable getPublishables() {
+			return publishables;
+		}
+
+		public void setPublishables(Publishable publishables) {
+			this.publishables = publishables;
+		}
+
+		public Styles getStyles() {
+			return styles;
+		}
+
+		public void setStyles(Styles styles) {
+			this.styles = styles;
+		}
+
+		public String getMode() {
+			return mode;
+		}
+
+		public void setMode(String mode) {
+			this.mode = mode;
 		}
 	}
 
@@ -60,10 +100,18 @@ public class LayerGroupModel {
 	@JsonIgnoreProperties(ignoreUnknown = true)
 	public static class Publishable {
 		@JsonFormat(with = JsonFormat.Feature.ACCEPT_SINGLE_VALUE_AS_ARRAY)
-		public List<GroupLayer> published = new ArrayList<GroupLayer>();
+		private List<GroupLayer> published = new ArrayList<GroupLayer>();
 
 		public Publishable() {
 			// Needed for Jackson support.
+		}
+
+		public List<GroupLayer> getPublished() {
+			return published;
+		}
+
+		public void setPublished(List<GroupLayer> published) {
+			this.published = published;
 		}
 	}
 
@@ -71,11 +119,27 @@ public class LayerGroupModel {
 	@JsonIgnoreProperties(ignoreUnknown = true)
 	public static class GroupLayer {
 		@JsonProperty(value = "@type")
-		public String type = "layer";
-		public String name;
+		private String type = "layer";
+		private String name;
 
 		public GroupLayer() {
 			// Needed for Jackson support.
+		}
+
+		public String getType() {
+			return type;
+		}
+
+		public void setType(String type) {
+			this.type = type;
+		}
+
+		public String getName() {
+			return name;
+		}
+
+		public void setName(String name) {
+			this.name = name;
 		}
 	}
 
@@ -83,10 +147,18 @@ public class LayerGroupModel {
 	@JsonIgnoreProperties(ignoreUnknown = true)
 	public static class Styles {
 		@JsonFormat(with = JsonFormat.Feature.ACCEPT_SINGLE_VALUE_AS_ARRAY)
-		public List<String> style = new ArrayList<>();
+		private List<String> style = new ArrayList<>();
 
 		public Styles() {
 			// Needed for Jackson support.
+		}
+
+		public List<String> getStyle() {
+			return style;
+		}
+
+		public void setStyle(List<String> style) {
+			this.style = style;
 		}
 	}
 }
