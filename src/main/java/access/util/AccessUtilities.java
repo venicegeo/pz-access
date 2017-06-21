@@ -83,7 +83,7 @@ public class AccessUtilities {
 	 */
 	public FileAccessFactory getFileFactoryForDataResource(DataResource dataResource) {
 		// If S3 store, determine if this is the Piazza bucket (use encryption) or not (dont use encryption)
-		FileAccessFactory fileFactory = new FileAccessFactory();
+		final FileAccessFactory fileFactory;
 		FileLocation fileLocation = ((FileRepresentation) dataResource.getDataType()).getLocation();
 		if (fileLocation instanceof S3FileStore) {
 			if (PIAZZA_BUCKET.equals(((S3FileStore) fileLocation).getBucketName())) {

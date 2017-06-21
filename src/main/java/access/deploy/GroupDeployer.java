@@ -80,6 +80,7 @@ public class GroupDeployer {
 	private String geoserverPassword;
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(GroupDeployer.class);
+	private static final String ACCESS = "access";
 
 	/**
 	 * Creates a new Deployment Group, without specifying any initial Data Layers to be added. This will create the
@@ -97,7 +98,7 @@ public class GroupDeployer {
 		deploymentGroup.setHasGisServerLayer(false);
 		accessor.insertDeploymentGroup(deploymentGroup);
 		pzLogger.log("Inserting Deployment Group into Mongo Database" + deploymentGroup.deploymentGroupId, Severity.INFORMATIONAL,
-				new AuditElement("access", "insertedDeploymentGroup", deploymentGroup.deploymentGroupId));
+				new AuditElement(ACCESS, "insertedDeploymentGroup", deploymentGroup.deploymentGroupId));
 		return deploymentGroup;
 	}
 
@@ -120,14 +121,14 @@ public class GroupDeployer {
 
 		// Create the Layer Group Model to send to GeoServer
 		LayerGroupModel layerGroupModel = new LayerGroupModel();
-		layerGroupModel.layerGroup.name = deploymentGroup.deploymentGroupId;
+		layerGroupModel.getLayerGroup().setName(deploymentGroup.deploymentGroupId);
 
 		try {
 			// For each Deployment, add a new group to the Layer Group Model.
 			for (Deployment deployment : deployments) {
 				GroupLayer groupLayer = new GroupLayer();
-				groupLayer.name = deployment.getLayer();
-				layerGroupModel.layerGroup.publishables.published.add(groupLayer);
+				groupLayer.setName(deployment.getLayer());
+				layerGroupModel.getLayerGroup().getPublishables().getPublished().add(groupLayer);
 			}
 		} catch (Exception exception) {
 			String error = String.format("Error Updating Deployments for Group Layer: %s", exception.getMessage());
@@ -146,7 +147,7 @@ public class GroupDeployer {
 		accessor.insertDeploymentGroup(deploymentGroup);
 
 		pzLogger.log(String.format("Inserting Deployment Group into Mongo Database %s", deploymentGroup.deploymentGroupId),
-				Severity.INFORMATIONAL, new AuditElement("access", "insertDeploymentGroup", deploymentGroup.deploymentGroupId));
+				Severity.INFORMATIONAL, new AuditElement(ACCESS, "insertDeploymentGroup", deploymentGroup.deploymentGroupId));
 
 		// Return the Group
 		return deploymentGroup;
@@ -175,7 +176,7 @@ public class GroupDeployer {
 		if (!deploymentGroup.getHasGisServerLayer()) {
 			// Create the Layer Group Model to send to GeoServer
 			layerGroupModel = new LayerGroupModel();
-			layerGroupModel.layerGroup.name = deploymentGroup.deploymentGroupId;
+			layerGroupModel.getLayerGroup().setName(deploymentGroup.deploymentGroupId);
 		} else {
 			// Get the existing Layer Group from GeoServer for edits.
 			layerGroupModel = getLayerGroupFromGeoServer(deploymentGroup.deploymentGroupId);
@@ -184,19 +185,13 @@ public class GroupDeployer {
 		try {
 			// For each Deployment, add a new group to the Layer Group Model.
 			for (Deployment deployment : deployments) {
+				
 				// Don't duplicate if it exists already.
-				boolean exists = false;
-				for (GroupLayer groupLayer : layerGroupModel.layerGroup.publishables.published) {
-					if (groupLayer.name.equals(deployment.getLayer())) {
-						exists = true;
-					}
-				}
-
-				if (!exists) {
+				if (!layerAlreadyExists(deployment, layerGroupModel.getLayerGroup().getPublishables().getPublished())) {
 					// Add the new Layer
 					GroupLayer groupLayer = new GroupLayer();
-					groupLayer.name = deployment.getLayer();
-					layerGroupModel.layerGroup.publishables.published.add(groupLayer);
+					groupLayer.setName(deployment.getLayer());
+					layerGroupModel.getLayerGroup().getPublishables().getPublished().add(groupLayer);
 				}
 			}
 		} catch (Exception exception) {
@@ -218,9 +213,20 @@ public class GroupDeployer {
 		}
 
 		pzLogger.log(String.format("Updated Deployment Group into Mongo Database %s", deploymentGroup.deploymentGroupId),
-				Severity.INFORMATIONAL, new AuditElement("access", "updateDeploymentGroup", deploymentGroup.deploymentGroupId));
+				Severity.INFORMATIONAL, new AuditElement(ACCESS, "updateDeploymentGroup", deploymentGroup.deploymentGroupId));
 	}
 
+	private boolean layerAlreadyExists(final Deployment deployment, final List<GroupLayer> groupLayers) {
+		boolean exists = false;
+		for (GroupLayer groupLayer : groupLayers) {
+			if (groupLayer.getName().equals(deployment.getLayer())) {
+				exists = true;
+			}
+		}
+		
+		return exists;
+	}
+	
 	/**
 	 * Deletes a Deployment Group. This will remove the corresponding Layer
 	 * 
@@ -238,7 +244,7 @@ public class GroupDeployer {
 		// Execute
 		try {
 			pzLogger.log(String.format("Deleting GeoServer Deployment Group %s", deploymentGroup.deploymentGroupId), Severity.INFORMATIONAL,
-					new AuditElement("access", "deleteGeoServerDeploymentGroup", url));
+					new AuditElement(ACCESS, "deleteGeoServerDeploymentGroup", url));
 			restTemplate.exchange(url, HttpMethod.DELETE, request, String.class);
 		} catch (HttpClientErrorException | HttpServerErrorException exception) {
 			// If the delete to GeoServer failed, then check why. Perhaps it's
@@ -256,7 +262,7 @@ public class GroupDeployer {
 		}
 
 		pzLogger.log(String.format("Deleted Deployment Group into Mongo Database %s", deploymentGroup.deploymentGroupId),
-				Severity.INFORMATIONAL, new AuditElement("access", "deleteDeploymentGroup", deploymentGroup.deploymentGroupId));
+				Severity.INFORMATIONAL, new AuditElement(ACCESS, "deleteDeploymentGroup", deploymentGroup.deploymentGroupId));
 
 		// Remove the Deployment Group reference from Mongo
 		accessor.deleteDeploymentGroup(deploymentGroup);
@@ -289,12 +295,12 @@ public class GroupDeployer {
 		ResponseEntity<String> response;
 		try {
 			pzLogger.log(String.format("Getting GeoServer Layer Group Metadata: %s", deploymentGroupId), Severity.INFORMATIONAL,
-					new AuditElement("access", "readGeoServerLayerGroupMetadata", url));
+					new AuditElement(ACCESS, "readGeoServerLayerGroupMetadata", url));
 			response = restTemplate.exchange(url, HttpMethod.GET, request, String.class);
 		} catch (HttpStatusCodeException exception) {
 			String error = String.format("Could not fetch Layer Group %s. Status code %s was returned by GeoServer with error: %s",
 					deploymentGroupId, exception.getStatusCode().toString(), exception.getMessage());
-			LOGGER.error(error, exception, new AuditElement("access", "failedToFetchGeoServerLayerGroup", deploymentGroupId));
+			LOGGER.error(error, exception, new AuditElement(ACCESS, "failedToFetchGeoServerLayerGroup", deploymentGroupId));
 			throw new GeoServerException(error);
 		}
 
@@ -308,22 +314,22 @@ public class GroupDeployer {
 			xmlMapper.configure(DeserializationFeature.ACCEPT_EMPTY_STRING_AS_NULL_OBJECT, Boolean.TRUE);
 			LayerGroupModel2.LayerGroup2 xmljsonModel = xmlMapper.readValue(response.getBody(), LayerGroupModel2.LayerGroup2.class);
 			// Convert the XML annotated Model (used by responses) into the JSON annotated Model (used by requests)
-			layerGroupJson.layerGroup.name = xmljsonModel.name;
-			for (LayerGroupModel2.GroupLayer2 layer : xmljsonModel.published) {
+			layerGroupJson.getLayerGroup().setName(xmljsonModel.getName());
+			for (LayerGroupModel2.GroupLayer2 layer : xmljsonModel.getPublished()) {
 				LayerGroupModel.GroupLayer groupLayer = new LayerGroupModel.GroupLayer();
-				groupLayer.name = layer.name;
-				layerGroupJson.layerGroup.publishables.published.add(groupLayer);
+				groupLayer.setName(layer.getName());
+				layerGroupJson.getLayerGroup().getPublishables().getPublished().add(groupLayer);
 			}
 
-			for (String style : xmljsonModel.style) {
-				layerGroupJson.layerGroup.styles.style.add(style);
+			for (String style : xmljsonModel.getStyle()) {
+				layerGroupJson.getLayerGroup().getStyles().getStyle().add(style);
 			}
 
 		} catch (HttpClientErrorException | HttpServerErrorException exception) {
 			String error = String.format(
 					"Could not read in Layer Group from GeoServer response for %s: %s. Expected back a Layer Group description, but GeoServer responded with Code %s and Body %s",
 					deploymentGroupId, exception.getMessage(), exception.getStatusCode().toString(), exception.getResponseBodyAsString());
-			LOGGER.error(error, exception, new AuditElement("access", "failedToParseGeoServerLayerGroup", deploymentGroupId));
+			LOGGER.error(error, exception, new AuditElement(ACCESS, "failedToParseGeoServerLayerGroup", deploymentGroupId));
 			throw new GeoServerException(error);
 		} catch (Exception exception) {
 			String error = String.format("Could not read in Layer Group from GeoServer response for %s: %s", deploymentGroupId,
@@ -358,33 +364,33 @@ public class GroupDeployer {
 		} catch (Exception exception) {
 			String error = String.format("Error serializing Request Body to GeoServer for updating Layer Group: %s",
 					exception.getMessage());
-			LOGGER.error(error, exception, new AuditElement("access", "errorSerializingGeoServerLayerGroup", ""));
+			LOGGER.error(error, exception, new AuditElement(ACCESS, "errorSerializingGeoServerLayerGroup", ""));
 			throw new DataInspectException(error);
 		}
 		String url = String.format(
 				method.equals(HttpMethod.PUT) ? "http://%s:%s/geoserver/rest/workspaces/piazza/layergroups/%s.json"
 						: "http://%s:%s/geoserver/rest/workspaces/piazza/layergroups.json",
-				geoserverHost, geoserverPort, layerGroup.layerGroup.name);
+				geoserverHost, geoserverPort, layerGroup.getLayerGroup().getName());
 
 		// Send
 		ResponseEntity<String> response = null;
 		try {
-			pzLogger.log(String.format("Creating GeoServer Layer Group: %s", layerGroup.layerGroup.name), Severity.INFORMATIONAL,
-					new AuditElement("access", "readGeoServerLayerGroupMetadata", layerGroup.layerGroup.name));
+			pzLogger.log(String.format("Creating GeoServer Layer Group: %s", layerGroup.getLayerGroup().getName()), Severity.INFORMATIONAL,
+					new AuditElement(ACCESS, "readGeoServerLayerGroupMetadata", layerGroup.getLayerGroup().getName()));
 			response = restTemplate.exchange(url, method, request, String.class);
 		} catch (HttpClientErrorException | HttpServerErrorException exception) {
 			String error = String.format("Error sending Layer Group %s to GeoServer HTTP %s to %s. Server responded with: %s",
-					layerGroup.layerGroup.name, method.toString(), url, exception.getResponseBodyAsString());
+					layerGroup.getLayerGroup().getName(), method.toString(), url, exception.getResponseBodyAsString());
 			LOGGER.error(error, exception);
-			pzLogger.log(error, Severity.ERROR, new AuditElement("access", "failedToSendGeoServerLayerGroup", url));
+			pzLogger.log(error, Severity.ERROR, new AuditElement(ACCESS, "failedToSendGeoServerLayerGroup", url));
 			pzLogger.log(String.format("Request Payload for failed request was: %s", payload), Severity.ERROR);
 			throw new GeoServerException(error);
 		}
 		if (response.getStatusCode().equals(HttpStatus.CREATED) || (response.getStatusCode().equals(HttpStatus.OK))) {
-			pzLogger.log("Updated Layer Group.", Severity.INFORMATIONAL, new AuditElement("access", "updatedGeoServerLayerGroup", url));
+			pzLogger.log("Updated Layer Group.", Severity.INFORMATIONAL, new AuditElement(ACCESS, "updatedGeoServerLayerGroup", url));
 		} else {
 			throw new GeoServerException(String.format("Could not update GeoServer Layer Group %s. Request returned Status %s : %s",
-					layerGroup.layerGroup.name, response.getStatusCode().toString(), response.getBody()));
+					layerGroup.getLayerGroup().getName(), response.getStatusCode().toString(), response.getBody()));
 		}
 	}
 
@@ -411,14 +417,14 @@ public class GroupDeployer {
 	 */
 	private void updateLayerStyles(LayerGroupModel layerGroupModel) throws DataInspectException {
 		try {
-			LayerGroup layerGroup = layerGroupModel.layerGroup;
-			while (layerGroup.publishables.published.size() != layerGroup.styles.style.size()) {
-				if (layerGroup.publishables.published.size() > layerGroup.styles.style.size()) {
+			LayerGroup layerGroup = layerGroupModel.getLayerGroup();
+			while (layerGroup.getPublishables().getPublished().size() != layerGroup.getStyles().getStyle().size()) {
+				if (layerGroup.getPublishables().getPublished().size() > layerGroup.getStyles().getStyle().size()) {
 					// Add Styles
-					layerGroup.styles.style.add("");
+					layerGroup.getStyles().getStyle().add("");
 				} else {
 					// Remove Styles
-					layerGroup.styles.style.remove(0);
+					layerGroup.getStyles().getStyle().remove(0);
 				}
 			}
 		} catch (Exception exception) {

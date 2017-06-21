@@ -110,13 +110,16 @@ public class AccessThreadManager {
 	 * Opens up a Kafka Consumer to poll for all Access Jobs that should be processed by this component.
 	 */
 	public void pollAccessJobs() {
+		
+		Consumer<String, String> generalConsumer = null;
+		
 		try {
 			// Callback that will be invoked when a Worker completes. This will
 			// remove the Job Id from the running Jobs list.
 			WorkerCallback callback = jobId -> runningJobs.remove(jobId);
 
 			// Create the General Group Consumer
-			Consumer<String, String> generalConsumer = KafkaClientFactory.getConsumer(kafkaAddress, kafkaGroup);
+			generalConsumer = KafkaClientFactory.getConsumer(kafkaAddress, kafkaGroup);
 			List<String> topics = Arrays.asList(String.format(LOGGER_FORMAT, ACCESS_TOPIC_NAME, space));
 			// Log topics we're listening to
 			pzLogger.log(String.format("Begin listening to Kafka topics : %s", String.join(", ", topics)), Severity.INFORMATIONAL);
@@ -138,11 +141,15 @@ public class AccessThreadManager {
 					runningJobs.put(consumerRecord.key(), workerFuture);
 				}
 			}
-			generalConsumer.close();
 		} catch (WakeupException exception) {
 			String error = String.format("Polling Thread forcefully closed: %s", exception.getMessage());
 			LOGGER.error(error, exception, new AuditElement("access", "kafkaListenerShutDown", ""));
 			pzLogger.log(error, Severity.ERROR);
+		}
+		finally {
+			if( generalConsumer != null ) {
+				generalConsumer.close();
+			}
 		}
 	}
 
@@ -150,9 +157,12 @@ public class AccessThreadManager {
 	 * Begins listening for Abort Jobs. If a Job is owned by this component, then it will be terminated.
 	 */
 	public void pollAbortJobs() {
+		
+		Consumer<String, String> uniqueConsumer = null;
+		
 		try {
 			// Create the Unique Consumer
-			Consumer<String, String> uniqueConsumer = KafkaClientFactory.getConsumer(kafkaAddress,
+			uniqueConsumer = KafkaClientFactory.getConsumer(kafkaAddress,
 					String.format(LOGGER_FORMAT, kafkaGroup, UUID.randomUUID().toString()));
 			uniqueConsumer.subscribe(Arrays.asList(String.format(LOGGER_FORMAT, JobMessageFactory.ABORT_JOB_TOPIC_NAME, space)));
 
@@ -164,11 +174,15 @@ public class AccessThreadManager {
 					handleNewMessages(consumerRecord);
 				}
 			}
-			uniqueConsumer.close();
 		} catch (WakeupException exception) {
 			String error = String.format("Polling Thread forcefully closed: %s", exception.getMessage());
 			LOGGER.error(error, exception);
 			pzLogger.log(error, Severity.ERROR);
+		}
+		finally { 
+			if( uniqueConsumer != null ) {
+				uniqueConsumer.close();
+			}
 		}
 	}
 

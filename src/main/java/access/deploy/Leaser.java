@@ -55,6 +55,7 @@ public class Leaser {
 	private static final Integer DEFAULT_LEASE_PERIOD_DAYS = 21;
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(Leaser.class);
+	private static final String ACCESS = "access";
 
 	/**
 	 * Renews the existing Deployment. This Deployment must exist in the Deployments collection.
@@ -82,7 +83,7 @@ public class Leaser {
 				pzLogger.log(
 						String.format("Updating Deployment Lease for Deployment %s on host %s for %s", deployment.getDeploymentId(),
 								deployment.getHost(), deployment.getDataId()),
-						Severity.INFORMATIONAL, new AuditElement("access", "renewDeploymentLease", deployment.getDeploymentId()));
+						Severity.INFORMATIONAL, new AuditElement(ACCESS, "renewDeploymentLease", deployment.getDeploymentId()));
 			} else {
 				// If the Lease has not expired, then the Lease will not be
 				// extended. It will simply be reused.
@@ -113,7 +114,7 @@ public class Leaser {
 		pzLogger.log(
 				String.format("Creating Deployment Lease for Deployment %s on host %s for %s", deployment.getDeploymentId(),
 						deployment.getHost(), deployment.getDataId()),
-				Severity.INFORMATIONAL, new AuditElement("access", "createDeploymentLease", leaseId));
+				Severity.INFORMATIONAL, new AuditElement(ACCESS, "createDeploymentLease", leaseId));
 		return lease;
 	}
 
@@ -155,7 +156,7 @@ public class Leaser {
 					pzLogger.log(
 							String.format("Expired Lease with Id %s with expiration date %s for Deployment %s has been removed.",
 									expiredLease.getLeaseId(), expiredLease.getExpiresOn(), expiredLease.getDeploymentId()),
-							Severity.INFORMATIONAL, new AuditElement("access", "reapExpiredLease", expiredLease.getDeploymentId()));
+							Severity.INFORMATIONAL, new AuditElement(ACCESS, "reapExpiredLease", expiredLease.getDeploymentId()));
 				} catch (Exception exception) {
 					String error = String.format("Error reaping Expired Lease with Id %s: %s. This expired lease may still persist.",
 							expiredLease.getLeaseId(), exception.getMessage());
