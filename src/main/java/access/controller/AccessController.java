@@ -123,6 +123,7 @@ public class AccessController {
 	private static final Logger LOGGER = LoggerFactory.getLogger(AccessController.class);
 
 	private static final String ACCESS_COMPONENT_NAME = "Access";
+	private static final String ACCESS = "access";
 
 	/**
 	 * Healthcheck required for all Piazza Core Services
@@ -141,15 +142,19 @@ public class AccessController {
 	 * @param dataId
 	 *            The Id of the Data Item to get. Assumes this file is ready to be downloaded.
 	 */
+	@SuppressWarnings("rawtypes")
 	@RequestMapping(value = "/file/{dataId}", method = RequestMethod.GET)
-	public ResponseEntity<?> accessFile(@PathVariable(value = "dataId") String dataId,
+	public ResponseEntity accessFile(@PathVariable(value = "dataId") String dataId,
 			@RequestParam(value = "fileName", required = false) String name) {
+		
+		final String returnAction = "returningFileBytes";
+		
 		try {
 			// Get the DataResource item
 			DataResource data = accessor.getData(dataId);
 			String fileName = StringUtils.isNullOrEmpty(name) ? dataId : name;
 			pzLogger.log(String.format("Processing Data File for %s", dataId), Severity.INFORMATIONAL,
-					new AuditElement("access", "beginProcessingFile", dataId));
+					new AuditElement(ACCESS, "beginProcessingFile", dataId));
 
 			if (data == null) {
 				pzLogger.log(String.format("Data not found for requested Id %s", dataId), Severity.WARNING);
@@ -161,7 +166,7 @@ public class AccessController {
 				// Stream the Bytes back
 				TextDataType textData = (TextDataType) data.getDataType();
 				pzLogger.log(String.format("Returning Bytes for %s", dataId), Severity.INFORMATIONAL,
-						new AuditElement("access", "returningFileBytes", dataId));
+						new AuditElement(ACCESS, returnAction, dataId));
 				return getResponse(MediaType.TEXT_PLAIN, String.format("%s%s", fileName, ".txt"), textData.getContent().getBytes());
 			} else if (data.getDataType() instanceof PostGISDataType) {
 				// Obtain geoJSON from postGIS
@@ -169,21 +174,21 @@ public class AccessController {
 
 				// Log the Request
 				pzLogger.log(String.format("Returning Bytes for %s of length %s", dataId, geoJSON.length()), Severity.INFORMATIONAL,
-						new AuditElement("access", "returningFileBytes", dataId));
+						new AuditElement(ACCESS, returnAction, dataId));
 
 				// Stream the Bytes back
 				return getResponse(MediaType.TEXT_PLAIN, String.format("%s%s", fileName, ".geojson"), geoJSON.toString().getBytes());
 			} else if (!(data.getDataType() instanceof FileRepresentation)) {
 				String message = String.format("File download not available for Data Id %s; type is %s", dataId,
 						data.getDataType().getClass().getSimpleName());
-				pzLogger.log(message, Severity.WARNING, new AuditElement("access", "accessBytesError", ""));
+				pzLogger.log(message, Severity.WARNING, new AuditElement(ACCESS, "accessBytesError", ""));
 				throw new InvalidInputException(message);
 			} else {
 				byte[] bytes = accessUtilities.getBytesForDataResource(data);
 
 				// Log the Request
 				pzLogger.log(String.format("Returning Bytes for %s of length %s", dataId, bytes.length), Severity.INFORMATIONAL,
-						new AuditElement("access", "returningFileBytes", dataId));
+						new AuditElement(ACCESS, returnAction, dataId));
 
 				// Preserve the file extension from the original file.
 				String originalFileName = ((FileRepresentation) data.getDataType()).getLocation().getFileName();
@@ -195,7 +200,7 @@ public class AccessController {
 		} catch (Exception exception) {
 			String error = String.format("Error fetching Data %s: %s", dataId, exception.getMessage());
 			LOGGER.error(error, exception);
-			pzLogger.log(error, Severity.ERROR, new AuditElement("access", "errorAccessingBytes", dataId));
+			pzLogger.log(error, Severity.ERROR, new AuditElement(ACCESS, "errorAccessingBytes", dataId));
 			return new ResponseEntity<>(new ErrorResponse("Error fetching File: " + exception.getMessage(), ACCESS_COMPONENT_NAME),
 					HttpStatus.INTERNAL_SERVER_ERROR);
 		}
@@ -228,7 +233,7 @@ public class AccessController {
 		} catch (Exception exception) {
 			String error = String.format("Error fetching Data %s: %s", dataId, exception.getMessage());
 			LOGGER.error(error, exception);
-			pzLogger.log(error, Severity.ERROR, new AuditElement("access", "errorGettingMetadata", dataId));
+			pzLogger.log(error, Severity.ERROR, new AuditElement(ACCESS, "errorGettingMetadata", dataId));
 			return new ResponseEntity<>(new ErrorResponse("Error fetching Data: " + exception.getMessage(), ACCESS_COMPONENT_NAME),
 					HttpStatus.INTERNAL_SERVER_ERROR);
 		}
@@ -271,7 +276,7 @@ public class AccessController {
 		} catch (Exception exception) {
 			String error = String.format("Error fetching Deployment %s: %s", deploymentId, exception.getMessage());
 			LOGGER.error(error, exception);
-			pzLogger.log(error, Severity.ERROR, new AuditElement("access", "errorReadingDeploymentMetadata", deploymentId));
+			pzLogger.log(error, Severity.ERROR, new AuditElement(ACCESS, "errorReadingDeploymentMetadata", deploymentId));
 			return new ResponseEntity<>(new ErrorResponse("Error fetching Deployment: " + exception.getMessage(), ACCESS_COMPONENT_NAME),
 					HttpStatus.INTERNAL_SERVER_ERROR);
 		}
@@ -302,7 +307,7 @@ public class AccessController {
 		} catch (Exception exception) {
 			String error = String.format("Error Querying Data: %s", exception.getMessage());
 			LOGGER.error(error, exception);
-			pzLogger.log(error, Severity.ERROR, new AuditElement("access", "errorQueryingData", ""));
+			pzLogger.log(error, Severity.ERROR, new AuditElement(ACCESS, "errorQueryingData", ""));
 			return new ResponseEntity<>(new ErrorResponse("Error Querying Data: " + exception.getMessage(), ACCESS_COMPONENT_NAME),
 					HttpStatus.INTERNAL_SERVER_ERROR);
 		}
@@ -331,7 +336,7 @@ public class AccessController {
 		} catch (Exception exception) {
 			String error = String.format("Error Querying Deployment: %s", exception.getMessage());
 			LOGGER.error(error, exception);
-			pzLogger.log(error, Severity.ERROR, new AuditElement("access", "errorReadingDeploymentList", ""));
+			pzLogger.log(error, Severity.ERROR, new AuditElement(ACCESS, "errorReadingDeploymentList", ""));
 			return new ResponseEntity<>(new ErrorResponse("Error Querying Deployment: " + exception.getMessage(), ACCESS_COMPONENT_NAME),
 					HttpStatus.INTERNAL_SERVER_ERROR);
 		}
@@ -374,7 +379,7 @@ public class AccessController {
 		} catch (Exception exception) {
 			String error = String.format("Error Deleting Deployment for Data ID %s : %s", dataId, exception.getMessage());
 			LOGGER.error(error, exception);
-			pzLogger.log(error, Severity.ERROR, new AuditElement("access", "errorReadingDataIdDeployments", dataId));
+			pzLogger.log(error, Severity.ERROR, new AuditElement(ACCESS, "errorReadingDataIdDeployments", dataId));
 			return new ResponseEntity<>(new ErrorResponse(error, ACCESS_COMPONENT_NAME), HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
@@ -406,7 +411,7 @@ public class AccessController {
 		} catch (Exception exception) {
 			String error = String.format("Error Deleting Deployment %s: %s", deploymentId, exception.getMessage());
 			LOGGER.error(error, exception);
-			pzLogger.log(error, Severity.ERROR, new AuditElement("access", "errorReadingDeploymentId", deploymentId));
+			pzLogger.log(error, Severity.ERROR, new AuditElement(ACCESS, "errorReadingDeploymentId", deploymentId));
 			return new ResponseEntity<>(new ErrorResponse(error, ACCESS_COMPONENT_NAME), HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
@@ -429,7 +434,7 @@ public class AccessController {
 		} catch (Exception exception) {
 			String error = String.format("Error Creating DeploymentGroup for user %s : %s", createdBy, exception.getMessage());
 			LOGGER.error(error, exception);
-			pzLogger.log(error, Severity.ERROR, new AuditElement("access", "errorCreatingDeploymentGroup", ""));
+			pzLogger.log(error, Severity.ERROR, new AuditElement(ACCESS, "errorCreatingDeploymentGroup", ""));
 			return new ResponseEntity<>(new ErrorResponse(error, ACCESS_COMPONENT_NAME), HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
@@ -462,13 +467,13 @@ public class AccessController {
 			String error = String.format("Could not delete DeploymentGroup. Response from GeoServer returned code %s with reason %s",
 					httpException.getStatusCode().toString(), httpException.getMessage());
 			LOGGER.error(error, httpException);
-			pzLogger.log(error, Severity.ERROR, new AuditElement("access", "errorDeletingDeploymentGroup", deploymentGroupId));
+			pzLogger.log(error, Severity.ERROR, new AuditElement(ACCESS, "errorDeletingDeploymentGroup", deploymentGroupId));
 			return new ResponseEntity<>(new ErrorResponse(error, ACCESS_COMPONENT_NAME), httpException.getStatusCode());
 		} catch (Exception exception) {
 			// Return the 500 Internal error
 			String error = String.format("Could not delete DeploymentGroup. An unexpected error occurred: %s", exception.getMessage());
 			LOGGER.error(error, exception);
-			pzLogger.log(error, Severity.ERROR, new AuditElement("access", "errorDeletingDeploymentGroup", deploymentGroupId));
+			pzLogger.log(error, Severity.ERROR, new AuditElement(ACCESS, "errorDeletingDeploymentGroup", deploymentGroupId));
 			return new ResponseEntity<>(new ErrorResponse(error, ACCESS_COMPONENT_NAME), HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
@@ -532,10 +537,9 @@ public class AccessController {
 		PostGISDataType resource = (PostGISDataType) (data.getDataType());
 		SimpleFeatureSource simpleFeatureSource = postGisStore.getFeatureSource(resource.getTable());
 		SimpleFeatureCollection simpleFeatureCollection = simpleFeatureSource.getFeatures(Query.ALL);
-		SimpleFeatureIterator simpleFeatureIterator = simpleFeatureCollection.features();
 
 		StringBuilder geoJSON = new StringBuilder();
-		try {
+		try (SimpleFeatureIterator simpleFeatureIterator = simpleFeatureCollection.features()) {
 			while (simpleFeatureIterator.hasNext()) {
 				SimpleFeature simpleFeature = simpleFeatureIterator.next();
 				FeatureJSON featureJSON = new FeatureJSON();
@@ -547,8 +551,6 @@ public class AccessController {
 				// Append each section
 				geoJSON.append(json);
 			}
-		} finally {
-			simpleFeatureIterator.close();
 		}
 
 		return geoJSON;

@@ -109,7 +109,7 @@ public class Accessor {
 		try {
 			MongoClientOptions.Builder builder = new MongoClientOptions.Builder();
 			// Enable SSL if the `mongossl` Profile is enabled
-			if (Arrays.stream(environment.getActiveProfiles()).anyMatch(env -> env.equalsIgnoreCase("mongossl"))) {
+			if (Arrays.stream(environment.getActiveProfiles()).anyMatch(env -> "mongossl".equalsIgnoreCase(env))) {
 				builder.sslEnabled(true);
 				builder.sslInvalidHostNameAllowed(true);
 			}
@@ -422,7 +422,7 @@ public class Accessor {
 			cursor = cursor.sort(DBSort.desc(sortBy));
 		}
 
-		Integer size = new Integer(cursor.size());
+		Integer size = Integer.valueOf(cursor.size());
 		// Filter the data by pages
 		List<DataResource> data = cursor.skip(page * pageSize).limit(pageSize).toArray();
 		// Attach pagination information
@@ -469,7 +469,7 @@ public class Accessor {
 			cursor = cursor.sort(DBSort.desc(sortBy));
 		}
 
-		Integer size = new Integer(cursor.size());
+		Integer size = Integer.valueOf(cursor.size());
 		// Filter the data by pages
 		List<Deployment> data = cursor.skip(page * pageSize).limit(pageSize).toArray();
 		// Attach pagination information

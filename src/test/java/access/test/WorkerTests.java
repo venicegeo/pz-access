@@ -95,13 +95,12 @@ public class WorkerTests {
 	public void testWorker() throws Exception {
 		// Mock
 		Job mockJob = new Job();
-		mockJob.jobId = "123456";
-		mockJob.createdOn = new DateTime();
-		mockJob.createdBy = "Test User";
+		mockJob.setJobId("123456");
+		mockJob.setCreatedBy("Test User");
 		AccessJob accessJob = new AccessJob("123456");
 		accessJob.deploymentType = AccessJob.ACCESS_TYPE_GEOSERVER;
 		accessJob.dataId = "123456";
-		mockJob.jobType = accessJob;
+		mockJob.setJobType(accessJob);
 		ConsumerRecord<String, String> mockRecord = new ConsumerRecord<String, String>("Access", 0, 0, "123456",
 				new ObjectMapper().writeValueAsString(mockJob));
 		WorkerCallback callback = new WorkerCallback() {
