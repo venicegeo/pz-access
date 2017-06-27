@@ -404,31 +404,38 @@ public class Accessor {
 	 */
 	public DataResourceListResponse getDataList(Integer page, Integer pageSize, String sortBy, String order, String keyword,
 			String userName, String createdByJobId) throws MongoException {
-		Pattern regex = Pattern.compile(String.format("(?i)%s", keyword != null ? keyword : ""));
-		// Get a DB Cursor to the query for general data
-		DBCursor<DataResource> cursor = getDataResourceCollection().find().or(DBQuery.regex("metadata.name", regex),
-				DBQuery.regex("metadata.description", regex));
-		if ((userName != null) && !(userName.isEmpty())) {
-			cursor.and(DBQuery.is("metadata.createdBy", userName));
-		}
-		if ((createdByJobId != null) && !(createdByJobId.isEmpty())) {
-			cursor.and(DBQuery.is("metadata.createdByJobId", createdByJobId));
-		}
+//		Pattern regex = Pattern.compile(String.format("(?i)%s", keyword != null ? keyword : ""));
 
-		// Sort and order
-		if ("asc".equalsIgnoreCase(order)) {
-			cursor = cursor.sort(DBSort.asc(sortBy));
-		} else if ("desc".equalsIgnoreCase(order)) {
-			cursor = cursor.sort(DBSort.desc(sortBy));
-		}
+		DBCursor<DataResource> cursor = getDataResourceCollection().find();
+		cursor.toArray();
+		Pagination pagination = new Pagination(cursor.size(), page, pageSize, sortBy, order);
+		return new DataResourceListResponse(cursor.toArray(), pagination);
 
-		Integer size = Integer.valueOf(cursor.size());
-		// Filter the data by pages
-		List<DataResource> data = cursor.skip(page * pageSize).limit(pageSize).toArray();
-		// Attach pagination information
-		Pagination pagination = new Pagination(size, page, pageSize, sortBy, order);
-		// Create the Response and send back
-		return new DataResourceListResponse(data, pagination);
+		
+//		// Get a DB Cursor to the query for general data
+//		DBCursor<DataResource> cursor = getDataResourceCollection().find().or(DBQuery.regex("metadata.name", regex),
+//				DBQuery.regex("metadata.description", regex));
+//		if ((userName != null) && !(userName.isEmpty())) {
+//			cursor.and(DBQuery.is("metadata.createdBy", userName));
+//		}
+//		if ((createdByJobId != null) && !(createdByJobId.isEmpty())) {
+//			cursor.and(DBQuery.is("metadata.createdByJobId", createdByJobId));
+//		}
+//
+//		// Sort and order
+//		if ("asc".equalsIgnoreCase(order)) {
+//			cursor = cursor.sort(DBSort.asc(sortBy));
+//		} else if ("desc".equalsIgnoreCase(order)) {
+//			cursor = cursor.sort(DBSort.desc(sortBy));
+//		}
+//
+//		Integer size = Integer.valueOf(cursor.size());
+//		// Filter the data by pages
+//		List<DataResource> data = cursor.skip(page * pageSize).limit(pageSize).toArray();
+//		// Attach pagination information
+//		Pagination pagination = new Pagination(size, page, pageSize, sortBy, order);
+//		// Create the Response and send back
+//		return new DataResourceListResponse(data, pagination);
 	}
 
 	/**
