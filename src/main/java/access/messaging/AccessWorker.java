@@ -207,7 +207,7 @@ public class AccessWorker {
 			producer.send(JobMessageFactory.getUpdateStatusMessage(key, statusUpdate, space));
 
 			// Console Logging
-			pzLogger.log(String.format("GeoServer Deployment successul for Resource %s by user %s", accessJob.getDataId(), job.getCreatedBy()), Severity.INFORMATIONAL,
+			pzLogger.log(String.format("GeoServer Deployment successful for Resource %s by user %s", accessJob.getDataId(), job.getCreatedBy()), Severity.INFORMATIONAL,
 					new AuditElement(job.getJobId(), "accessData", accessJob.getDataId()));
 			LOGGER.info("Deployment Successfully Returned for Resource " + accessJob.getDataId());
 		} else {
