@@ -37,6 +37,7 @@ import access.database.Accessor;
 import access.deploy.Deployer;
 import access.deploy.GroupDeployer;
 import access.deploy.Leaser;
+import exception.DataInspectException;
 import exception.GeoServerException;
 import exception.InvalidInputException;
 import messaging.job.JobMessageFactory;
@@ -157,7 +158,7 @@ public class AccessWorker {
 		return new AsyncResult<>(accessJob);
 	}
 	
-	private void processGeoServerType(Job job, AccessJob accessJob, Producer producer, String key) throws Exception {
+	private void processGeoServerType(Job job, AccessJob accessJob, Producer<String, String> producer, String key) throws JsonProcessingException, InvalidInputException, InterruptedException, GeoServerException, DataInspectException  {
 		// Update Status that this Job is being processed
 		StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_RUNNING);
 		producer.send(JobMessageFactory.getUpdateStatusMessage(key, statusUpdate, space));
@@ -214,7 +215,7 @@ public class AccessWorker {
 		}
 	}
 	
-	private void addToNewLayerGroup(Deployment deployment, AccessJob accessJob) throws Exception {
+	private void addToNewLayerGroup(Deployment deployment, AccessJob accessJob) throws GeoServerException, InvalidInputException, DataInspectException  {
 		// First verify that the Deployment exists in GeoServer . This is to avoid a race condition where
 		// another Deployment Job in Piazza is responsible for creating the Deployment Layer for the Data ID
 		// - but has not finished publishing this layer to GeoServer yet.
