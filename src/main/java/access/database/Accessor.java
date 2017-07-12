@@ -407,8 +407,7 @@ public class Accessor {
 		
 		// Get a DB Cursor to the query for general data
 		DBCursor<DataResource> cursor = getDataResourceCollection().find();
-		if(keyword != null)
-		{
+		if (keyword != null && !keyword.isEmpty()) {
 			Pattern regex = Pattern.compile(String.format("(?i)%s", keyword));
 			cursor = cursor.or(DBQuery.regex("metadata.name", regex), DBQuery.regex("metadata.description", regex));
 		}
