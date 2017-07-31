@@ -30,7 +30,7 @@ import org.mockito.MockitoAnnotations;
 
 import util.PiazzaLogger;
 import util.UUIDFactory;
-import access.database.Accessor;
+import access.database.DatabaseAccessor;
 import access.deploy.Deployer;
 import access.deploy.Leaser;
 
@@ -48,7 +48,7 @@ public class LeaserTests {
 	@Mock
 	private UUIDFactory uuidFactory;
 	@Mock
-	private Accessor accessor;
+	private DatabaseAccessor accessor;
 	@InjectMocks
 	private Leaser leaser;
 

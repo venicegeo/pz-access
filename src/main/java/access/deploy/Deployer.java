@@ -39,7 +39,7 @@ import org.springframework.web.client.RestTemplate;
 
 import com.amazonaws.AmazonClientException;
 
-import access.database.Accessor;
+import access.database.DatabaseAccessor;
 import access.util.AccessUtilities;
 import exception.GeoServerException;
 import exception.InvalidInputException;
@@ -74,7 +74,7 @@ public class Deployer {
 	@Autowired
 	private AccessUtilities accessUtilities;
 	@Autowired
-	private Accessor accessor;
+	private DatabaseAccessor accessor;
 	@Value("${vcap.services.pz-geoserver-efs.credentials.geoserver.hostname}")
 	private String geoserverHost;
 	@Value("${vcap.services.pz-geoserver-efs.credentials.geoserver.port}")

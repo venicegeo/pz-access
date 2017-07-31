@@ -46,7 +46,7 @@ import org.springframework.web.client.HttpStatusCodeException;
 
 import com.amazonaws.util.StringUtils;
 
-import access.database.Accessor;
+import access.database.DatabaseAccessor;
 import access.deploy.Deployer;
 import access.deploy.GroupDeployer;
 import access.deploy.Leaser;
@@ -103,7 +103,7 @@ public class AccessController {
 	@Autowired
 	private PiazzaLogger pzLogger;
 	@Autowired
-	private Accessor accessor;
+	private DatabaseAccessor accessor;
 	@Autowired
 	private Deployer deployer;
 	@Autowired

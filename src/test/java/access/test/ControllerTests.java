@@ -53,7 +53,7 @@ import com.vividsolutions.jts.geom.GeometryFactory;
 import com.vividsolutions.jts.geom.Point;
 
 import access.controller.AccessController;
-import access.database.Accessor;
+import access.database.DatabaseAccessor;
 import access.deploy.Deployer;
 import access.deploy.GroupDeployer;
 import access.deploy.Leaser;
@@ -91,7 +91,7 @@ public class ControllerTests {
 	@Mock
 	private PiazzaLogger logger;
 	@Mock
-	private Accessor accessor;
+	private DatabaseAccessor accessor;
 	@Mock
 	private Deployer deployer;
 	@Mock

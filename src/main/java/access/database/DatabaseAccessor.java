@@ -68,7 +68,7 @@ import util.GeoToolsUtil;
  * 
  */
 @Component
-public class Accessor {
+public class DatabaseAccessor {
 	@Value("${vcap.services.pz-mongodb.credentials.uri}")
 	private String DATABASE_URI;
 	@Value("${vcap.services.pz-mongodb.credentials.database}")
@@ -102,7 +102,7 @@ public class Accessor {
 	private static final String DEPLOYMENTGROUP_ID = "deploymentGroupId";
 	private static final String LEASE_ID = "leaseId";
 	private static final String INSTANCE_NOT_AVAILABLE_ERROR = "MongoDB instance not available.";
-	private static final Logger LOGGER = LoggerFactory.getLogger(Accessor.class);
+	private static final Logger LOGGER = LoggerFactory.getLogger(DatabaseAccessor.class);
 
 	@PostConstruct
 	private void initialize() {

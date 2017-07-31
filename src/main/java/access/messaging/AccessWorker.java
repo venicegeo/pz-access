@@ -33,7 +33,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mongodb.MongoInterruptedException;
 
-import access.database.Accessor;
+import access.database.DatabaseAccessor;
 import access.deploy.Deployer;
 import access.deploy.GroupDeployer;
 import access.deploy.Leaser;
@@ -71,7 +71,7 @@ public class AccessWorker {
 	@Autowired
 	private GroupDeployer groupDeployer;
 	@Autowired
-	private Accessor accessor;
+	private DatabaseAccessor accessor;
 	@Autowired
 	private Leaser leaser;
 	@Autowired

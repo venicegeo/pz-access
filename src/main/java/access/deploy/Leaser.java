@@ -25,7 +25,7 @@ import org.springframework.stereotype.Component;
 
 import com.mongodb.BasicDBObject;
 
-import access.database.Accessor;
+import access.database.DatabaseAccessor;
 import model.data.deployment.Deployment;
 import model.data.deployment.Lease;
 import model.logger.AuditElement;
@@ -51,7 +51,7 @@ public class Leaser {
 	@Autowired
 	private UUIDFactory uuidFactory;
 	@Autowired
-	private Accessor accessor;
+	private DatabaseAccessor accessor;
 	private static final Integer DEFAULT_LEASE_PERIOD_DAYS = 21;
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(Leaser.class);

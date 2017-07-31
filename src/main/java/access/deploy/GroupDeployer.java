@@ -37,7 +37,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 
-import access.database.Accessor;
+import access.database.DatabaseAccessor;
 import access.deploy.geoserver.LayerGroupModel;
 import access.deploy.geoserver.LayerGroupModel.GroupLayer;
 import access.deploy.geoserver.LayerGroupModel.LayerGroup;
@@ -65,7 +65,7 @@ public class GroupDeployer {
 	@Autowired
 	private UUIDFactory uuidFactory;
 	@Autowired
-	private Accessor accessor;
+	private DatabaseAccessor accessor;
 	@Autowired
 	private Deployer deployer;
 	@Autowired

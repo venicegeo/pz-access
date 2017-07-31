@@ -45,7 +45,7 @@ import org.springframework.web.client.RestTemplate;
 
 import util.PiazzaLogger;
 import util.UUIDFactory;
-import access.database.Accessor;
+import access.database.DatabaseAccessor;
 import access.deploy.Deployer;
 import access.util.AccessUtilities;
 
@@ -63,7 +63,7 @@ public class DeployerTests {
 	@Mock
 	private UUIDFactory uuidFactory;
 	@Mock
-	private Accessor accessor;
+	private DatabaseAccessor accessor;
 	@Mock
 	private AccessUtilities accessUtilities;
 	@InjectMocks
