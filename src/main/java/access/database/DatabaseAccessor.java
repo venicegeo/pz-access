@@ -93,81 +93,67 @@ public class DatabaseAccessor {
 		return null;
 	}
 
-//	/**
-//	 * Gets the Deployment for the specified Resource Id
-//	 * 
-//	 * @param dataId
-//	 *            The Id of the DataResource to check for a Deployment
-//	 * @return The Deployment for the Resource, if any. Null, if none.
-//	 */
+	/**
+	 * Gets the Deployment for the specified Resource Id
+	 * 
+	 * @param dataId
+	 *            The Id of the DataResource to check for a Deployment
+	 * @return The Deployment for the Resource, if any. Null, if none.
+	 */
 	public Deployment getDeploymentByDataId(String dataId) {
-//		BasicDBObject query = new BasicDBObject(DATA_ID, dataId);
-//		Deployment deployment;
-//
-//		try {
-//			deployment = getDeploymentCollection().findOne(query);
-//		} catch (MongoTimeoutException mte) {
-//			LOGGER.error(INSTANCE_NOT_AVAILABLE_ERROR, mte);
-//			throw new MongoException(INSTANCE_NOT_AVAILABLE_ERROR);
-//		}
-//
-//		return deployment;
-//		
-		return null;
+		Deployment deployment = null;
+		DeploymentEntity record = deploymentDao.findOneById(dataId);
+		if (record != null)
+			deployment = record.getDeployment();
+		return deployment;
 	}
 
-//	/**
-//	 * Gets the Deployment Group by its unique Id.
-//	 * 
-//	 * @param deploymentGroupId
-//	 *            The Id of the Deployment Group
-//	 * @return The Deployment Group
-//	 */
+	/**
+	 * Gets the Deployment Group by its unique Id.
+	 * 
+	 * @param deploymentGroupId
+	 *            The Id of the Deployment Group
+	 * @return The Deployment Group
+	 */
 	public DeploymentGroup getDeploymentGroupById(String deploymentGroupId) {
-//		BasicDBObject query = new BasicDBObject(DEPLOYMENTGROUP_ID, deploymentGroupId);
-//		DeploymentGroup deploymentGroup;
-//
-//		try {
-//			deploymentGroup = getDeploymentGroupCollection().findOne(query);
-//		} catch (MongoTimeoutException mte) {
-//			LOGGER.error(INSTANCE_NOT_AVAILABLE_ERROR, mte);
-//			throw new MongoException(INSTANCE_NOT_AVAILABLE_ERROR);
-//		}
-//
-//		return deploymentGroup;
-//		
-		return null;
+		DeploymentGroup deploymentGroup = null;
+		DeploymentGroupEntity record = deploymentGroupDao.findOneDeploymentGroupById(deploymentGroupId);
+		if( record != null )
+			deploymentGroup = record.getDeploymentGroup();
+		return deploymentGroup;
 	}
 
-//	/**
-//	 * Deletes a deployment entirely from the database.
-//	 * 
-//	 * If a lease exists for this deployment, then it is also removed from the database.
-//	 * 
-//	 * Note that this is only for database collections only. This does not actually remove the data from GeoServer. This
-//	 * is handled in the Deployer.
-//	 * 
-//	 * @param deployment
-//	 *            The deployment to delete
-//	 */
+	/**
+	 * Deletes a deployment entirely from the database.
+	 * 
+	 * If a lease exists for this deployment, then it is also removed from the database.
+	 * 
+	 * Note that this is only for database collections only. This does not actually remove the data from GeoServer. This
+	 * is handled in the Deployer.
+	 * 
+	 * @param deployment
+	 *            The deployment to delete
+	 */
 	public void deleteDeployment(Deployment deployment) {
-//		// Delete the deployment
-//		getDeploymentCollection().remove(new BasicDBObject(DEPLOYMENT_ID, deployment.getDeploymentId()));
-//		// If the deployment had a lease, then delete that too.
-//		Lease lease = getDeploymentLease(deployment);
-//		if (lease != null) {
-//			deleteLease(lease);
-//		}
+		if (deployment != null) {
+			DeploymentEntity record = deploymentDao.findOneById(deployment.getDeploymentId());
+			if (record != null)
+				deploymentDao.delete(record);
+		}
 	}
 
-//	/**
-//	 * Deletes a Deployment Group.
-//	 * 
-//	 * @param deploymentGroup
-//	 *            The group to delete.
-//	 */
+	/**
+	 * Deletes a Deployment Group.
+	 * 
+	 * @param deploymentGroup
+	 *            The group to delete.
+	 */
 	public void deleteDeploymentGroup(DeploymentGroup deploymentGroup) {
-		//getDeploymentGroupCollection().remove(new BasicDBObject(DEPLOYMENTGROUP_ID, deploymentGroup.deploymentGroupId));
+		if (deploymentGroup != null) {
+			DeploymentGroupEntity record = deploymentGroupDao.findOneDeploymentGroupById(deploymentGroup.deploymentGroupId);
+			if (record != null)
+				deploymentGroupDao.delete(record);
+		}
 	}
 
 	/**
@@ -222,27 +208,19 @@ public class DatabaseAccessor {
 		return dataResource;
 	}
 
-//	/**
-//	 * Gets a Deployment by its unique Id.
-//	 * 
-//	 * @param deploymentId
-//	 *            The deployment Id
-//	 * @return The Deployment
-//	 */
+	/**
+	 * Gets a Deployment by its unique Id.
+	 * 
+	 * @param deploymentId
+	 *            The deployment Id
+	 * @return The Deployment
+	 */
 	public Deployment getDeployment(String deploymentId) {
-//		BasicDBObject query = new BasicDBObject(DEPLOYMENT_ID, deploymentId);
-//		Deployment deployment;
-//
-//		try {
-//			if ((deployment = getDeploymentCollection().findOne(query)) == null) {
-//				return null;
-//			}
-//		} catch (MongoTimeoutException mte) {
-//			LOGGER.error(INSTANCE_NOT_AVAILABLE_ERROR, mte);
-//			throw new MongoException(INSTANCE_NOT_AVAILABLE_ERROR);
-//		}
-
-		return null;
+		Deployment deployment = null;
+		DeploymentEntity record = deploymentDao.findOneById(deploymentId);
+		if (record != null)
+			deployment = record.getDeployment();
+		return deployment;
 	}
 
 	/**
@@ -284,15 +262,17 @@ public class DatabaseAccessor {
 	public void insertDeployment(Deployment deployment) {
 		//getDeploymentCollection().insert(deployment);
 	}
-//
-//	/**
-//	 * Creates a new Deployment Group entry in the database.
-//	 * 
-//	 * @param deploymentGroup
-//	 *            Deployment Group to insert
-//	 */
+
+	/**
+	 * Creates a new Deployment Group entry in the database.
+	 * 
+	 * @param deploymentGroup
+	 *            Deployment Group to insert
+	 */
 	public void insertDeploymentGroup(DeploymentGroup deploymentGroup) {
-		//getDeploymentGroupCollection().insert(deploymentGroup);
+		DeploymentGroupEntity newRecord = new DeploymentGroupEntity();
+		newRecord.setDeploymentGroup(deploymentGroup);
+		deploymentGroupDao.save(newRecord);
 	}
 
 	/**
