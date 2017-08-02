@@ -16,7 +16,11 @@
 package access.database;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+
 import org.geotools.data.DataStore;
+import org.joda.time.DateTime;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.venice.piazza.common.hibernate.dao.DataResourceDao;
@@ -195,7 +199,7 @@ public class DatabaseAccessor {
 	public void updateLeaseExpirationDate(String leaseId, String expirationDate) {
 		LeaseEntity record = leaseDao.findOneLeaseById(leaseId);
 		if (record != null) {
-			record.getLease().setExpiresOn(expirationDate);
+			record.getLease().setExpiresOn(DateTime.parse(expirationDate));
 		}
 		leaseDao.save(record);
 	}
@@ -364,6 +368,22 @@ public class DatabaseAccessor {
 //		return new DeploymentListResponse(data, pagination);
 //		
 		return null;
+	}
+
+	/**
+	 * 
+	 * @param date
+	 *			
+	 * @return
+	 */
+	public Iterable<Lease> getExpiredLeases(DateTime date)
+	{
+		List<Lease> list = new ArrayList<Lease>();
+		for( LeaseEntity record : leaseDao.findExpiredLeases(date.getMillis()))
+		{
+			list.add(record.getLease());
+		}
+		return list;
 	}
 
 	/**

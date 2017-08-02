@@ -267,7 +267,7 @@ public class AccessController {
 			Lease lease = accessor.getDeploymentLease(deployment);
 			String expiresOn = null;
 			if (lease != null) {
-				expiresOn = lease.getExpiresOn();
+				expiresOn = lease.getExpiresOn().toString();
 			}
 
 			// Return the Data Resource item

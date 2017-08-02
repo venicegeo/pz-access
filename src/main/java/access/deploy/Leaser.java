@@ -103,7 +103,7 @@ public class Leaser {
 		// Create the Lease
 		String leaseId = uuidFactory.getUUID();
 		Integer updatedDurationDays = ((durationDays != null) && (durationDays.intValue() > 0)) ? durationDays : DEFAULT_LEASE_PERIOD_DAYS;
-		Lease lease = new Lease(leaseId, deployment.getDeploymentId(), DateTime.now().plusDays(updatedDurationDays.intValue()).toString());
+		Lease lease = new Lease(leaseId, deployment.getDeploymentId(), DateTime.now().plusDays(updatedDurationDays.intValue()));
 
 		// Commit the Lease to the Database
 		accessor.insertLease(lease);
@@ -141,32 +141,21 @@ public class Leaser {
 		// TODO: Not sure if this is needed just yet.
 		pzLogger.log("GeoServer not at capacity. No reaping of resources required.", Severity.INFORMATIONAL);
 
-//		accessor.getExpiredLeases(DateTime.now());
-//		
-//		// Query for all leases that have gone past their expiration date.
-//		BasicDBObject query = new BasicDBObject("expirationDate", new BasicDBObject("$lt", DateTime.now().toString()));
-//		DBCursor<Lease> cursor = accessor.getLeaseCollection().find(query);
-//		if (cursor.size() > 0) {
-//			// There are leases with expired deployments. Remove them.
-//			do {
-//				Lease expiredLease = cursor.next();
-//				try {
-//					deployer.undeploy(expiredLease.getDeploymentId());
-//					// Log the removal
-//					pzLogger.log(
-//							String.format("Expired Lease with Id %s with expiration date %s for Deployment %s has been removed.",
-//									expiredLease.getLeaseId(), expiredLease.getExpiresOn(), expiredLease.getDeploymentId()),
-//							Severity.INFORMATIONAL, new AuditElement(ACCESS, "reapExpiredLease", expiredLease.getDeploymentId()));
-//				} catch (Exception exception) {
-//					String error = String.format("Error reaping Expired Lease with Id %s: %s. This expired lease may still persist.",
-//							expiredLease.getLeaseId(), exception.getMessage());
-//					LOGGER.error(error, exception);
-//					pzLogger.log(error, Severity.ERROR);
-//				}
-//			} while (cursor.hasNext());
-//		} else {
-//			// Nothing to do
-//			pzLogger.log("There were no expired Deployment Leases to reap.", Severity.INFORMATIONAL);
-//		}
+		Iterable<Lease> leases = accessor.getExpiredLeases(DateTime.now());
+		for (Lease expiredLease : leases) {
+			// There are leases with expired deployments. Remove them.
+			try {
+				deployer.undeploy(expiredLease.getDeploymentId());
+				// Log the removal
+				pzLogger.log(String.format("Expired Lease with Id %s with expiration date %s for Deployment %s has been removed.",
+								expiredLease.getLeaseId(), expiredLease.getExpiresOn(), expiredLease.getDeploymentId()),
+						Severity.INFORMATIONAL, new AuditElement(ACCESS, "reapExpiredLease", expiredLease.getDeploymentId()));
+			} catch (Exception exception) {
+				String error = String.format("Error reaping Expired Lease with Id %s: %s. This expired lease may still persist.",
+						expiredLease.getLeaseId(), exception.getMessage());
+				LOGGER.error(error, exception);
+				pzLogger.log(error, Severity.ERROR);
+			}
+		}
 	}
 }

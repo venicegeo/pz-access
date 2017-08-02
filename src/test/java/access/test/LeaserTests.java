@@ -66,7 +66,7 @@ public class LeaserTests {
 	@Test
 	public void testRenewLease() {
 		// Mock
-		Lease mockLease = new Lease("123456", "123456", new DateTime().minusDays(1).toString());
+		Lease mockLease = new Lease("123456", "123456", new DateTime().minusDays(1));
 		Deployment mockDeployment = new Deployment("123456", "123456", "localhost", "8080", "Test", "localhost:8080");
 
 		// Test when lease exists
