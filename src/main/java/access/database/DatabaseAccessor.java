@@ -17,11 +17,7 @@ package access.database;
 
 import java.io.IOException;
 import org.geotools.data.DataStore;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 import org.venice.piazza.common.hibernate.dao.DataResourceDao;
 import org.venice.piazza.common.hibernate.dao.DeploymentDao;
@@ -40,6 +36,7 @@ import model.data.deployment.DeploymentGroup;
 import model.data.deployment.Lease;
 import model.response.DataResourceListResponse;
 import model.response.DeploymentListResponse;
+import util.GeoToolsUtil;
 
 /**
  * Handles database access for the Deployer and the Leaser, and Resource collections which stores the Ingested Resource metadata.
@@ -49,18 +46,6 @@ import model.response.DeploymentListResponse;
  */
 @Component
 public class DatabaseAccessor {
-	@Value("${mongo.db.collection.resources}")
-	private String resourceCollectionName;
-	@Value("${mongo.db.collection.deployments}")
-	private String deploymentCollectionName;
-	@Value("${mongo.db.collection.deployment.groups}")
-	private String deploymentGroupCollectionName;
-	@Value("${mongo.db.collection.leases}")
-	private String leaseCollectionName;
-
-
-	@Autowired
-	private Environment environment;
 
 	@Autowired
 	private DataResourceDao dataResourceDao;
@@ -74,23 +59,14 @@ public class DatabaseAccessor {
 	@Autowired
 	private DeploymentGroupDao deploymentGroupDao;
 	
-	private static final String DATA_ID = "dataId";
-	private static final String DEPLOYMENT_ID = "deploymentId";
-	private static final String DEPLOYMENTGROUP_ID = "deploymentGroupId";
-	private static final String LEASE_ID = "leaseId";
-	private static final String INSTANCE_NOT_AVAILABLE_ERROR = "MongoDB instance not available.";
-	private static final Logger LOGGER = LoggerFactory.getLogger(DatabaseAccessor.class);
-
-//	/**
-//	 * Gets the PostGIS data store for GeoTools.
-//	 * 
-//	 * @return Data Store.
-//	 */
+	/**
+	 * Gets the PostGIS data store for GeoTools.
+	 * 
+	 * @return Data Store.
+	 */
 	public DataStore getPostGisDataStore(String host, String port, String schema, String dbName, String user, String password)
 			throws IOException {
-//		return GeoToolsUtil.getPostGisDataStore(host, port, schema, dbName, user, password);
-//		
-		return null;
+		return GeoToolsUtil.getPostGisDataStore(host, port, schema, dbName, user, password);
 	}
 
 	/**
@@ -154,21 +130,6 @@ public class DatabaseAccessor {
 			if (record != null)
 				deploymentGroupDao.delete(record);
 		}
-	}
-
-	/**
-	 * Deletes a lease from the database.
-	 * 
-	 * Note that this is only for database collections only. This does not actually remove the data from GeoServer. That
-	 * is handled in the Deployer.
-	 * 
-	 * @param lease
-	 *            The lease to delete.
-	 */
-	private void deleteLease(Lease lease) {
-		LeaseEntity record = leaseDao.findOneLeaseById(lease.getLeaseId());
-		if( record != null)
-			leaseDao.delete(record);
 	}
 
 	/**
@@ -239,28 +200,35 @@ public class DatabaseAccessor {
 		leaseDao.save(record);
 	}
 
-//
-//	/**
-//	 * Updates the status of a Deployment Group to mark if an accompanying Layer Group in GeoServer has been created.
-//	 * 
-//	 * @param deploymentGroupId
-//	 *            The Id of the Deployment Group
-//	 * @param created
-//	 *            Whether or not the Deployment Group has an accompanying Layer Group in the GeoServer instance.
-//	 */
+
+	/**
+	 * Updates the status of a Deployment Group to mark if an accompanying Layer Group in GeoServer has been created.
+	 * 
+	 * @param deploymentGroupId
+	 *            The Id of the Deployment Group
+	 * @param created
+	 *            Whether or not the Deployment Group has an accompanying Layer Group in the GeoServer instance.
+	 */
 	public void updateDeploymentGroupCreated(String deploymentGroupId, boolean created) {
-//		getDeploymentGroupCollection().update(DBQuery.is(DEPLOYMENTGROUP_ID, deploymentGroupId),
-//				DBUpdate.set("hasGisServerLayer", created));
+		DeploymentGroupEntity record = deploymentGroupDao.findOneDeploymentGroupById(deploymentGroupId);
+		if( record !=null)
+		{
+			record.getDeploymentGroup().setHasGisServerLayer(created);
+		}
+		
+		deploymentGroupDao.save(record);
 	}
 
-//	/**
-//	 * Creates a new Deployment entry in the database.
-//	 * 
-//	 * @param deployment
-//	 *            Deployment to enter
-//	 */
+	/**
+	 * Creates a new Deployment entry in the database.
+	 * 
+	 * @param deployment
+	 *            Deployment to enter
+	 */
 	public void insertDeployment(Deployment deployment) {
-		//getDeploymentCollection().insert(deployment);
+		DeploymentEntity newRecord = new DeploymentEntity();
+		newRecord.setDeployment(deployment);
+		deploymentDao.save(newRecord);
 	}
 
 	/**
