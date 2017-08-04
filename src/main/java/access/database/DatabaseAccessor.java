@@ -19,18 +19,21 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.commons.lang.StringUtils;
 import org.geotools.data.DataStore;
 import org.joda.time.DateTime;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Component;
-import org.venice.piazza.common.hibernate.dao.DataResourceDao;
 import org.venice.piazza.common.hibernate.dao.DeploymentDao;
 import org.venice.piazza.common.hibernate.dao.DeploymentGroupDao;
 import org.venice.piazza.common.hibernate.dao.LeaseDao;
+import org.venice.piazza.common.hibernate.dao.dataresource.DataResourceDao;
 import org.venice.piazza.common.hibernate.entity.DataResourceEntity;
 import org.venice.piazza.common.hibernate.entity.DeploymentEntity;
 import org.venice.piazza.common.hibernate.entity.DeploymentGroupEntity;
 import org.venice.piazza.common.hibernate.entity.LeaseEntity;
+import org.venice.piazza.common.hibernate.entity.ServiceEntity;
 
 import com.google.common.collect.Lists;
 
@@ -40,6 +43,9 @@ import model.data.deployment.DeploymentGroup;
 import model.data.deployment.Lease;
 import model.response.DataResourceListResponse;
 import model.response.DeploymentListResponse;
+import model.response.Pagination;
+import model.response.ServiceListResponse;
+import model.service.metadata.Service;
 import util.GeoToolsUtil;
 
 /**
@@ -268,60 +274,6 @@ public class DatabaseAccessor {
 		return dataResourceDao.findAll();
 	}
 
-//	/**
-//	 * Gets a list of data from the database
-//	 * 
-//	 * @param page
-//	 *            The page number to start at
-//	 * @param pageSize
-//	 *            The number of results per page
-//	 * @param sortBy
-//	 *            The field to sort by
-//	 * @param order
-//	 *            The order "asc" or "desc"
-//	 * @param keyword
-//	 *            Keyword filtering
-//	 * @param userName
-//	 *            Username filtering
-//	 * @param createdByJobId
-//	 *            Filter by the ID of the Job that created this Data
-//	 * @return List of Data items
-//	 */
-	public DataResourceListResponse getDataList(Integer page, Integer pageSize, String sortBy, String order, String keyword,
-			String userName, String createdByJobId){
-//		
-//		// Get a DB Cursor to the query for general data
-//		DBCursor<DataResource> cursor = getDataResourceCollection().find();
-//		if (keyword != null && !keyword.isEmpty()) {
-//			Pattern regex = Pattern.compile(String.format("(?i)%s", keyword));
-//			cursor = cursor.or(DBQuery.regex("metadata.name", regex), DBQuery.regex("metadata.description", regex));
-//		}
-//
-//		if ((userName != null) && !(userName.isEmpty())) {
-//			cursor.and(DBQuery.is("metadata.createdBy", userName));
-//		}
-//		if ((createdByJobId != null) && !(createdByJobId.isEmpty())) {
-//			cursor.and(DBQuery.is("metadata.createdByJobId", createdByJobId));
-//		}
-//
-//		// Sort and order
-//		if ("asc".equalsIgnoreCase(order)) {
-//			cursor = cursor.sort(DBSort.asc(sortBy));
-//		} else if ("desc".equalsIgnoreCase(order)) {
-//			cursor = cursor.sort(DBSort.desc(sortBy));
-//		}
-//
-//		Integer size = Integer.valueOf(cursor.size());
-//		// Filter the data by pages
-//		List<DataResource> data = cursor.skip(page * pageSize).limit(pageSize).toArray();
-//		// Attach pagination information
-//		Pagination pagination = new Pagination(size, page, pageSize, sortBy, order);
-//		// Create the Response and send back
-//        return new DataResourceListResponse(data, pagination);
-		
-		return null;
-	}
-
 	/**
 	 * Returns the number of items in the database for Data Resources
 	 * 
@@ -331,44 +283,7 @@ public class DatabaseAccessor {
 		return Lists.newArrayList(getDataResourceCollection()).size();
 	}
 
-//	/**
-//	 * Gets a list of deployments from the database
-//	 * 
-//	 * @param page
-//	 *            The page number to start
-//	 * @param pageSize
-//	 *            The number of results per page
-//	 * @param sortBy
-//	 *            The field to sort by
-//	 * @param order
-//	 *            The order "asc" or "desc"
-//	 * @param keyword
-//	 *            Keyword filtering
-//	 * @return List of deployments
-//	 */
-	public DeploymentListResponse getDeploymentList(Integer page, Integer pageSize, String sortBy, String order, String keyword) {
-//		Pattern regex = Pattern.compile(String.format("(?i)%s", keyword != null ? keyword : ""));
-//		// Get a DB Cursor to the query for general data
-//		DBCursor<Deployment> cursor = getDeploymentCollection().find().or(DBQuery.regex(DEPLOYMENT_ID, regex),
-//				DBQuery.regex(DATA_ID, regex), DBQuery.regex("capabilitiesUrl", regex));
-//
-//		// Sort and order
-//		if ("asc".equalsIgnoreCase(order)) {
-//			cursor = cursor.sort(DBSort.asc(sortBy));
-//		} else if ("desc".equalsIgnoreCase(order)) {
-//			cursor = cursor.sort(DBSort.desc(sortBy));
-//		}
-//
-//		Integer size = Integer.valueOf(cursor.size());
-//		// Filter the data by pages
-//		List<Deployment> data = cursor.skip(page * pageSize).limit(pageSize).toArray();
-//		// Attach pagination information
-//		Pagination pagination = new Pagination(size, page, pageSize, sortBy, order);
-//		// Create the Response and send back
-//		return new DeploymentListResponse(data, pagination);
-//		
-		return null;
-	}
+
 
 	/**
 	 * 
@@ -411,5 +326,98 @@ public class DatabaseAccessor {
 	 */
 	public Iterable<LeaseEntity> getLeaseCollection() {
 		return leaseDao.findAll();
+	}
+	
+//	/**
+//	 * Gets a list of deployments from the database
+//	 * 
+//	 * @param page
+//	 *            The page number to start
+//	 * @param pageSize
+//	 *            The number of results per page
+//	 * @param sortBy
+//	 *            The field to sort by
+//	 * @param order
+//	 *            The order "asc" or "desc"
+//	 * @param keyword
+//	 *            Keyword filtering
+//	 * @return List of deployments
+//	 */
+	public DeploymentListResponse getDeploymentList(Integer page, Integer pageSize, String sortBy, String order, String keyword) {
+//		Pattern regex = Pattern.compile(String.format("(?i)%s", keyword != null ? keyword : ""));
+//		// Get a DB Cursor to the query for general data
+//		DBCursor<Deployment> cursor = getDeploymentCollection().find().or(DBQuery.regex(DEPLOYMENT_ID, regex),
+//				DBQuery.regex(DATA_ID, regex), DBQuery.regex("capabilitiesUrl", regex));
+//
+//		// Sort and order
+//		if ("asc".equalsIgnoreCase(order)) {
+//			cursor = cursor.sort(DBSort.asc(sortBy));
+//		} else if ("desc".equalsIgnoreCase(order)) {
+//			cursor = cursor.sort(DBSort.desc(sortBy));
+//		}
+//
+//		Integer size = Integer.valueOf(cursor.size());
+//		// Filter the data by pages
+//		List<Deployment> data = cursor.skip(page * pageSize).limit(pageSize).toArray();
+//		// Attach pagination information
+//		Pagination pagination = new Pagination(size, page, pageSize, sortBy, order);
+//		// Create the Response and send back
+//		return new DeploymentListResponse(data, pagination);
+//		
+		return null;
+	}
+	
+	/**
+	 * Gets a list of data from the database
+	 * 
+	 * @param page
+	 *            The page number to start at
+	 * @param pageSize
+	 *            The number of results per page
+	 * @param sortBy
+	 *            The field to sort by
+	 * @param order
+	 *            The order "asc" or "desc"
+	 * @param keyword
+	 *            Keyword filtering
+	 * @param userName
+	 *            Username filtering
+	 * @param createdByJobId
+	 *            Filter by the ID of the Job that created this Data
+	 * @return List of Data items
+	 */
+	public DataResourceListResponse getDataList(Integer page, Integer pageSize, String sortBy, String order, String keyword,
+			String userName, String createdByJobId) {
+
+		Pagination pagination = new Pagination(null, page, pageSize, sortBy, order);
+		Page<DataResourceEntity> results = null;
+
+		if (StringUtils.isNotEmpty(userName) && StringUtils.isNotEmpty(keyword)) {
+			// Both parameters specified
+			results = dataResourceDao.getDataResourceForUserAndKeyword(keyword, userName, pagination);
+		} else if (StringUtils.isNotEmpty(userName)) {
+			// Query by User
+			results = dataResourceDao.getDataResourceListByUser(userName, pagination);
+		} else if (StringUtils.isNotEmpty(keyword)) {
+			// Query by Keyword
+			results = dataResourceDao.getDataResourceListByKeyword(keyword, pagination);
+		} else if (StringUtils.isNotEmpty(createdByJobId)) {
+			// Query by Keyword
+			results = dataResourceDao.getDataResourceListByCreatedJobId(createdByJobId, pagination);
+		} else {
+			// Query all Jobs
+			results = dataResourceDao.getDataResourceList(pagination);
+		}
+
+		// Collect the Jobs
+		List<DataResource> dataResources = new ArrayList<DataResource>();
+		for (DataResourceEntity dataResourceEntity : results) {
+			dataResources.add(dataResourceEntity.getDataResource());
+		}
+		// Set Pagination count
+		pagination.setCount(results.getTotalElements());
+
+		// Return the complete List
+		return new DataResourceListResponse(dataResources, pagination);
 	}
 }
