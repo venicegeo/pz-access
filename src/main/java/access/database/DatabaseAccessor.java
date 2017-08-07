@@ -25,16 +25,14 @@ import org.joda.time.DateTime;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Component;
-import org.venice.piazza.common.hibernate.dao.DeploymentDao;
 import org.venice.piazza.common.hibernate.dao.DeploymentGroupDao;
 import org.venice.piazza.common.hibernate.dao.LeaseDao;
 import org.venice.piazza.common.hibernate.dao.dataresource.DataResourceDao;
+import org.venice.piazza.common.hibernate.dao.deployment.DeploymentDao;
 import org.venice.piazza.common.hibernate.entity.DataResourceEntity;
 import org.venice.piazza.common.hibernate.entity.DeploymentEntity;
 import org.venice.piazza.common.hibernate.entity.DeploymentGroupEntity;
 import org.venice.piazza.common.hibernate.entity.LeaseEntity;
-import org.venice.piazza.common.hibernate.entity.ServiceEntity;
-
 import com.google.common.collect.Lists;
 
 import model.data.DataResource;
@@ -44,8 +42,6 @@ import model.data.deployment.Lease;
 import model.response.DataResourceListResponse;
 import model.response.DeploymentListResponse;
 import model.response.Pagination;
-import model.response.ServiceListResponse;
-import model.service.metadata.Service;
 import util.GeoToolsUtil;
 
 /**
@@ -328,43 +324,47 @@ public class DatabaseAccessor {
 		return leaseDao.findAll();
 	}
 	
-//	/**
-//	 * Gets a list of deployments from the database
-//	 * 
-//	 * @param page
-//	 *            The page number to start
-//	 * @param pageSize
-//	 *            The number of results per page
-//	 * @param sortBy
-//	 *            The field to sort by
-//	 * @param order
-//	 *            The order "asc" or "desc"
-//	 * @param keyword
-//	 *            Keyword filtering
-//	 * @return List of deployments
-//	 */
+	/**
+	 * Gets a list of deployments from the database
+	 * 
+	 * @param page
+	 *            The page number to start
+	 * @param pageSize
+	 *            The number of results per page
+	 * @param sortBy
+	 *            The field to sort by
+	 * @param order
+	 *            The order "asc" or "desc"
+	 * @param keyword
+	 *            Keyword filtering
+	 * @return List of deployments
+	 */
 	public DeploymentListResponse getDeploymentList(Integer page, Integer pageSize, String sortBy, String order, String keyword) {
-//		Pattern regex = Pattern.compile(String.format("(?i)%s", keyword != null ? keyword : ""));
-//		// Get a DB Cursor to the query for general data
-//		DBCursor<Deployment> cursor = getDeploymentCollection().find().or(DBQuery.regex(DEPLOYMENT_ID, regex),
-//				DBQuery.regex(DATA_ID, regex), DBQuery.regex("capabilitiesUrl", regex));
-//
-//		// Sort and order
-//		if ("asc".equalsIgnoreCase(order)) {
-//			cursor = cursor.sort(DBSort.asc(sortBy));
-//		} else if ("desc".equalsIgnoreCase(order)) {
-//			cursor = cursor.sort(DBSort.desc(sortBy));
-//		}
-//
-//		Integer size = Integer.valueOf(cursor.size());
-//		// Filter the data by pages
-//		List<Deployment> data = cursor.skip(page * pageSize).limit(pageSize).toArray();
-//		// Attach pagination information
-//		Pagination pagination = new Pagination(size, page, pageSize, sortBy, order);
-//		// Create the Response and send back
-//		return new DeploymentListResponse(data, pagination);
-//		
-		return null;
+		Pagination pagination = new Pagination(null, page, pageSize, sortBy, order);
+		Page<DeploymentEntity> results = null;
+
+		if (StringUtils.isNotEmpty(keyword)) {
+			results = deploymentDao.getDeploymentListByDeploymentId(keyword, pagination);
+			if (results == null) {
+				results = deploymentDao.getDeploymentListByDataId(keyword, pagination);
+			}
+			if (results == null) {
+				results = deploymentDao.getDeploymentListByCapabilitiesUrl(keyword, pagination);
+			}
+		} else {
+			results = deploymentDao.getDeploymentList(pagination);
+		}
+
+		// Collect the Deployments
+		List<Deployment> deployments = new ArrayList<Deployment>();
+		for (DeploymentEntity entity : results) {
+			deployments.add(entity.getDeployment());
+		}
+		// Set Pagination count
+		pagination.setCount(results.getTotalElements());
+
+		// Return the complete List
+		return new DeploymentListResponse(deployments, pagination);
 	}
 	
 	/**
