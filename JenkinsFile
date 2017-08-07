@@ -126,9 +126,7 @@ node {
         sh "cf push ${appName} -f manifest.jenkins.yml --hostname ${appName} -b ${env.JAVA_BUILDPACK_NAME} -d ${env.PHASE_ONE_PCF_DOMAIN} --no-start"
         sh "cf set-env ${appName} SPACE ${env.PHASE_ONE_PCF_SPACE}"
         sh "cf set-env ${appName} DOMAIN ${env.PHASE_ONE_PCF_DOMAIN}"
-        if(params.USE_MONGO_SSL) {
-          sh "cf set-env ${appName} SPRING_PROFILES_ACTIVE cloud,mongossl"
-        }
+
         try {
           sh "cf start ${appName}"
         } catch (Exception e) {
@@ -175,8 +173,8 @@ node {
       withCredentials([file(credentialsId: "${POSTMAN_SECRET_FILE}", variable: 'POSTMAN_FILE')]) {
         withEnv(["PATH+=${root}/integration-tests/node_modules/newman/bin:${nodejs}/bin", "PCF_SPACE=${env.PHASE_ONE_PCF_SPACE}", "HOME=${WORKSPACE}"]) {
           dir ("integration-tests") {
-            if(env.GITLAB_CREDS) {
-                git url: "${env.INTEGRATION_GIT_URL}", branch: "${env.INTEGRATION_GIT_BRANCH}", credentialsId: "${env.GITLAB_CREDS}"
+            if(env.INTEGRATION_GITLAB_CREDS) {
+                git url: "${env.INTEGRATION_GIT_URL}", branch: "${env.INTEGRATION_GIT_BRANCH}", credentialsId: "${env.INTEGRATION_GITLAB_CREDS}"
             } else {
                 git url: "${env.INTEGRATION_GIT_URL}", branch: "${env.INTEGRATION_GIT_BRANCH}"
             }
@@ -201,9 +199,7 @@ node {
           sh "cf push ${appName} --hostname ${appName} -f manifest.jenkins.yml -b ${env.JAVA_BUILDPACK_NAME} -d ${env.PHASE_TWO_PCF_DOMAIN} --no-start"
           sh "cf set-env ${appName} SPACE ${env.PHASE_TWO_PCF_SPACE}"
           sh "cf set-env ${appName} DOMAIN ${env.PHASE_TWO_PCF_DOMAIN}"
-          if(params.USE_MONGO_SSL) {
-            sh "cf set-env ${appName} SPRING_PROFILES_ACTIVE cloud,mongossl"
-          }
+
           try {
             sh "cf start ${appName}"
           } catch (Exception e) {
