@@ -71,7 +71,7 @@ import model.response.SuccessResponse;
 import util.PiazzaLogger;
 
 /**
- * Allows for synchronous fetching of Resource Data from the Mongo Resource collection.
+ * Allows for synchronous fetching of Resource Data from the Database
  * 
  * The collection is bound to the DataResource model.
  * 
@@ -283,8 +283,7 @@ public class AccessController {
 	}
 
 	/**
-	 * Returns all Data held by the Piazza Ingest/Access components. This corresponds with the items in the Mongo
-	 * db.Resources collection.
+	 * Returns all Data held by the Piazza Ingest/Access components. 
 	 * 
 	 * @return The list of all data held by the system.
 	 */
@@ -314,8 +313,7 @@ public class AccessController {
 	}
 
 	/**
-	 * Returns all Deployments held by the Piazza Ingest/Access components. This corresponds with the items in the Mongo
-	 * db.Deployments collection.
+	 * Returns all Deployments held by the Piazza Ingest/Access components. 
 	 * 
 	 * @return The list of all data held by the system.
 	 */
