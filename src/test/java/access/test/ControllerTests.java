@@ -22,7 +22,6 @@ import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.when;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -38,7 +37,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
-import org.mockito.Spy;
 import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.simple.SimpleFeatureType;
 import org.slf4j.Logger;
@@ -46,7 +44,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
-
 import com.vividsolutions.jts.geom.Coordinate;
 import com.vividsolutions.jts.geom.GeometryFactory;
 import com.vividsolutions.jts.geom.Point;
@@ -59,7 +56,6 @@ import access.deploy.Leaser;
 import access.messaging.AccessThreadManager;
 import access.util.AccessUtilities;
 import exception.GeoServerException;
-import exception.InvalidInputException;
 import model.data.DataResource;
 import model.data.deployment.Deployment;
 import model.data.deployment.DeploymentGroup;
@@ -280,10 +276,6 @@ public class ControllerTests {
 		// Verify
 		assertTrue(response instanceof DataResourceListResponse);
 		assertTrue(((DataResourceListResponse) response).data.size() == 1);
-
-		// Test Exception
-		response = accessController.getAllData("123", 0, 10, "dataId", "asc", "Raster", "Test User").getBody();
-		assertTrue(response instanceof ErrorResponse);
 	}
 
 	/**
@@ -303,10 +295,6 @@ public class ControllerTests {
 		// Verify
 		assertTrue(response instanceof DeploymentListResponse);
 		assertTrue(((DeploymentListResponse) response).data.size() == 1);
-
-		// Test Exception
-		response = accessController.getAllDeployments(0, 10, "dataId", "asc", "WFS").getBody();
-		assertTrue(response instanceof ErrorResponse);
 	}
 
 	/**
