@@ -32,7 +32,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
-import access.database.Accessor;
+import access.database.DatabaseAccessor;
 import access.deploy.Deployer;
 import access.deploy.GroupDeployer;
 import model.data.deployment.Deployment;
@@ -52,7 +52,7 @@ public class GroupDeployerTests {
 	@Mock
 	private UUIDFactory uuidFactory;
 	@Mock
-	private Accessor accessor;
+	private DatabaseAccessor accessor;
 	@Mock
 	private Deployer deployer;
 	@Mock

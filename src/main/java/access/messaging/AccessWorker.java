@@ -31,9 +31,8 @@ import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.mongodb.MongoInterruptedException;
 
-import access.database.Accessor;
+import access.database.DatabaseAccessor;
 import access.deploy.Deployer;
 import access.deploy.GroupDeployer;
 import access.deploy.Leaser;
@@ -71,7 +70,7 @@ public class AccessWorker {
 	@Autowired
 	private GroupDeployer groupDeployer;
 	@Autowired
-	private Accessor accessor;
+	private DatabaseAccessor accessor;
 	@Autowired
 	private Leaser leaser;
 	@Autowired
@@ -116,21 +115,23 @@ public class AccessWorker {
 
 			processGeoServerType(job, accessJob, producer, consumerRecord.key());
 			
-		} catch (MongoInterruptedException | InterruptedException exception) {
-			String error = String.format("Thread interrupt received for Job %s", consumerRecord.key());
-			LOGGER.error(error, exception, new AuditElement(consumerRecord.key(), "accessJobTerminated", ""));
-			pzLogger.log(error, Severity.INFORMATIONAL);
-			StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_CANCELLED);
-			try {
-				producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate, space));
-			} catch (JsonProcessingException jsonException) {
-				error = String.format(
-						"Error sending Cancelled Status from Job %s: %s. The Job was cancelled, but its status will not be updated in the Job Manager.",
-						consumerRecord.key(), jsonException.getMessage());
-				LOGGER.error(error, jsonException);
-				pzLogger.log(error, Severity.ERROR);
-			}
-		} catch (Exception exception) {
+		} 
+//			catch (MongoInterruptedException | InterruptedException exception) {
+//			String error = String.format("Thread interrupt received for Job %s", consumerRecord.key());
+//			LOGGER.error(error, exception, new AuditElement(consumerRecord.key(), "accessJobTerminated", ""));
+//			pzLogger.log(error, Severity.INFORMATIONAL);
+//			StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_CANCELLED);
+//			try {
+//				producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate, space));
+//			} catch (JsonProcessingException jsonException) {
+//				error = String.format(
+//						"Error sending Cancelled Status from Job %s: %s. The Job was cancelled, but its status will not be updated in the Job Manager.",
+//						consumerRecord.key(), jsonException.getMessage());
+//				LOGGER.error(error, jsonException);
+//				pzLogger.log(error, Severity.ERROR);
+//			}
+//		} 
+	catch (Exception exception) {
 			String error = String.format("Error Accessing Data under Job %s with Error: %s", consumerRecord.key(), exception.getMessage());
 			LOGGER.error(error, exception, new AuditElement(consumerRecord.key(), "failedAccessData", ""));
 			pzLogger.log(error, Severity.ERROR);

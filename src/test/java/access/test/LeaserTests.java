@@ -30,7 +30,7 @@ import org.mockito.MockitoAnnotations;
 
 import util.PiazzaLogger;
 import util.UUIDFactory;
-import access.database.Accessor;
+import access.database.DatabaseAccessor;
 import access.deploy.Deployer;
 import access.deploy.Leaser;
 
@@ -48,7 +48,7 @@ public class LeaserTests {
 	@Mock
 	private UUIDFactory uuidFactory;
 	@Mock
-	private Accessor accessor;
+	private DatabaseAccessor accessor;
 	@InjectMocks
 	private Leaser leaser;
 
@@ -66,7 +66,7 @@ public class LeaserTests {
 	@Test
 	public void testRenewLease() {
 		// Mock
-		Lease mockLease = new Lease("123456", "123456", new DateTime().minusDays(1).toString());
+		Lease mockLease = new Lease("123456", "123456", new DateTime().minusDays(1));
 		Deployment mockDeployment = new Deployment("123456", "123456", "localhost", "8080", "Test", "localhost:8080");
 
 		// Test when lease exists

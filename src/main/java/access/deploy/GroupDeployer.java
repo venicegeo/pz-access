@@ -37,7 +37,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 
-import access.database.Accessor;
+import access.database.DatabaseAccessor;
 import access.deploy.geoserver.LayerGroupModel;
 import access.deploy.geoserver.LayerGroupModel.GroupLayer;
 import access.deploy.geoserver.LayerGroupModel.LayerGroup;
@@ -65,7 +65,7 @@ public class GroupDeployer {
 	@Autowired
 	private UUIDFactory uuidFactory;
 	@Autowired
-	private Accessor accessor;
+	private DatabaseAccessor accessor;
 	@Autowired
 	private Deployer deployer;
 	@Autowired
@@ -97,7 +97,7 @@ public class GroupDeployer {
 		DeploymentGroup deploymentGroup = new DeploymentGroup(uuidFactory.getUUID(), createdBy);
 		deploymentGroup.setHasGisServerLayer(false);
 		accessor.insertDeploymentGroup(deploymentGroup);
-		pzLogger.log("Inserting Deployment Group into Mongo Database" + deploymentGroup.deploymentGroupId, Severity.INFORMATIONAL,
+		pzLogger.log("Inserting Deployment Group into Database" + deploymentGroup.deploymentGroupId, Severity.INFORMATIONAL,
 				new AuditElement(ACCESS, "insertedDeploymentGroup", deploymentGroup.deploymentGroupId));
 		return deploymentGroup;
 	}
@@ -146,7 +146,7 @@ public class GroupDeployer {
 		deploymentGroup.setHasGisServerLayer(true);
 		accessor.insertDeploymentGroup(deploymentGroup);
 
-		pzLogger.log(String.format("Inserting Deployment Group into Mongo Database %s", deploymentGroup.deploymentGroupId),
+		pzLogger.log(String.format("Inserting Deployment Group into Database %s", deploymentGroup.deploymentGroupId),
 				Severity.INFORMATIONAL, new AuditElement(ACCESS, "insertDeploymentGroup", deploymentGroup.deploymentGroupId));
 
 		// Return the Group
@@ -212,7 +212,7 @@ public class GroupDeployer {
 			accessor.updateDeploymentGroupCreated(deploymentGroup.deploymentGroupId, true);
 		}
 
-		pzLogger.log(String.format("Updated Deployment Group into Mongo Database %s", deploymentGroup.deploymentGroupId),
+		pzLogger.log(String.format("Updated Deployment Group into Database %s", deploymentGroup.deploymentGroupId),
 				Severity.INFORMATIONAL, new AuditElement(ACCESS, "updateDeploymentGroup", deploymentGroup.deploymentGroupId));
 	}
 
@@ -261,10 +261,10 @@ public class GroupDeployer {
 			}
 		}
 
-		pzLogger.log(String.format("Deleted Deployment Group into Mongo Database %s", deploymentGroup.deploymentGroupId),
+		pzLogger.log(String.format("Deleted Deployment Group into Database %s", deploymentGroup.deploymentGroupId),
 				Severity.INFORMATIONAL, new AuditElement(ACCESS, "deleteDeploymentGroup", deploymentGroup.deploymentGroupId));
 
-		// Remove the Deployment Group reference from Mongo
+		// Remove the Deployment Group reference from the Database
 		accessor.deleteDeploymentGroup(deploymentGroup);
 	}
 

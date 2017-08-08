@@ -46,7 +46,7 @@ import org.springframework.web.client.HttpStatusCodeException;
 
 import com.amazonaws.util.StringUtils;
 
-import access.database.Accessor;
+import access.database.DatabaseAccessor;
 import access.deploy.Deployer;
 import access.deploy.GroupDeployer;
 import access.deploy.Leaser;
@@ -71,7 +71,7 @@ import model.response.SuccessResponse;
 import util.PiazzaLogger;
 
 /**
- * Allows for synchronous fetching of Resource Data from the Mongo Resource collection.
+ * Allows for synchronous fetching of Resource Data from the Database
  * 
  * The collection is bound to the DataResource model.
  * 
@@ -103,7 +103,7 @@ public class AccessController {
 	@Autowired
 	private PiazzaLogger pzLogger;
 	@Autowired
-	private Accessor accessor;
+	private DatabaseAccessor accessor;
 	@Autowired
 	private Deployer deployer;
 	@Autowired
@@ -267,7 +267,7 @@ public class AccessController {
 			Lease lease = accessor.getDeploymentLease(deployment);
 			String expiresOn = null;
 			if (lease != null) {
-				expiresOn = lease.getExpiresOn();
+				expiresOn = lease.getExpiresOn().toString();
 			}
 
 			// Return the Data Resource item
@@ -283,8 +283,7 @@ public class AccessController {
 	}
 
 	/**
-	 * Returns all Data held by the Piazza Ingest/Access components. This corresponds with the items in the Mongo
-	 * db.Resources collection.
+	 * Returns all Data held by the Piazza Ingest/Access components. 
 	 * 
 	 * @return The list of all data held by the system.
 	 */
@@ -314,8 +313,7 @@ public class AccessController {
 	}
 
 	/**
-	 * Returns all Deployments held by the Piazza Ingest/Access components. This corresponds with the items in the Mongo
-	 * db.Deployments collection.
+	 * Returns all Deployments held by the Piazza Ingest/Access components. 
 	 * 
 	 * @return The list of all data held by the system.
 	 */

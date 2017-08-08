@@ -41,7 +41,7 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import util.PiazzaLogger;
-import access.database.Accessor;
+import access.database.DatabaseAccessor;
 import access.deploy.Deployer;
 import access.deploy.Leaser;
 import access.messaging.AccessWorker;
@@ -58,7 +58,7 @@ public class WorkerTests {
 	@Mock
 	private Deployer deployer;
 	@Mock
-	private Accessor mongoAccessor;
+	private DatabaseAccessor mongoAccessor;
 	@Mock
 	private Leaser leaser;
 	@Mock

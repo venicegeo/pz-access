@@ -39,7 +39,7 @@ import org.springframework.web.client.RestTemplate;
 
 import com.amazonaws.AmazonClientException;
 
-import access.database.Accessor;
+import access.database.DatabaseAccessor;
 import access.util.AccessUtilities;
 import exception.GeoServerException;
 import exception.InvalidInputException;
@@ -56,8 +56,7 @@ import util.PiazzaLogger;
 import util.UUIDFactory;
 
 /**
- * Class that manages the GeoServer Deployments held by this component. This is done by managing the Deployments via a
- * MongoDB collection.
+ * Class that manages the GeoServer Deployments held by this component. 
  * 
  * A deployment is, in this current context, a GeoServer layer being stood up. In the future, this may be expanded to
  * other deployment solutions, as requested by users in the Access Job.
@@ -74,7 +73,7 @@ public class Deployer {
 	@Autowired
 	private AccessUtilities accessUtilities;
 	@Autowired
-	private Accessor accessor;
+	private DatabaseAccessor accessor;
 	@Value("${vcap.services.pz-geoserver-efs.credentials.geoserver.hostname}")
 	private String geoserverHost;
 	@Value("${vcap.services.pz-geoserver-efs.credentials.geoserver.port}")
