@@ -24,14 +24,9 @@ import static org.mockito.Mockito.when;
 import java.util.concurrent.Future;
 import java.util.concurrent.FutureTask;
 
-import messaging.job.WorkerCallback;
-import model.job.Job;
-import model.job.type.AccessJob;
-
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
-import org.joda.time.DateTime;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.InjectMocks;
@@ -40,13 +35,16 @@ import org.mockito.MockitoAnnotations;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
-import util.PiazzaLogger;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import access.database.DatabaseAccessor;
 import access.deploy.Deployer;
 import access.deploy.Leaser;
 import access.messaging.AccessWorker;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
+import messaging.job.WorkerCallback;
+import model.job.Job;
+import model.job.type.AccessJob;
+import util.PiazzaLogger;
 
 /**
  * Tests the Access Worker, which processes Kafka messages
@@ -58,7 +56,7 @@ public class WorkerTests {
 	@Mock
 	private Deployer deployer;
 	@Mock
-	private DatabaseAccessor mongoAccessor;
+	private DatabaseAccessor databaseAccessor;
 	@Mock
 	private Leaser leaser;
 	@Mock
@@ -120,8 +118,7 @@ public class WorkerTests {
 
 		// Test inner exceptions during deployment
 		accessJob.deploymentType = "Mock";
-		mockRecord = new ConsumerRecord<String, String>("Access", 0, 0, "123456",
-				new ObjectMapper().writeValueAsString(mockJob));
+		mockRecord = new ConsumerRecord<String, String>("Access", 0, 0, "123456", new ObjectMapper().writeValueAsString(mockJob));
 		worker.run(mockRecord, producer, callback);
 	}
 }

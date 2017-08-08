@@ -114,24 +114,22 @@ public class AccessWorker {
 			}
 
 			processGeoServerType(job, accessJob, producer, consumerRecord.key());
-			
-		} 
-//			catch (MongoInterruptedException | InterruptedException exception) {
-//			String error = String.format("Thread interrupt received for Job %s", consumerRecord.key());
-//			LOGGER.error(error, exception, new AuditElement(consumerRecord.key(), "accessJobTerminated", ""));
-//			pzLogger.log(error, Severity.INFORMATIONAL);
-//			StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_CANCELLED);
-//			try {
-//				producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate, space));
-//			} catch (JsonProcessingException jsonException) {
-//				error = String.format(
-//						"Error sending Cancelled Status from Job %s: %s. The Job was cancelled, but its status will not be updated in the Job Manager.",
-//						consumerRecord.key(), jsonException.getMessage());
-//				LOGGER.error(error, jsonException);
-//				pzLogger.log(error, Severity.ERROR);
-//			}
-//		} 
-	catch (Exception exception) {
+
+		} catch (InterruptedException exception) {
+			String error = String.format("Thread interrupt received for Job %s", consumerRecord.key());
+			LOGGER.error(error, exception, new AuditElement(consumerRecord.key(), "accessJobTerminated", ""));
+			pzLogger.log(error, Severity.INFORMATIONAL);
+			StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_CANCELLED);
+			try {
+				producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate, space));
+			} catch (JsonProcessingException jsonException) {
+				error = String.format(
+						"Error sending Cancelled Status from Job %s: %s. The Job was cancelled, but its status will not be updated in the Job Manager.",
+						consumerRecord.key(), jsonException.getMessage());
+				LOGGER.error(error, jsonException);
+				pzLogger.log(error, Severity.ERROR);
+			}
+		} catch (Exception exception) {
 			String error = String.format("Error Accessing Data under Job %s with Error: %s", consumerRecord.key(), exception.getMessage());
 			LOGGER.error(error, exception, new AuditElement(consumerRecord.key(), "failedAccessData", ""));
 			pzLogger.log(error, Severity.ERROR);
@@ -158,8 +156,9 @@ public class AccessWorker {
 
 		return new AsyncResult<>(accessJob);
 	}
-	
-	private void processGeoServerType(Job job, AccessJob accessJob, Producer<String, String> producer, String key) throws JsonProcessingException, InvalidInputException, InterruptedException, GeoServerException, DataInspectException  {
+
+	private void processGeoServerType(Job job, AccessJob accessJob, Producer<String, String> producer, String key)
+			throws JsonProcessingException, InvalidInputException, InterruptedException, GeoServerException, DataInspectException {
 		// Update Status that this Job is being processed
 		StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_RUNNING);
 		producer.send(JobMessageFactory.getUpdateStatusMessage(key, statusUpdate, space));
@@ -208,15 +207,17 @@ public class AccessWorker {
 			producer.send(JobMessageFactory.getUpdateStatusMessage(key, statusUpdate, space));
 
 			// Console Logging
-			pzLogger.log(String.format("GeoServer Deployment successful for Resource %s by user %s", accessJob.getDataId(), job.getCreatedBy()), Severity.INFORMATIONAL,
-					new AuditElement(job.getJobId(), "accessData", accessJob.getDataId()));
+			pzLogger.log(
+					String.format("GeoServer Deployment successful for Resource %s by user %s", accessJob.getDataId(), job.getCreatedBy()),
+					Severity.INFORMATIONAL, new AuditElement(job.getJobId(), "accessData", accessJob.getDataId()));
 			LOGGER.info("Deployment Successfully Returned for Resource " + accessJob.getDataId());
 		} else {
 			throw new InvalidInputException("Unknown Deployment Type: " + accessJob.getDeploymentType());
 		}
 	}
-	
-	private void addToNewLayerGroup(Deployment deployment, AccessJob accessJob) throws GeoServerException, InvalidInputException, DataInspectException  {
+
+	private void addToNewLayerGroup(Deployment deployment, AccessJob accessJob)
+			throws GeoServerException, InvalidInputException, DataInspectException {
 		// First verify that the Deployment exists in GeoServer . This is to avoid a race condition where
 		// another Deployment Job in Piazza is responsible for creating the Deployment Layer for the Data ID
 		// - but has not finished publishing this layer to GeoServer yet.
@@ -237,7 +238,7 @@ public class AccessWorker {
 				throw new InvalidInputException(
 						String.format("Deployment Group with Id %s does not exist.", accessJob.getDeploymentGroupId()));
 			}
-			
+
 			// Add the Layer to the Deployment Group
 			List<Deployment> deployments = new ArrayList<>();
 			deployments.add(deployment);
