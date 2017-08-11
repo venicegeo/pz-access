@@ -170,7 +170,7 @@ public class DatabaseAccessor {
 	 */
 	public DataResource getData(String dataId) {
 		DataResource dataResource = null;
-		DataResourceEntity record = dataResourceDao.fineOneRecord(dataId);
+		DataResourceEntity record = dataResourceDao.getDataResourceByDataId(dataId);
 		if (record != null) {
 			dataResource = record.getDataResource();
 		}
