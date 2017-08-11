@@ -63,7 +63,7 @@ public class AccessUtilities {
 	 * @throws AmazonClientException
 	 * @throws Exception
 	 */
-	public byte[] getBytesForDataResource(DataResource dataResource) throws Exception {
+	public byte[] getBytesForDataResource(DataResource dataResource) throws IOException, InvalidInputException {
 		logger.log("Fetching Bytes for Data Item", Severity.INFORMATIONAL,
 				new AuditElement("access", "getBytesForData", dataResource.getDataId()));
 		FileLocation fileLocation = ((FileRepresentation) dataResource.getDataType()).getLocation();
