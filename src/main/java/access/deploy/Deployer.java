@@ -233,7 +233,14 @@ public class Deployer {
 	 */
 	private Deployment deployRaster(DataResource dataResource) throws GeoServerException, IOException, InvalidInputException {
 		// Get the File Bytes of the Raster to be uploaded
-		byte[] fileBytes = accessUtilities.getBytesForDataResource(dataResource);
+		byte[] fileBytes=null;
+		try {
+			fileBytes = accessUtilities.getBytesForDataResource(dataResource);
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			// Log the Request
+			pzLogger.log("Error accessing bytes", Severity.INFORMATIONAL);
+		}
 
 		// Create the Request that will upload the File
 		HttpHeaders headers = getGeoServerHeaders();

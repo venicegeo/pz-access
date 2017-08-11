@@ -30,7 +30,6 @@ import model.data.FileRepresentation;
 import model.data.location.FileAccessFactory;
 import model.data.location.FileLocation;
 import model.data.location.S3FileStore;
-import model.data.type.RasterDataType;
 import model.logger.AuditElement;
 import model.logger.Severity;
 import util.PiazzaLogger;
@@ -64,7 +63,7 @@ public class AccessUtilities {
 	 * @throws AmazonClientException
 	 * @throws Exception
 	 */
-	public byte[] getBytesForDataResource(DataResource dataResource) throws IOException, InvalidInputException {
+	public byte[] getBytesForDataResource(DataResource dataResource) throws Exception {
 		logger.log("Fetching Bytes for Data Item", Severity.INFORMATIONAL,
 				new AuditElement("access", "getBytesForData", dataResource.getDataId()));
 		FileLocation fileLocation = ((FileRepresentation) dataResource.getDataType()).getLocation();

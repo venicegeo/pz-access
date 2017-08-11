@@ -54,7 +54,7 @@ public class AccessUtilitiesTests {
 	}
 
 	@Test
-	public void testFileBytes() throws IOException, InvalidInputException {
+	public void testFileBytes() throws Exception {
 		// Mock Text
 		DataResource mockData = new DataResource();
 		mockData.setDataId("123456");
