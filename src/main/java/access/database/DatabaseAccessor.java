@@ -349,10 +349,10 @@ public class DatabaseAccessor {
 
 		if (StringUtils.isNotEmpty(keyword)) {
 			results = deploymentDao.getDeploymentListByDeploymentId(keyword, pagination);
-			if (results == null) {
+			if (results.getTotalElements() == 0) {
 				results = deploymentDao.getDeploymentListByDataId(keyword, pagination);
 			}
-			if (results == null) {
+			if (results.getTotalElements() == 0) {
 				results = deploymentDao.getDeploymentListByCapabilitiesUrl(keyword, pagination);
 			}
 		} else {
