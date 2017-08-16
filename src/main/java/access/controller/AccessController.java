@@ -52,6 +52,7 @@ import access.deploy.GroupDeployer;
 import access.deploy.Leaser;
 import access.messaging.AccessThreadManager;
 import access.util.AccessUtilities;
+import exception.GeoServerException;
 import exception.InvalidInputException;
 import model.data.DataResource;
 import model.data.FileRepresentation;
@@ -406,6 +407,11 @@ public class AccessController {
 			// Return OK
 			return new ResponseEntity<>(
 					new SuccessResponse("Deployment " + deploymentId + " was deleted successfully", ACCESS_COMPONENT_NAME), HttpStatus.OK);
+		} catch (GeoServerException exception) {
+			String error = String.format("Error Deleting Deployment %s: %s", deploymentId, exception.getMessage());
+			LOGGER.error(error, exception);
+			pzLogger.log(error, Severity.ERROR, new AuditElement(ACCESS, "errorReadingDeploymentId", deploymentId));
+			return new ResponseEntity<>(new ErrorResponse(error, ACCESS_COMPONENT_NAME), HttpStatus.FORBIDDEN);
 		} catch (Exception exception) {
 			String error = String.format("Error Deleting Deployment %s: %s", deploymentId, exception.getMessage());
 			LOGGER.error(error, exception);
