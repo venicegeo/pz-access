@@ -33,6 +33,7 @@ import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.common.errors.WakeupException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -106,6 +107,11 @@ public class AccessThreadManager {
 		new Thread(() -> pollAbortJobs()).start();
 	}
 
+    @RabbitListener(queues = "Abort-Job-local")
+    public void receive1(String in) throws InterruptedException {
+    	System.out.println("MESSAGE RECEIVED: " + in);
+    }
+	
 	/**
 	 * Opens up a Kafka Consumer to poll for all Access Jobs that should be processed by this component.
 	 */
