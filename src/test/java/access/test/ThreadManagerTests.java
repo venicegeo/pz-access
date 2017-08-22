@@ -17,15 +17,14 @@ package access.test;
 
 import org.apache.kafka.clients.producer.Producer;
 import org.junit.Before;
-import org.junit.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import util.PiazzaLogger;
 import access.messaging.AccessThreadManager;
 import access.messaging.AccessWorker;
+import util.PiazzaLogger;
 
 /**
  * Tests the Access Thread Manager
@@ -56,15 +55,4 @@ public class ThreadManagerTests {
 		ReflectionTestUtils.setField(manager, "kafkaGroup", "job-unit-test");
 	}
 
-	/**
-	 * Test initialization of Kafka consuming
-	 */
-	@Test
-	public void testInitialization() {
-		// Test. Ensure no exceptions.
-		manager.initialize();
-
-		// No exceptions - then stop polling.
-		manager.stopPolling();
-	}
 }
