@@ -30,7 +30,6 @@ import model.data.FileRepresentation;
 import model.data.location.FileAccessFactory;
 import model.data.location.FileLocation;
 import model.data.location.S3FileStore;
-import model.data.type.RasterDataType;
 import model.logger.AuditElement;
 import model.logger.Severity;
 import util.PiazzaLogger;

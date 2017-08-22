@@ -84,9 +84,11 @@ public class DatabaseAccessor {
 	 */
 	public Deployment getDeploymentByDataId(String dataId) {
 		Deployment deployment = null;
-		DeploymentEntity record = deploymentDao.findOneById(dataId);
-		if (record != null)
+		DeploymentEntity record = deploymentDao.getDeploymentByDataId(dataId);
+		if (record != null) {
 			deployment = record.getDeployment();
+		}
+
 		return deployment;
 	}
 
@@ -118,9 +120,10 @@ public class DatabaseAccessor {
 	 */
 	public void deleteDeployment(Deployment deployment) {
 		if (deployment != null) {
-			DeploymentEntity record = deploymentDao.findOneById(deployment.getDeploymentId());
-			if (record != null)
+			DeploymentEntity record = deploymentDao.getDeploymentByDeploymentId(deployment.getDeploymentId());
+			if (record != null) {
 				deploymentDao.delete(record);
+			}
 		}
 	}
 
@@ -167,7 +170,7 @@ public class DatabaseAccessor {
 	 */
 	public DataResource getData(String dataId) {
 		DataResource dataResource = null;
-		DataResourceEntity record = dataResourceDao.fineOneRecord(dataId);
+		DataResourceEntity record = dataResourceDao.getDataResourceByDataId(dataId);
 		if (record != null) {
 			dataResource = record.getDataResource();
 		}
@@ -184,9 +187,10 @@ public class DatabaseAccessor {
 	 */
 	public Deployment getDeployment(String deploymentId) {
 		Deployment deployment = null;
-		DeploymentEntity record = deploymentDao.findOneById(deploymentId);
-		if (record != null)
+		DeploymentEntity record = deploymentDao.getDeploymentByDeploymentId(deploymentId);
+		if (record != null) {
 			deployment = record.getDeployment();
+		}
 		return deployment;
 	}
 
@@ -345,10 +349,10 @@ public class DatabaseAccessor {
 
 		if (StringUtils.isNotEmpty(keyword)) {
 			results = deploymentDao.getDeploymentListByDeploymentId(keyword, pagination);
-			if (results == null) {
+			if (results.getTotalElements() == 0) {
 				results = deploymentDao.getDeploymentListByDataId(keyword, pagination);
 			}
-			if (results == null) {
+			if (results.getTotalElements() == 0) {
 				results = deploymentDao.getDeploymentListByCapabilitiesUrl(keyword, pagination);
 			}
 		} else {
