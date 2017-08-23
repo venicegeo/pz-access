@@ -67,8 +67,8 @@ public class AccessThreadManager {
 	 * @param abortJobRequest
 	 *            The request containing the information about the Job cancellation request
 	 */
-	@RabbitListener(queues = "Abort-Job-${SPACE}")
-	public void processAbortJob(String abortJobRequest) {
+	@RabbitListener(queues = "AbortJob-${SPACE}")
+	public void processAbortJob(final String abortJobRequest) {
 		String jobId = null;
 		try {
 			PiazzaJobRequest request = objectMapper.readValue(abortJobRequest, PiazzaJobRequest.class);
