@@ -24,6 +24,9 @@ import java.util.concurrent.Future;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.amqp.rabbit.annotation.Exchange;
+import org.springframework.amqp.rabbit.annotation.Queue;
+import org.springframework.amqp.rabbit.annotation.QueueBinding;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -31,6 +34,7 @@ import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import messaging.job.JobMessageFactory;
 import messaging.job.WorkerCallback;
 import model.job.Job;
 import model.job.type.AbortJob;
@@ -67,7 +71,7 @@ public class AccessThreadManager {
 	 * @param abortJobRequest
 	 *            The request containing the information about the Job cancellation request
 	 */
-	@RabbitListener(queues = "AbortJob-${SPACE}")
+	@RabbitListener(bindings = @QueueBinding(key = "AbortJob-${SPACE}", value = @Queue(value = "AccessAbort", autoDelete = "true", durable = "true"), exchange = @Exchange(value = JobMessageFactory.PIAZZA_EXCHANGE_NAME, autoDelete = "false", durable = "true")))
 	public void processAbortJob(final String abortJobRequest) {
 		String jobId = null;
 		try {
@@ -94,7 +98,7 @@ public class AccessThreadManager {
 	 * @param accessJobRequest
 	 *            The Access Job request
 	 */
-	@RabbitListener(queues = "AccessJob-${SPACE}")
+	@RabbitListener(bindings = @QueueBinding(key = "AccessJob-${SPACE}", value = @Queue(value = "AccessJob", autoDelete = "true", durable = "true"), exchange = @Exchange(value = JobMessageFactory.PIAZZA_EXCHANGE_NAME, autoDelete = "false", durable = "true")))
 	public void processAccessJob(String accessJobRequest) {
 		try {
 			// Callback that will be invoked when a Worker completes. This will

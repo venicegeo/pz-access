@@ -39,6 +39,7 @@ import access.deploy.Leaser;
 import exception.DataInspectException;
 import exception.GeoServerException;
 import exception.InvalidInputException;
+import messaging.job.JobMessageFactory;
 import messaging.job.WorkerCallback;
 import model.data.DataResource;
 import model.data.deployment.Deployment;
@@ -125,7 +126,7 @@ public class AccessWorker {
 			StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_CANCELLED);
 			statusUpdate.setJobId(job.getJobId());
 			try {
-				rabbitTemplate.convertAndSend(updateJobsQueue.getName(), mapper.writeValueAsString(statusUpdate));
+				rabbitTemplate.convertAndSend(JobMessageFactory.PIAZZA_EXCHANGE_NAME, updateJobsQueue.getName(), mapper.writeValueAsString(statusUpdate));
 			} catch (JsonProcessingException jsonException) {
 				error = String.format(
 						"Error sending Cancelled Status from Job %s: %s. The Job was cancelled, but its status will not be updated in the Job Manager.",
@@ -143,7 +144,7 @@ public class AccessWorker {
 				StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_ERROR);
 				statusUpdate.setResult(new ErrorResult("Could not Deploy Data", exception.getMessage()));
 				statusUpdate.setJobId(job.getJobId());
-				rabbitTemplate.convertAndSend(updateJobsQueue.getName(), mapper.writeValueAsString(statusUpdate));
+				rabbitTemplate.convertAndSend(JobMessageFactory.PIAZZA_EXCHANGE_NAME, updateJobsQueue.getName(), mapper.writeValueAsString(statusUpdate));
 			} catch (JsonProcessingException jsonException) {
 				// If the Message fails to send, at least log
 				// something in the console.
@@ -167,7 +168,7 @@ public class AccessWorker {
 		// Update Status that this Job is being processed
 		StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_RUNNING);
 		statusUpdate.setJobId(key);
-		rabbitTemplate.convertAndSend(updateJobsQueue.getName(), mapper.writeValueAsString(statusUpdate));
+		rabbitTemplate.convertAndSend(JobMessageFactory.PIAZZA_EXCHANGE_NAME, updateJobsQueue.getName(), mapper.writeValueAsString(statusUpdate));
 
 		// Depending on how the user wants to Access the Resource
 		if (accessJob.getDeploymentType().equals(AccessJob.ACCESS_TYPE_GEOSERVER)) {
@@ -211,7 +212,7 @@ public class AccessWorker {
 			statusUpdate = new StatusUpdate(StatusUpdate.STATUS_SUCCESS);
 			statusUpdate.setResult(new DeploymentResult(deployment));
 			statusUpdate.setJobId(key);
-			rabbitTemplate.convertAndSend(updateJobsQueue.getName(), mapper.writeValueAsString(statusUpdate));
+			rabbitTemplate.convertAndSend(JobMessageFactory.PIAZZA_EXCHANGE_NAME, updateJobsQueue.getName(), mapper.writeValueAsString(statusUpdate));
 
 			// Console Logging
 			pzLogger.log(

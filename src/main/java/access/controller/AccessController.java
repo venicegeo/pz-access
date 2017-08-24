@@ -77,8 +77,9 @@ import util.PiazzaLogger;
  * The collection is bound to the DataResource model.
  * 
  * This controller is similar to the functionality of the JobManager REST Controller, in that this component primarily
- * listens for messages via Kafka, however, for instances where the user needs a direct read out of the database - this
- * should be a synchronous response that does not involve Kafka. For such requests, this REST controller exists.
+ * listens for messages via Message Bus, however, for instances where the user needs a direct read out of the database -
+ * this should be a synchronous response that does not involve Message Bus. For such requests, this REST controller
+ * exists.
  * 
  * @author Patrick.Doody
  * 
@@ -147,9 +148,9 @@ public class AccessController {
 	@RequestMapping(value = "/file/{dataId}", method = RequestMethod.GET)
 	public ResponseEntity accessFile(@PathVariable(value = "dataId") String dataId,
 			@RequestParam(value = "fileName", required = false) String name) {
-		
+
 		final String returnAction = "returningFileBytes";
-		
+
 		try {
 			// Get the DataResource item
 			DataResource data = accessor.getData(dataId);
@@ -284,7 +285,7 @@ public class AccessController {
 	}
 
 	/**
-	 * Returns all Data held by the Piazza Ingest/Access components. 
+	 * Returns all Data held by the Piazza Ingest/Access components.
 	 * 
 	 * @return The list of all data held by the system.
 	 */
@@ -314,7 +315,7 @@ public class AccessController {
 	}
 
 	/**
-	 * Returns all Deployments held by the Piazza Ingest/Access components. 
+	 * Returns all Deployments held by the Piazza Ingest/Access components.
 	 * 
 	 * @return The list of all data held by the system.
 	 */

@@ -34,13 +34,14 @@ import access.database.DatabaseAccessor;
 import access.deploy.Deployer;
 import access.deploy.Leaser;
 import access.messaging.AccessWorker;
+import messaging.job.JobMessageFactory;
 import messaging.job.WorkerCallback;
 import model.job.Job;
 import model.job.type.AccessJob;
 import util.PiazzaLogger;
 
 /**
- * Tests the Access Worker, which processes Kafka messages
+ * Tests the Access Worker, which processes messages
  * 
  * @author Patrick.Doody
  *
@@ -74,13 +75,14 @@ public class WorkerTests {
 	}
 
 	/**
-	 * Tests handling a Kafka message. Verify no exceptions.
+	 * Tests handling a message. Verify no exceptions.
 	 */
 	@Test
 	public void testWorker() throws Exception {
 		// Mock
 		when(updateJobsQueue.getName()).thenReturn("Update-Job-Unit-Test");
-		Mockito.doNothing().when(rabbitTemplate).convertAndSend(eq("123456"), Mockito.anyString());
+		Mockito.doNothing().when(rabbitTemplate).convertAndSend(eq(JobMessageFactory.PIAZZA_EXCHANGE_NAME), eq("123456"),
+				Mockito.anyString());
 		Job mockJob = new Job();
 		mockJob.setJobId("123456");
 		mockJob.setCreatedBy("Test User");
