@@ -71,7 +71,7 @@ public class AccessThreadManager {
 	 * @param abortJobRequest
 	 *            The request containing the information about the Job cancellation request
 	 */
-	@RabbitListener(bindings = @QueueBinding(key = "AbortJob-${SPACE}", value = @Queue(value = "AccessAbort", autoDelete = "true", durable = "true"), exchange = @Exchange(value = JobMessageFactory.PIAZZA_EXCHANGE_NAME, autoDelete = "false", durable = "true")))
+	@RabbitListener(bindings = @QueueBinding(key = "AbortJob-${SPACE}", value = @Queue(exclusive = "true", autoDelete = "true", durable = "true"), exchange = @Exchange(value = JobMessageFactory.PIAZZA_EXCHANGE_NAME, autoDelete = "false", durable = "true")))
 	public void processAbortJob(final String abortJobRequest) {
 		String jobId = null;
 		try {
@@ -98,7 +98,7 @@ public class AccessThreadManager {
 	 * @param accessJobRequest
 	 *            The Access Job request
 	 */
-	@RabbitListener(bindings = @QueueBinding(key = "AccessJob-${SPACE}", value = @Queue(value = "AccessJob", autoDelete = "true", durable = "true"), exchange = @Exchange(value = JobMessageFactory.PIAZZA_EXCHANGE_NAME, autoDelete = "false", durable = "true")))
+	@RabbitListener(bindings = @QueueBinding(key = "AccessJob-${SPACE}", value = @Queue(value = "AccessJob-${SPACE}", autoDelete = "false", durable = "true"), exchange = @Exchange(value = JobMessageFactory.PIAZZA_EXCHANGE_NAME, autoDelete = "false", durable = "true")))
 	public void processAccessJob(String accessJobRequest) {
 		try {
 			// Callback that will be invoked when a Worker completes. This will
