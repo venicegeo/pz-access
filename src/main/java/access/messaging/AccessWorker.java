@@ -127,7 +127,7 @@ public class AccessWorker {
 						"Error sending Cancelled Status from Job %s: %s. The Job was cancelled, but its status will not be updated in the Job Manager.",
 						consumerRecord.key(), jsonException.getMessage());
 				LOGGER.error(error, jsonException);
-				pzLogger.log(error, Severity.ERROR);
+				pzLogger.log(error, Severity.ERROR, new AuditElement(consumerRecord.key(), "failedToSendCancelledStatus", ""));
 			}
 		} catch (Exception exception) {
 			String error = String.format("Error Accessing Data under Job %s with Error: %s", consumerRecord.key(), exception.getMessage());
