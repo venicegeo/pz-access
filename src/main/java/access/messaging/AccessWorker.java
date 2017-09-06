@@ -117,8 +117,8 @@ public class AccessWorker {
 
 		} catch (InterruptedException exception) {
 			String error = String.format("Thread interrupt received for Job %s", consumerRecord.key());
-			LOGGER.error(error, exception, new AuditElement(consumerRecord.key(), "accessJobTerminated", ""));
-			pzLogger.log(error, Severity.INFORMATIONAL);
+			LOGGER.error(error, exception);
+			pzLogger.log(error, Severity.INFORMATIONAL, new AuditElement(consumerRecord.key(), "accessJobTerminated", ""));
 			StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_CANCELLED);
 			try {
 				producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate, space));
