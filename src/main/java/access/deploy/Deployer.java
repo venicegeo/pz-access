@@ -358,7 +358,8 @@ public class Deployer {
 				throw new GeoServerException(error);
 			}
 		}
-
+		
+		pzLogger.log(String.format("Successfully deleted Deployment for %s", deploymentId), Severity.INFORMATIONAL);
 		// Remove the Deployment from the Database
 		accessor.deleteDeployment(deployment);
 	}

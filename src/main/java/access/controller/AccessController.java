@@ -302,6 +302,7 @@ public class AccessController {
 			if (!("asc".equalsIgnoreCase(order)) && !("desc".equalsIgnoreCase(order))) {
 				orderToUse = "asc";
 			}
+			pzLogger.log("Returning Data Query List", Severity.INFORMATIONAL);
 			return new ResponseEntity<>(accessor.getDataList(page, pageSize, sortBy, orderToUse, keyword, userName, createdByJobId),
 					HttpStatus.OK);
 		} catch (Exception exception) {
@@ -331,6 +332,7 @@ public class AccessController {
 			if (!("asc".equalsIgnoreCase(order)) && !("desc".equalsIgnoreCase(order))) {
 				orderToUse = "asc";
 			}
+			pzLogger.log("Returning Deployment List Query", Severity.INFORMATIONAL);
 			return new ResponseEntity<>(accessor.getDeploymentList(page, perPage, sortBy, orderToUse, keyword), HttpStatus.OK);
 		} catch (Exception exception) {
 			String error = String.format("Error Querying Deployment: %s", exception.getMessage());
@@ -362,6 +364,7 @@ public class AccessController {
 	@RequestMapping(value = "/deployment", method = RequestMethod.DELETE, produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<PiazzaResponse> deleteDeploymentByData(@RequestParam(value = "dataId", required = true) String dataId) {
 		try {
+			pzLogger.log(String.format("Deleting Data for Data ID %s", dataId), Severity.INFORMATIONAL);
 			// Get the Deployment for this Data ID
 			Deployment deployment = accessor.getDeploymentByDataId(dataId);
 

@@ -117,8 +117,8 @@ public class AccessWorker {
 
 		} catch (InterruptedException exception) {
 			String error = String.format("Thread interrupt received for Job %s", consumerRecord.key());
-			LOGGER.error(error, exception, new AuditElement(consumerRecord.key(), "accessJobTerminated", ""));
-			pzLogger.log(error, Severity.INFORMATIONAL);
+			LOGGER.error(error, exception);
+			pzLogger.log(error, Severity.INFORMATIONAL, new AuditElement(consumerRecord.key(), "accessJobTerminated", ""));
 			StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_CANCELLED);
 			try {
 				producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate, space));
@@ -127,7 +127,7 @@ public class AccessWorker {
 						"Error sending Cancelled Status from Job %s: %s. The Job was cancelled, but its status will not be updated in the Job Manager.",
 						consumerRecord.key(), jsonException.getMessage());
 				LOGGER.error(error, jsonException);
-				pzLogger.log(error, Severity.ERROR);
+				pzLogger.log(error, Severity.ERROR, new AuditElement(consumerRecord.key(), "failedToSendCancelledStatus", ""));
 			}
 		} catch (Exception exception) {
 			String error = String.format("Error Accessing Data under Job %s with Error: %s", consumerRecord.key(), exception.getMessage());
