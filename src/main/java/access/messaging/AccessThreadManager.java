@@ -110,9 +110,9 @@ public class AccessThreadManager {
 	 * Opens up a Kafka Consumer to poll for all Access Jobs that should be processed by this component.
 	 */
 	public void pollAccessJobs() {
-		
+
 		Consumer<String, String> generalConsumer = null;
-		
+
 		try {
 			// Callback that will be invoked when a Worker completes. This will
 			// remove the Job Id from the running Jobs list.
@@ -133,21 +133,23 @@ public class AccessThreadManager {
 				for (ConsumerRecord<String, String> consumerRecord : consumerRecords) {
 					pzLogger.log(String.format("Processing Job ID %s on Access Worker Thread.", consumerRecord.key()),
 							Severity.INFORMATIONAL);
-					// Create a new worker to process this message and add it to
-					// the thread pool.
-					Future<?> workerFuture = accessWorker.run(consumerRecord, producer, callback);
 
-					// Keep track of all Running Jobs
-					runningJobs.put(consumerRecord.key(), workerFuture);
+					try {
+						// Create a new worker to process this message and add it to
+						// the thread pool.
+						Future<?> workerFuture = accessWorker.run(consumerRecord, producer, callback);
+						runningJobs.put(consumerRecord.key(), workerFuture);
+					} catch (InterruptedException e) {
+						LOGGER.error("Job was killed successfully.", e);
+					}
 				}
 			}
 		} catch (WakeupException exception) {
 			String error = String.format("Polling Thread forcefully closed: %s", exception.getMessage());
 			LOGGER.error(error, exception, new AuditElement("access", "kafkaListenerShutDown", ""));
 			pzLogger.log(error, Severity.ERROR);
-		}
-		finally {
-			if( generalConsumer != null ) {
+		} finally {
+			if (generalConsumer != null) {
 				generalConsumer.close();
 			}
 		}
@@ -157,9 +159,9 @@ public class AccessThreadManager {
 	 * Begins listening for Abort Jobs. If a Job is owned by this component, then it will be terminated.
 	 */
 	public void pollAbortJobs() {
-		
+
 		Consumer<String, String> uniqueConsumer = null;
-		
+
 		try {
 			// Create the Unique Consumer
 			uniqueConsumer = KafkaClientFactory.getConsumer(kafkaAddress,
@@ -178,9 +180,8 @@ public class AccessThreadManager {
 			String error = String.format("Polling Thread forcefully closed: %s", exception.getMessage());
 			LOGGER.error(error, exception);
 			pzLogger.log(error, Severity.ERROR);
-		}
-		finally { 
-			if( uniqueConsumer != null ) {
+		} finally {
+			if (uniqueConsumer != null) {
 				uniqueConsumer.close();
 			}
 		}

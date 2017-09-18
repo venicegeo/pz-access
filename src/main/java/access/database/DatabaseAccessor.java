@@ -345,7 +345,7 @@ public class DatabaseAccessor {
 	 */
 	public DeploymentListResponse getDeploymentList(Integer page, Integer pageSize, String sortBy, String order, String keyword) {
 		Pagination pagination = new Pagination(null, page, pageSize, sortBy, order);
-		Page<DeploymentEntity> results = null;
+		Page<DeploymentEntity> results;
 
 		if (StringUtils.isNotEmpty(keyword)) {
 			results = deploymentDao.getDeploymentListByDeploymentId(keyword, pagination);
@@ -394,7 +394,7 @@ public class DatabaseAccessor {
 			String userName, String createdByJobId) {
 
 		Pagination pagination = new Pagination(null, page, pageSize, sortBy, order);
-		Page<DataResourceEntity> results = null;
+		Page<DataResourceEntity> results;
 
 		if (StringUtils.isNotEmpty(userName) && StringUtils.isNotEmpty(keyword)) {
 			// Both parameters specified

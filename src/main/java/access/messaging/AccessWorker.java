@@ -82,10 +82,11 @@ public class AccessWorker {
 
 	/**
 	 * Listens for Kafka Access messages for creating Deployments for Access of Resources
+	 * @throws InterruptedException 
 	 */
 	@Async
 	public Future<AccessJob> run(ConsumerRecord<String, String> consumerRecord, Producer<String, String> producer,
-			WorkerCallback callback) {
+			WorkerCallback callback) throws InterruptedException {
 		AccessJob accessJob = null;
 		try {
 			// Parse Job information from Kafka
@@ -129,6 +130,7 @@ public class AccessWorker {
 				LOGGER.error(error, jsonException);
 				pzLogger.log(error, Severity.ERROR, new AuditElement(consumerRecord.key(), "failedToSendCancelledStatus", ""));
 			}
+			throw exception;
 		} catch (Exception exception) {
 			String error = String.format("Error Accessing Data under Job %s with Error: %s", consumerRecord.key(), exception.getMessage());
 			LOGGER.error(error, exception, new AuditElement(consumerRecord.key(), "failedAccessData", ""));
