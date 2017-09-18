@@ -178,8 +178,7 @@ public class ControllerTests {
 		((PostGISDataType) mockData.dataType).database = "localhost";
 		((PostGISDataType) mockData.dataType).table = "Test";
 		when(accessor.getData(eq("123456"))).thenReturn(mockData);
-		when(accessor.getPostGisDataStore(anyString(), anyString(), anyString(), anyString(), anyString(), anyString()))
-				.thenReturn(mockDataStore);
+		when(accessor.getPostGisDataStore()).thenReturn(mockDataStore);
 		response = accessController.accessFile("123456", "file.geojson");
 
 		// Verify

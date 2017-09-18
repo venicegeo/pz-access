@@ -20,7 +20,6 @@ import java.io.IOException;
 import java.io.InputStream;
 
 import org.apache.commons.io.IOUtils;
-import org.apache.tomcat.util.codec.binary.Base64;
 import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,6 +39,7 @@ import org.springframework.web.client.RestTemplate;
 import com.amazonaws.AmazonClientException;
 
 import access.database.DatabaseAccessor;
+import access.deploy.geoserver.AuthHeaders;
 import access.util.AccessUtilities;
 import exception.GeoServerException;
 import exception.InvalidInputException;
@@ -66,6 +66,10 @@ import util.UUIDFactory;
  */
 @Component
 public class Deployer {
+	@Value("${vcap.services.pz-geoserver-efs.credentials.geoserver.hostname}")
+	private String geoserverHost;
+	@Value("${vcap.services.pz-geoserver-efs.credentials.geoserver.port}")
+	private String geoserverPort;
 	@Autowired
 	private PiazzaLogger pzLogger;
 	@Autowired
@@ -74,18 +78,12 @@ public class Deployer {
 	private AccessUtilities accessUtilities;
 	@Autowired
 	private DatabaseAccessor accessor;
-	@Value("${vcap.services.pz-geoserver-efs.credentials.geoserver.hostname}")
-	private String geoserverHost;
-	@Value("${vcap.services.pz-geoserver-efs.credentials.geoserver.port}")
-	private String geoserverPort;
-	@Value("${vcap.services.pz-geoserver-efs.credentials.geoserver.username}")
-	private String geoserverUsername;
-	@Value("${vcap.services.pz-geoserver-efs.credentials.geoserver.password}")
-	private String geoserverPassword;
 	@Autowired
 	private RestTemplate restTemplate;
+	@Autowired
+	private AuthHeaders authHeaders;
 
-	private static final String HOST_ADDRESS = "http://%s:%s%s";
+	private static final String HOST_ADDRESS = "%s://%s:%s%s";
 
 	private static final String ADD_LAYER_ENDPOINT = "/geoserver/rest/workspaces/piazza/datastores/piazza/featuretypes/";
 	private static final String CAPABILITIES_URL = "/geoserver/piazza/wfs?service=wfs&version=2.0.0&request=GetCapabilities";
@@ -212,7 +210,7 @@ public class Deployer {
 
 		// Create a new Deployment for this Resource
 		String deploymentId = uuidFactory.getUUID();
-		String capabilitiesUrl = String.format(HOST_ADDRESS, geoserverHost, geoserverPort, CAPABILITIES_URL);
+		String capabilitiesUrl = String.format(HOST_ADDRESS, authHeaders.getHttpProtocol(), geoserverHost, geoserverPort, CAPABILITIES_URL);
 
 		pzLogger.log(String.format("Created PostGIS Table for Resource %s", dataResource.getDataId()), Severity.INFORMATIONAL,
 				new AuditElement(ACCESS, "createPostGisTable", dataResource.getDataId()));
@@ -236,13 +234,12 @@ public class Deployer {
 		byte[] fileBytes = accessUtilities.getBytesForDataResource(dataResource);
 
 		// Create the Request that will upload the File
-		HttpHeaders headers = getGeoServerHeaders();
-		headers.add("Content-type", "image/tiff");
-		HttpEntity<byte[]> request = new HttpEntity<>(fileBytes, headers);
+		authHeaders.add(HttpHeaders.CONTENT_TYPE, "image/tiff");
+		HttpEntity<byte[]> request = new HttpEntity<>(fileBytes, authHeaders.get());
 
 		// Send the Request
-		String url = String.format("http://%s:%s/geoserver/rest/workspaces/piazza/coveragestores/%s/file.geotiff", geoserverHost,
-				geoserverPort, dataResource.getDataId());
+		String url = String.format("%s://%s:%s/geoserver/rest/workspaces/piazza/coveragestores/%s/file.geotiff", authHeaders.getHttpProtocol(), 
+				geoserverHost, geoserverPort, dataResource.getDataId());
 		try {
 			pzLogger.log(String.format("Creating new Raster Deployment to %s", url), Severity.INFORMATIONAL,
 					new AuditElement(ACCESS, "deployGeoServerRasterLayer", dataResource.getDataId()));
@@ -284,7 +281,7 @@ public class Deployer {
 
 		// Create a Deployment for this Resource
 		String deploymentId = uuidFactory.getUUID();
-		String capabilitiesUrl = String.format(HOST_ADDRESS, geoserverHost, geoserverPort, CAPABILITIES_URL);
+		String capabilitiesUrl = String.format(HOST_ADDRESS, authHeaders.getHttpProtocol(), geoserverHost, geoserverPort, CAPABILITIES_URL);
 		String deploymentLayerName = dataResource.getDataId();
 		return new Deployment(deploymentId, dataResource.getDataId(), geoserverHost, geoserverPort, deploymentLayerName, capabilitiesUrl);
 	}
@@ -307,10 +304,9 @@ public class Deployer {
 			throw new InvalidInputException("Deployment does not exist matching Id " + deploymentId);
 		}
 		// Delete the Deployment Layer from GeoServer
-		HttpHeaders headers = getGeoServerHeaders();
-		headers.setContentType(MediaType.APPLICATION_JSON);
-		HttpEntity<String> request = new HttpEntity<>(headers);
-		String url = String.format("http://%s:%s/geoserver/rest/layers/%s", geoserverHost, geoserverPort, deployment.getLayer());
+		authHeaders.setContentType(MediaType.APPLICATION_JSON);
+		HttpEntity<String> request = new HttpEntity<>(authHeaders.get());
+		String url = String.format("%s://%s:%s/geoserver/rest/layers/%s", authHeaders.getHttpProtocol(), geoserverHost, geoserverPort, deployment.getLayer());
 		try {
 			pzLogger.log(String.format("Deleting Deployment from Resource %s", url), Severity.INFORMATIONAL,
 					new AuditElement(ACCESS, "undeployGeoServerLayer", deploymentId));
@@ -334,8 +330,8 @@ public class Deployer {
 		}
 
 		// If this was a Raster dataset that contained its own unique data store, then delete that Coverage Store.
-		url = String.format("http://%s:%s/geoserver/rest/workspaces/piazza/coveragestores/%s?purge=all&recurse=true", geoserverHost,
-				geoserverPort, deployment.getDataId());
+		url = String.format("%s://%s:%s/geoserver/rest/workspaces/piazza/coveragestores/%s?purge=all&recurse=true", authHeaders.getHttpProtocol(), 
+				geoserverHost, geoserverPort, deployment.getDataId());
 		try {
 			pzLogger.log(String.format("Deleting Coverage Store from Resource %s", url), Severity.INFORMATIONAL,
 					new AuditElement(ACCESS, "deleteGeoServerCoverageStore", deployment.getDataId()));
@@ -376,13 +372,12 @@ public class Deployer {
 	 */
 	private HttpStatus postGeoServerFeatureType(String restURL, String featureType) throws GeoServerException {
 		// Construct the URL for the Service
-		String url = String.format(HOST_ADDRESS, geoserverHost, geoserverPort, restURL);
+		String url = String.format(HOST_ADDRESS, authHeaders.getHttpProtocol(), geoserverHost, geoserverPort, restURL);
 		LOGGER.info("Attempting to push a GeoServer Featuretype {} to URL {}", featureType, url);
 
 		// Create the Request template and execute
-		HttpHeaders headers = getGeoServerHeaders();
-		headers.setContentType(MediaType.APPLICATION_XML);
-		HttpEntity<String> request = new HttpEntity<>(featureType, headers);
+		authHeaders.setContentType(MediaType.APPLICATION_XML);
+		HttpEntity<String> request = new HttpEntity<>(featureType, authHeaders.get());
 
 		ResponseEntity<String> response = null;
 		try {
@@ -410,10 +405,9 @@ public class Deployer {
 	 * @throws GeoServerException
 	 */
 	public boolean doesGeoServerLayerExist(String layerId) throws GeoServerException {
-		HttpHeaders headers = getGeoServerHeaders();
-		headers.setContentType(MediaType.APPLICATION_JSON);
-		HttpEntity<String> request = new HttpEntity<>(headers);
-		String url = String.format("http://%s:%s/geoserver/rest/layers/%s.json", geoserverHost, geoserverPort, layerId);
+		authHeaders.setContentType(MediaType.APPLICATION_JSON);
+		HttpEntity<String> request = new HttpEntity<>(authHeaders.get());
+		String url = String.format("%s://%s:%s/geoserver/rest/layers/%s.json", authHeaders.getHttpProtocol(), geoserverHost, geoserverPort, layerId);
 		try {
 			pzLogger.log(String.format("Checking GeoServer if Layer Exists %s", layerId), Severity.INFORMATIONAL,
 					new AuditElement(ACCESS, "checkGeoServerLayerExists", url));
@@ -432,23 +426,6 @@ public class Deployer {
 				throw new GeoServerException(error);
 			}
 		}
-	}
-
-	/**
-	 * Gets the headers for a typical GeoServer request. This include the "application/XML" content, and the encoded
-	 * basic credentials.
-	 * 
-	 * @return
-	 */
-	public HttpHeaders getGeoServerHeaders() {
-		// Get the Basic authentication Headers for GeoServer
-		String plainCredentials = String.format("%s:%s", geoserverUsername, geoserverPassword);
-		byte[] credentialBytes = plainCredentials.getBytes();
-		byte[] encodedCredentials = Base64.encodeBase64(credentialBytes);
-		String credentials = new String(encodedCredentials);
-		HttpHeaders headers = new HttpHeaders();
-		headers.add("Authorization", "Basic " + credentials);
-		return headers;
 	}
 
 	/**

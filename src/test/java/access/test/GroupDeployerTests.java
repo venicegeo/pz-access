@@ -35,6 +35,7 @@ import org.springframework.web.client.RestTemplate;
 import access.database.DatabaseAccessor;
 import access.deploy.Deployer;
 import access.deploy.GroupDeployer;
+import access.deploy.geoserver.AuthHeaders;
 import model.data.deployment.Deployment;
 import model.data.deployment.DeploymentGroup;
 import util.PiazzaLogger;
@@ -57,6 +58,8 @@ public class GroupDeployerTests {
 	private Deployer deployer;
 	@Mock
 	private RestTemplate restTemplate;
+	@Mock
+	private AuthHeaders geoServerHeaders;
 	@InjectMocks
 	private GroupDeployer groupDeployer;
 
@@ -75,8 +78,6 @@ public class GroupDeployerTests {
 
 		mockDeployment = new Deployment("123456", "123456", "localhost", "8080", "layer", "getCapabilities");
 		mockGroup = new DeploymentGroup("123456", "Tester");
-
-		Mockito.doCallRealMethod().when(deployer).getGeoServerHeaders();
 	}
 
 	/**
