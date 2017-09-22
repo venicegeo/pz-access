@@ -31,7 +31,6 @@ import org.opengis.feature.simple.SimpleFeature;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -85,19 +84,6 @@ import util.PiazzaLogger;
  */
 @RestController
 public class AccessController {
-
-	@Value("${vcap.services.pz-geoserver-efs.credentials.postgres.hostname}")
-	private String postgresHost;
-	@Value("${vcap.services.pz-geoserver-efs.credentials.postgres.port}")
-	private String postgresPort;
-	@Value("${vcap.services.pz-geoserver-efs.credentials.postgres.database}")
-	private String postgresDBName;
-	@Value("${vcap.services.pz-geoserver-efs.credentials.postgres.username}")
-	private String postgresUser;
-	@Value("${vcap.services.pz-geoserver-efs.credentials.postgres.password}")
-	private String postgresPassword;
-	@Value("${postgres.schema}")
-	private String postgresSchema;
 
 	@Autowired
 	private AccessThreadManager threadManager;
@@ -523,7 +509,7 @@ public class AccessController {
 	private ResponseEntity<byte[]> getResponse(MediaType type, String fileName, byte[] bytes) {
 		HttpHeaders header = new HttpHeaders();
 		header.setContentType(type);
-		header.set("Content-Disposition", "attachment; filename=" + fileName);
+		header.set(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + fileName);
 		header.setContentLength(bytes.length);
 		return new ResponseEntity<>(bytes, header, HttpStatus.OK);
 	}
@@ -538,8 +524,7 @@ public class AccessController {
 	 */
 	private StringBuilder getPostGISGeoJSON(DataResource data) throws IOException {
 		// Connect to POSTGIS and gather geoJSON info
-		DataStore postGisStore = accessor.getPostGisDataStore(postgresHost, postgresPort, postgresSchema, postgresDBName, postgresUser,
-				postgresPassword);
+		DataStore postGisStore = accessor.getPostGisDataStore();
 
 		PostGISDataType resource = (PostGISDataType) (data.getDataType());
 		SimpleFeatureSource simpleFeatureSource = postGisStore.getFeatureSource(resource.getTable());
