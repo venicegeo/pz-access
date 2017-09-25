@@ -130,7 +130,7 @@ node {
         [$class: 'UsernamePasswordMultiBinding', credentialsId: "${env.PCF_CREDS}", usernameVariable: 'CFUSER', passwordVariable: 'CFPASS'],
         string(credentialsId: "${env.JKS_PASSPHRASE}", variable: 'JKS_PASSPHRASE'),
         string(credentialsId: "${env.PZ_PASSPHRASE}", variable: 'PZ_PASSPHRASE')
-    ]) {
+      ]) {
         sh "cf api ${env.PCF_API_ENDPOINT}"
         sh "cf auth ${CFUSER} ${CFPASS}"
         sh "cf target -o ${env.PCF_ORG} -s ${env.PHASE_ONE_PCF_SPACE}"
