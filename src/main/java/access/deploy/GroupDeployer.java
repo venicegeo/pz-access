@@ -233,7 +233,7 @@ public class GroupDeployer {
 		// Create Request
 		authHeaders.setContentType(MediaType.APPLICATION_JSON);
 		HttpEntity<String> request = new HttpEntity<>(authHeaders.get());
-		String url = String.format("%s://%s:%s/geoserver/rest/workspaces/piazza/layergroups/%s.json", authHeaders.getHttpProtocol(), geoserverHost, geoserverPort,
+		String url = String.format("%s:%s/geoserver/rest/workspaces/piazza/layergroups/%s.json", geoserverHost, geoserverPort,
 				deploymentGroup.deploymentGroupId);
 
 		// Execute
@@ -282,7 +282,7 @@ public class GroupDeployer {
 		HttpEntity<String> request = new HttpEntity<>(authHeaders.get());
 		// Note that XML format is used. This is a work-around because JSON currently has a bug with GeoServer that
 		// prevents a correct response from returning when Layer count is above 5.
-		String url = String.format("%s://%s:%s/geoserver/rest/workspaces/piazza/layergroups/%s.xml", authHeaders.getHttpProtocol(), 
+		String url = String.format("%s:%s/geoserver/rest/workspaces/piazza/layergroups/%s.xml", 
 				geoserverHost, geoserverPort, deploymentGroupId);
 
 		// Execute the request to get the Layer Group
@@ -361,9 +361,8 @@ public class GroupDeployer {
 			throw new DataInspectException(error);
 		}
 		String url = String.format(
-				method.equals(HttpMethod.PUT) ? "%s://%s:%s/geoserver/rest/workspaces/piazza/layergroups/%s.json"
-						: "%s://%s:%s/geoserver/rest/workspaces/piazza/layergroups.json",
-						authHeaders.getHttpProtocol(), geoserverHost, geoserverPort, layerGroup.getLayerGroup().getName());
+				method.equals(HttpMethod.PUT) ? "%s:%s/geoserver/rest/workspaces/piazza/layergroups/%s.json"
+						: "%s:%s/geoserver/rest/workspaces/piazza/layergroups.json", geoserverHost, geoserverPort, layerGroup.getLayerGroup().getName());
 
 		// Send
 		ResponseEntity<String> response = null;

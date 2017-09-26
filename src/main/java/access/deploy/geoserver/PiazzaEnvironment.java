@@ -83,7 +83,7 @@ public class PiazzaEnvironment {
 
 		// Check for Workspace
 		try {
-			String workspaceUri = String.format("%s://%s:%s/geoserver/rest/workspaces/piazza.json", authHeaders.getHttpProtocol(), geoserverHost, geoserverPort);
+			String workspaceUri = String.format("%s:%s/geoserver/rest/workspaces/piazza.json", geoserverHost, geoserverPort);
 			if (!doesResourceExist(workspaceUri)) {
 				createWorkspace();
 			} else {
@@ -97,7 +97,7 @@ public class PiazzaEnvironment {
 
 		// Check for Data Store
 		try {
-			String dataStoreUri = String.format("%s://%s:%s/geoserver/rest/workspaces/piazza/datastores/piazza.json", authHeaders.getHttpProtocol(), geoserverHost,
+			String dataStoreUri = String.format("%s:%s/geoserver/rest/workspaces/piazza/datastores/piazza.json", geoserverHost,
 					geoserverPort);
 			if (!doesResourceExist(dataStoreUri)) {
 				createPostgresStore();
@@ -151,7 +151,7 @@ public class PiazzaEnvironment {
 		authHeaders.setContentType(MediaType.APPLICATION_XML);
 		String body = "<workspace><name>piazza</name></workspace>";
 		HttpEntity<String> request = new HttpEntity<>(body, authHeaders.get());
-		String uri = String.format("%s://%s:%s/geoserver/rest/workspaces", authHeaders.getHttpProtocol(), geoserverHost, geoserverPort);
+		String uri = String.format("%s:%s/geoserver/rest/workspaces", geoserverHost, geoserverPort);
 		try {
 			pzLogger.log(String.format("Creating Piazza Workspace to %s", uri), Severity.INFORMATIONAL,
 					new AuditElement(ACCESS, "tryCreateGeoServerWorkspace", uri));
@@ -202,7 +202,7 @@ public class PiazzaEnvironment {
 			// POST Data Store to GeoServer
 			authHeaders.setContentType(MediaType.APPLICATION_XML);
 			HttpEntity<String> request = new HttpEntity<>(dataStoreBody, authHeaders.get());
-			String uri = String.format("%s://%s:%s/geoserver/rest/workspaces/piazza/datastores", authHeaders.getHttpProtocol(), geoserverHost, geoserverPort);
+			String uri = String.format("%s:%s/geoserver/rest/workspaces/piazza/datastores", geoserverHost, geoserverPort);
 			try {
 				pzLogger.log(String.format("Creating Piazza Data Store to %s", uri), Severity.INFORMATIONAL,
 						new AuditElement(ACCESS, "tryCreateGeoServerDataStore", uri));
