@@ -24,11 +24,6 @@ import org.springframework.stereotype.Component;
 public class PKIAuthHeaders extends HttpHeaders implements AuthHeaders {
 
 	private static final long serialVersionUID = 1L;
-	
-	@Override
-	public String getHttpProtocol() {
-		return "https";
-	}
 
 	@Override
 	public HttpHeaders get() {

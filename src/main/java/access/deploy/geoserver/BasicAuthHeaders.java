@@ -32,11 +32,6 @@ public class BasicAuthHeaders extends HttpHeaders implements AuthHeaders {
 	@Value("${vcap.services.pz-geoserver-efs.credentials.geoserver.password}")
 	private String geoserverPassword;
 
-	@Override
-	public String getHttpProtocol() {
-		return "http";
-	}
-
 	public HttpHeaders get() {
 		
 		// Get the Basic authentication Headers for GeoServer

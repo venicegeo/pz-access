@@ -23,8 +23,6 @@ public interface AuthHeaders {
 	void add(String headerName, String headerValue);
 	
 	void setContentType(MediaType type);
-	
-	String getHttpProtocol();
 
 	HttpHeaders get();
 }
