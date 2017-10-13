@@ -91,7 +91,7 @@ public class AccessWorker {
 	 * Listens for Access messages for creating Deployments for Access of Resources
 	 */
 	@Async
-	public Future<AccessJob> run(Job job, WorkerCallback callback) {
+	public Future<AccessJob> run(Job job, WorkerCallback callback) throws InterruptedException {
 		AccessJob accessJob = null;
 		try {
 			// Parse the Job information
@@ -121,8 +121,8 @@ public class AccessWorker {
 
 		} catch (InterruptedException exception) {
 			String error = String.format("Thread interrupt received for Job %s", job.getJobId());
-			LOGGER.error(error, exception, new AuditElement(job.getJobId(), "accessJobTerminated", ""));
-			pzLogger.log(error, Severity.INFORMATIONAL);
+			LOGGER.error(error, exception);
+			pzLogger.log(error, Severity.INFORMATIONAL, new AuditElement(job.getJobId(), "accessJobTerminated", ""));
 			StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_CANCELLED);
 			statusUpdate.setJobId(job.getJobId());
 			try {
@@ -132,8 +132,9 @@ public class AccessWorker {
 						"Error sending Cancelled Status from Job %s: %s. The Job was cancelled, but its status will not be updated in the Job Manager.",
 						job.getJobId(), jsonException.getMessage());
 				LOGGER.error(error, jsonException);
-				pzLogger.log(error, Severity.ERROR);
+				pzLogger.log(error, Severity.ERROR, new AuditElement(job.getJobId(), "failedToSendCancelledStatus", ""));
 			}
+			throw exception;
 		} catch (Exception exception) {
 			String error = String.format("Error Accessing Data under Job %s with Error: %s", job.getJobId(), exception.getMessage());
 			LOGGER.error(error, exception, new AuditElement(job.getJobId(), "failedAccessData", ""));

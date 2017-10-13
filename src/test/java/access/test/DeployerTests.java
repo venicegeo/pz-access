@@ -47,6 +47,7 @@ import util.PiazzaLogger;
 import util.UUIDFactory;
 import access.database.DatabaseAccessor;
 import access.deploy.Deployer;
+import access.deploy.geoserver.AuthHeaders;
 import access.util.AccessUtilities;
 
 /**
@@ -60,6 +61,8 @@ public class DeployerTests {
 	private PiazzaLogger logger;
 	@Mock
 	private RestTemplate restTemplate;
+	@Mock
+	private AuthHeaders geoServerHeaders;
 	@Mock
 	private UUIDFactory uuidFactory;
 	@Mock

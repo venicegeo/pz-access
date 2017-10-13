@@ -26,7 +26,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -38,7 +37,6 @@ import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
-import access.deploy.Deployer;
 import model.logger.AuditElement;
 import model.logger.Severity;
 import util.PiazzaLogger;
@@ -52,18 +50,10 @@ import util.PiazzaLogger;
  */
 @Component
 public class PiazzaEnvironment {
-	@Autowired
-	private Deployer deployer;
-	@Autowired
-	private PiazzaLogger pzLogger;
 	@Value("${vcap.services.pz-geoserver-efs.credentials.geoserver.hostname}")
 	private String geoserverHost;
 	@Value("${vcap.services.pz-geoserver-efs.credentials.geoserver.port}")
 	private String geoserverPort;
-	@Value("${vcap.services.pz-geoserver-efs.credentials.geoserver.username}")
-	private String geoserverUsername;
-	@Value("${vcap.services.pz-geoserver-efs.credentials.geoserver.password}")
-	private String geoserverPassword;
 	@Value("${vcap.services.pz-geoserver-efs.credentials.postgres.hostname}")
 	private String postgresHost;
 	@Value("${vcap.services.pz-geoserver-efs.credentials.postgres.port}")
@@ -76,7 +66,11 @@ public class PiazzaEnvironment {
 	private String postgresPassword;
 	@Autowired
 	private RestTemplate restTemplate;
-
+	@Autowired
+	private AuthHeaders authHeaders;
+	@Autowired
+	private PiazzaLogger pzLogger;
+	
 	private static final Logger LOGGER = LoggerFactory.getLogger(PiazzaEnvironment.class);
 	private static final String ACCESS = "access";
 
@@ -89,7 +83,7 @@ public class PiazzaEnvironment {
 
 		// Check for Workspace
 		try {
-			String workspaceUri = String.format("http://%s:%s/geoserver/rest/workspaces/piazza.json", geoserverHost, geoserverPort);
+			String workspaceUri = String.format("%s:%s/geoserver/rest/workspaces/piazza.json", geoserverHost, geoserverPort);
 			if (!doesResourceExist(workspaceUri)) {
 				createWorkspace();
 			} else {
@@ -103,7 +97,7 @@ public class PiazzaEnvironment {
 
 		// Check for Data Store
 		try {
-			String dataStoreUri = String.format("http://%s:%s/geoserver/rest/workspaces/piazza/datastores/piazza.json", geoserverHost,
+			String dataStoreUri = String.format("%s:%s/geoserver/rest/workspaces/piazza/datastores/piazza.json", geoserverHost,
 					geoserverPort);
 			if (!doesResourceExist(dataStoreUri)) {
 				createPostgresStore();
@@ -124,8 +118,8 @@ public class PiazzaEnvironment {
 	 */
 	private boolean doesResourceExist(String resourceUri) throws HttpStatusCodeException, RestClientException {
 		// Check if exists
-		HttpHeaders headers = deployer.getGeoServerHeaders();
-		HttpEntity<String> request = new HttpEntity<>(headers);
+		HttpEntity<String> request = new HttpEntity<>(authHeaders.get());
+
 		try {
 			pzLogger.log(String.format("Checking if GeoServer Resource Exists at %s", resourceUri), Severity.INFORMATIONAL,
 					new AuditElement(ACCESS, "checkGeoServerResourceExists", resourceUri));
@@ -154,11 +148,10 @@ public class PiazzaEnvironment {
 	 */
 	private void createWorkspace() {
 		// POST the Workspace
-		HttpHeaders headers = deployer.getGeoServerHeaders();
-		headers.setContentType(MediaType.APPLICATION_XML);
+		authHeaders.setContentType(MediaType.APPLICATION_XML);
 		String body = "<workspace><name>piazza</name></workspace>";
-		HttpEntity<String> request = new HttpEntity<>(body, headers);
-		String uri = String.format("http://%s:%s/geoserver/rest/workspaces", geoserverHost, geoserverPort);
+		HttpEntity<String> request = new HttpEntity<>(body, authHeaders.get());
+		String uri = String.format("%s:%s/geoserver/rest/workspaces", geoserverHost, geoserverPort);
 		try {
 			pzLogger.log(String.format("Creating Piazza Workspace to %s", uri), Severity.INFORMATIONAL,
 					new AuditElement(ACCESS, "tryCreateGeoServerWorkspace", uri));
@@ -207,10 +200,9 @@ public class PiazzaEnvironment {
 			dataStoreBody = dataStoreBody.replace("$DB_HOST", postgresHost);
 
 			// POST Data Store to GeoServer
-			HttpHeaders headers = deployer.getGeoServerHeaders();
-			headers.setContentType(MediaType.APPLICATION_XML);
-			HttpEntity<String> request = new HttpEntity<>(dataStoreBody, headers);
-			String uri = String.format("http://%s:%s/geoserver/rest/workspaces/piazza/datastores", geoserverHost, geoserverPort);
+			authHeaders.setContentType(MediaType.APPLICATION_XML);
+			HttpEntity<String> request = new HttpEntity<>(dataStoreBody, authHeaders.get());
+			String uri = String.format("%s:%s/geoserver/rest/workspaces/piazza/datastores", geoserverHost, geoserverPort);
 			try {
 				pzLogger.log(String.format("Creating Piazza Data Store to %s", uri), Severity.INFORMATIONAL,
 						new AuditElement(ACCESS, "tryCreateGeoServerDataStore", uri));

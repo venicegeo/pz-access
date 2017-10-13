@@ -31,7 +31,6 @@ import org.opengis.feature.simple.SimpleFeature;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -86,19 +85,6 @@ import util.PiazzaLogger;
  */
 @RestController
 public class AccessController {
-
-	@Value("${vcap.services.pz-geoserver-efs.credentials.postgres.hostname}")
-	private String postgresHost;
-	@Value("${vcap.services.pz-geoserver-efs.credentials.postgres.port}")
-	private String postgresPort;
-	@Value("${vcap.services.pz-geoserver-efs.credentials.postgres.database}")
-	private String postgresDBName;
-	@Value("${vcap.services.pz-geoserver-efs.credentials.postgres.username}")
-	private String postgresUser;
-	@Value("${vcap.services.pz-geoserver-efs.credentials.postgres.password}")
-	private String postgresPassword;
-	@Value("${postgres.schema}")
-	private String postgresSchema;
 
 	@Autowired
 	private AccessThreadManager threadManager;
@@ -303,6 +289,7 @@ public class AccessController {
 			if (!("asc".equalsIgnoreCase(order)) && !("desc".equalsIgnoreCase(order))) {
 				orderToUse = "asc";
 			}
+			pzLogger.log("Returning Data Query List", Severity.INFORMATIONAL);
 			return new ResponseEntity<>(accessor.getDataList(page, pageSize, sortBy, orderToUse, keyword, userName, createdByJobId),
 					HttpStatus.OK);
 		} catch (Exception exception) {
@@ -332,6 +319,7 @@ public class AccessController {
 			if (!("asc".equalsIgnoreCase(order)) && !("desc".equalsIgnoreCase(order))) {
 				orderToUse = "asc";
 			}
+			pzLogger.log("Returning Deployment List Query", Severity.INFORMATIONAL);
 			return new ResponseEntity<>(accessor.getDeploymentList(page, perPage, sortBy, orderToUse, keyword), HttpStatus.OK);
 		} catch (Exception exception) {
 			String error = String.format("Error Querying Deployment: %s", exception.getMessage());
@@ -363,6 +351,7 @@ public class AccessController {
 	@RequestMapping(value = "/deployment", method = RequestMethod.DELETE, produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<PiazzaResponse> deleteDeploymentByData(@RequestParam(value = "dataId", required = true) String dataId) {
 		try {
+			pzLogger.log(String.format("Deleting Data for Data ID %s", dataId), Severity.INFORMATIONAL);
 			// Get the Deployment for this Data ID
 			Deployment deployment = accessor.getDeploymentByDataId(dataId);
 
@@ -521,7 +510,7 @@ public class AccessController {
 	private ResponseEntity<byte[]> getResponse(MediaType type, String fileName, byte[] bytes) {
 		HttpHeaders header = new HttpHeaders();
 		header.setContentType(type);
-		header.set("Content-Disposition", "attachment; filename=" + fileName);
+		header.set(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + fileName);
 		header.setContentLength(bytes.length);
 		return new ResponseEntity<>(bytes, header, HttpStatus.OK);
 	}
@@ -536,8 +525,7 @@ public class AccessController {
 	 */
 	private StringBuilder getPostGISGeoJSON(DataResource data) throws IOException {
 		// Connect to POSTGIS and gather geoJSON info
-		DataStore postGisStore = accessor.getPostGisDataStore(postgresHost, postgresPort, postgresSchema, postgresDBName, postgresUser,
-				postgresPassword);
+		DataStore postGisStore = accessor.getPostGisDataStore();
 
 		PostGISDataType resource = (PostGISDataType) (data.getDataType());
 		SimpleFeatureSource simpleFeatureSource = postGisStore.getFeatureSource(resource.getTable());

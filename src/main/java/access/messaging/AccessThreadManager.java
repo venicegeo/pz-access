@@ -114,6 +114,8 @@ public class AccessThreadManager {
 			String error = String.format("Error Reading Access Job Message from Queue %s", exception.getMessage());
 			LOGGER.error(error, exception);
 			pzLogger.log(error, Severity.ERROR);
+		} catch (InterruptedException exception) {
+			LOGGER.info("Job Successfully Cancelled.",exception);
 		}
 	}
 

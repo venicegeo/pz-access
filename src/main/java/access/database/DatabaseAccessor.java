@@ -23,6 +23,7 @@ import org.apache.commons.lang.StringUtils;
 import org.geotools.data.DataStore;
 import org.joda.time.DateTime;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Component;
 import org.venice.piazza.common.hibernate.dao.DeploymentGroupDao;
@@ -53,6 +54,19 @@ import util.GeoToolsUtil;
 @Component
 public class DatabaseAccessor {
 
+	@Value("${vcap.services.pz-geoserver-efs.credentials.postgres.hostname}")
+	private String postgresHost;
+	@Value("${vcap.services.pz-geoserver-efs.credentials.postgres.port}")
+	private String postgresPort;
+	@Value("${vcap.services.pz-geoserver-efs.credentials.postgres.database}")
+	private String postgresDBName;
+	@Value("${vcap.services.pz-geoserver-efs.credentials.postgres.username}")
+	private String postgresUser;
+	@Value("${vcap.services.pz-geoserver-efs.credentials.postgres.password}")
+	private String postgresPassword;
+	@Value("${postgres.schema}")
+	private String postgresSchema;
+	
 	@Autowired
 	private DataResourceDao dataResourceDao;
 
@@ -70,9 +84,8 @@ public class DatabaseAccessor {
 	 * 
 	 * @return Data Store.
 	 */
-	public DataStore getPostGisDataStore(String host, String port, String schema, String dbName, String user, String password)
-			throws IOException {
-		return GeoToolsUtil.getPostGisDataStore(host, port, schema, dbName, user, password);
+	public DataStore getPostGisDataStore() throws IOException {
+		return GeoToolsUtil.getPostGisDataStore(postgresHost, postgresPort, postgresSchema, postgresDBName, postgresUser, postgresPassword);
 	}
 
 	/**
@@ -345,7 +358,7 @@ public class DatabaseAccessor {
 	 */
 	public DeploymentListResponse getDeploymentList(Integer page, Integer pageSize, String sortBy, String order, String keyword) {
 		Pagination pagination = new Pagination(null, page, pageSize, sortBy, order);
-		Page<DeploymentEntity> results = null;
+		Page<DeploymentEntity> results;
 
 		if (StringUtils.isNotEmpty(keyword)) {
 			results = deploymentDao.getDeploymentListByDeploymentId(keyword, pagination);
@@ -394,7 +407,7 @@ public class DatabaseAccessor {
 			String userName, String createdByJobId) {
 
 		Pagination pagination = new Pagination(null, page, pageSize, sortBy, order);
-		Page<DataResourceEntity> results = null;
+		Page<DataResourceEntity> results;
 
 		if (StringUtils.isNotEmpty(userName) && StringUtils.isNotEmpty(keyword)) {
 			// Both parameters specified

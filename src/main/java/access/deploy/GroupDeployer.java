@@ -22,7 +22,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -38,6 +37,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 
 import access.database.DatabaseAccessor;
+import access.deploy.geoserver.AuthHeaders;
 import access.deploy.geoserver.LayerGroupModel;
 import access.deploy.geoserver.LayerGroupModel.GroupLayer;
 import access.deploy.geoserver.LayerGroupModel.LayerGroup;
@@ -60,6 +60,10 @@ import util.UUIDFactory;
  */
 @Component
 public class GroupDeployer {
+	@Value("${vcap.services.pz-geoserver-efs.credentials.geoserver.hostname}")
+	private String geoserverHost;
+	@Value("${vcap.services.pz-geoserver-efs.credentials.geoserver.port}")
+	private String geoserverPort;
 	@Autowired
 	private PiazzaLogger pzLogger;
 	@Autowired
@@ -67,17 +71,9 @@ public class GroupDeployer {
 	@Autowired
 	private DatabaseAccessor accessor;
 	@Autowired
-	private Deployer deployer;
-	@Autowired
 	private RestTemplate restTemplate;
-	@Value("${vcap.services.pz-geoserver-efs.credentials.geoserver.hostname}")
-	private String geoserverHost;
-	@Value("${vcap.services.pz-geoserver-efs.credentials.geoserver.port}")
-	private String geoserverPort;
-	@Value("${vcap.services.pz-geoserver-efs.credentials.geoserver.username}")
-	private String geoserverUsername;
-	@Value("${vcap.services.pz-geoserver-efs.credentials.geoserver.password}")
-	private String geoserverPassword;
+	@Autowired
+	private AuthHeaders authHeaders;
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(GroupDeployer.class);
 	private static final String ACCESS = "access";
@@ -235,10 +231,9 @@ public class GroupDeployer {
 	 */
 	public void deleteDeploymentGroup(DeploymentGroup deploymentGroup) throws GeoServerException {
 		// Create Request
-		HttpHeaders headers = deployer.getGeoServerHeaders();
-		headers.setContentType(MediaType.APPLICATION_JSON);
-		HttpEntity<String> request = new HttpEntity<>(headers);
-		String url = String.format("http://%s:%s/geoserver/rest/workspaces/piazza/layergroups/%s.json", geoserverHost, geoserverPort,
+		authHeaders.setContentType(MediaType.APPLICATION_JSON);
+		HttpEntity<String> request = new HttpEntity<>(authHeaders.get());
+		String url = String.format("%s:%s/geoserver/rest/workspaces/piazza/layergroups/%s.json", geoserverHost, geoserverPort,
 				deploymentGroup.deploymentGroupId);
 
 		// Execute
@@ -283,13 +278,12 @@ public class GroupDeployer {
 	 * @throws GeoServerException
 	 */
 	private LayerGroupModel getLayerGroupFromGeoServer(String deploymentGroupId) throws GeoServerException {
-		HttpHeaders headers = deployer.getGeoServerHeaders();
-		headers.setContentType(MediaType.APPLICATION_JSON);
-		HttpEntity<String> request = new HttpEntity<>(headers);
+		authHeaders.setContentType(MediaType.APPLICATION_JSON);
+		HttpEntity<String> request = new HttpEntity<>(authHeaders.get());
 		// Note that XML format is used. This is a work-around because JSON currently has a bug with GeoServer that
 		// prevents a correct response from returning when Layer count is above 5.
-		String url = String.format("http://%s:%s/geoserver/rest/workspaces/piazza/layergroups/%s.xml", geoserverHost, geoserverPort,
-				deploymentGroupId);
+		String url = String.format("%s:%s/geoserver/rest/workspaces/piazza/layergroups/%s.xml", 
+				geoserverHost, geoserverPort, deploymentGroupId);
 
 		// Execute the request to get the Layer Group
 		ResponseEntity<String> response;
@@ -354,13 +348,12 @@ public class GroupDeployer {
 	 */
 	private void sendGeoServerLayerGroup(LayerGroupModel layerGroup, HttpMethod method) throws GeoServerException, DataInspectException {
 		// Create the Request
-		HttpHeaders headers = deployer.getGeoServerHeaders();
-		headers.setContentType(MediaType.APPLICATION_JSON);
+		authHeaders.setContentType(MediaType.APPLICATION_JSON);
 		HttpEntity<String> request = null;
 		String payload = null;
 		try {
 			payload = new ObjectMapper().writeValueAsString(layerGroup);
-			request = new HttpEntity<>(payload, headers);
+			request = new HttpEntity<>(payload, authHeaders.get());
 		} catch (Exception exception) {
 			String error = String.format("Error serializing Request Body to GeoServer for updating Layer Group: %s",
 					exception.getMessage());
@@ -368,9 +361,8 @@ public class GroupDeployer {
 			throw new DataInspectException(error);
 		}
 		String url = String.format(
-				method.equals(HttpMethod.PUT) ? "http://%s:%s/geoserver/rest/workspaces/piazza/layergroups/%s.json"
-						: "http://%s:%s/geoserver/rest/workspaces/piazza/layergroups.json",
-				geoserverHost, geoserverPort, layerGroup.getLayerGroup().getName());
+				method.equals(HttpMethod.PUT) ? "%s:%s/geoserver/rest/workspaces/piazza/layergroups/%s.json"
+						: "%s:%s/geoserver/rest/workspaces/piazza/layergroups.json", geoserverHost, geoserverPort, layerGroup.getLayerGroup().getName());
 
 		// Send
 		ResponseEntity<String> response = null;
