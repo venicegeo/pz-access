@@ -32,9 +32,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
-import access.database.Accessor;
+import access.database.DatabaseAccessor;
 import access.deploy.Deployer;
 import access.deploy.GroupDeployer;
+import access.deploy.geoserver.AuthHeaders;
 import model.data.deployment.Deployment;
 import model.data.deployment.DeploymentGroup;
 import util.PiazzaLogger;
@@ -52,11 +53,13 @@ public class GroupDeployerTests {
 	@Mock
 	private UUIDFactory uuidFactory;
 	@Mock
-	private Accessor accessor;
+	private DatabaseAccessor accessor;
 	@Mock
 	private Deployer deployer;
 	@Mock
 	private RestTemplate restTemplate;
+	@Mock
+	private AuthHeaders geoServerHeaders;
 	@InjectMocks
 	private GroupDeployer groupDeployer;
 
@@ -75,8 +78,6 @@ public class GroupDeployerTests {
 
 		mockDeployment = new Deployment("123456", "123456", "localhost", "8080", "layer", "getCapabilities");
 		mockGroup = new DeploymentGroup("123456", "Tester");
-
-		Mockito.doCallRealMethod().when(deployer).getGeoServerHeaders();
 	}
 
 	/**

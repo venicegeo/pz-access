@@ -1,5 +1,5 @@
 /**
- * Copyright 2016, RadiantBlue Technologies, Inc.
+f_ * Copyright 2016, RadiantBlue Technologies, Inc.
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,12 +31,12 @@ import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.mongodb.MongoInterruptedException;
 
-import access.database.Accessor;
+import access.database.DatabaseAccessor;
 import access.deploy.Deployer;
 import access.deploy.GroupDeployer;
 import access.deploy.Leaser;
+import exception.DataInspectException;
 import exception.GeoServerException;
 import exception.InvalidInputException;
 import messaging.job.JobMessageFactory;
@@ -70,7 +70,7 @@ public class AccessWorker {
 	@Autowired
 	private GroupDeployer groupDeployer;
 	@Autowired
-	private Accessor accessor;
+	private DatabaseAccessor accessor;
 	@Autowired
 	private Leaser leaser;
 	@Autowired
@@ -82,16 +82,17 @@ public class AccessWorker {
 
 	/**
 	 * Listens for Kafka Access messages for creating Deployments for Access of Resources
+	 * @throws InterruptedException 
 	 */
 	@Async
 	public Future<AccessJob> run(ConsumerRecord<String, String> consumerRecord, Producer<String, String> producer,
-			WorkerCallback callback) {
+			WorkerCallback callback) throws InterruptedException {
 		AccessJob accessJob = null;
 		try {
 			// Parse Job information from Kafka
 			ObjectMapper mapper = new ObjectMapper();
 			Job job = mapper.readValue(consumerRecord.value(), Job.class);
-			accessJob = (AccessJob) job.jobType;
+			accessJob = (AccessJob) job.getJobType();
 
 			// Validate inputs for the Kafka Message
 			if ((accessJob.getDataId() == null) || (accessJob.getDataId().isEmpty())) {
@@ -113,97 +114,12 @@ public class AccessWorker {
 				throw new InterruptedException();
 			}
 
-			// Update Status that this Job is being processed
-			StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_RUNNING);
-			producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate, space));
+			processGeoServerType(job, accessJob, producer, consumerRecord.key());
 
-			// Depending on how the user wants to Access the Resource
-			if (accessJob.getDeploymentType().equals(AccessJob.ACCESS_TYPE_GEOSERVER)) {
-				Deployment deployment = null;
-
-				// Check if a Deployment already exists
-				boolean exists = deployer.doesDeploymentExist(accessJob.getDataId());
-				if (exists) {
-					LOGGER.info("Renewing Deployment Lease for " + accessJob.getDataId());
-					// If it does, then renew the Lease on the
-					// existing deployment.
-					deployment = accessor.getDeploymentByDataId(accessJob.getDataId());
-					leaser.renewDeploymentLease(deployment, accessJob.getDurationDays());
-				} else {
-					LOGGER.info("Creating a new Deployment and lease for " + accessJob.getDataId());
-					// Obtain the Data to be deployed
-					DataResource dataToDeploy = accessor.getData(accessJob.getDataId());
-					if (dataToDeploy == null) {
-						throw new InvalidInputException(String.format("Data with Id %s does not exist.", accessJob.getDataId()));
-					}
-					// Create the Deployment
-					deployment = deployer.createDeployment(dataToDeploy);
-					// Create a new Lease for this Deployment
-					leaser.createDeploymentLease(deployment, accessJob.getDurationDays());
-				}
-
-				if (Thread.interrupted()) {
-					throw new InterruptedException();
-				}
-
-				// Check if the user has requested this layer be added to a new
-				// group layer.
-				if ((accessJob.getDeploymentGroupId() != null) && (!accessJob.getDeploymentGroupId().isEmpty())) {
-					// First verify that the Deployment exists in GeoServer . This is to avoid a race condition where
-					// another Deployment Job in Piazza is responsible for creating the Deployment Layer for the Data ID
-					// - but has not finished publishing this layer to GeoServer yet.
-					boolean geoServerLayerExists = false;
-					try {
-						geoServerLayerExists = deployer.doesGeoServerLayerExist(deployment.getLayer());
-					} catch (Exception exception) {
-						String error = String.format("Could not create Deployment Group: %s", exception.getMessage());
-						LOGGER.error(error, exception);
-						pzLogger.log(error, Severity.ERROR);
-						throw new GeoServerException(error);
-					}
-
-					if (geoServerLayerExists) {
-						// First, Check if the Deployment Group exists
-						DeploymentGroup deploymentGroup = accessor.getDeploymentGroupById(accessJob.getDeploymentGroupId());
-						if (deploymentGroup == null) {
-							throw new InvalidInputException(
-									String.format("Deployment Group with Id %s does not exist.", accessJob.getDeploymentGroupId()));
-						}
-						// Add the Layer to the Deployment Group
-						List<Deployment> deployments = new ArrayList<>();
-						deployments.add(deployment);
-						groupDeployer.updateDeploymentGroup(deploymentGroup, deployments);
-					} else {
-						// If the Layer does not exist on GeoServer yet, but Piazza has reported that a Deployment
-						// exists, then another Job is likely processing this Deployment and has not yet finished. Send
-						// an error back to the user to try again later.
-						String error = String.format("Could not create Deployment Group. The GeoServer layer for %s does not exist.",
-								deployment.getLayer());
-						pzLogger.log(error, Severity.WARNING);
-						throw new GeoServerException(error);
-					}
-				}
-
-				if (Thread.interrupted()) {
-					throw new InterruptedException();
-				}
-
-				// Update Job Status to complete for this Job.
-				statusUpdate = new StatusUpdate(StatusUpdate.STATUS_SUCCESS);
-				statusUpdate.setResult(new DeploymentResult(deployment));
-				producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate, space));
-
-				// Console Logging
-				pzLogger.log(String.format("GeoServer Deployment successul for Resource %s by user %s", accessJob.getDataId(), job.getCreatedBy()), Severity.INFORMATIONAL,
-						new AuditElement(job.getJobId(), "accessData", accessJob.getDataId()));
-				LOGGER.info("Deployment Successfully Returned for Resource " + accessJob.getDataId());
-			} else {
-				throw new InvalidInputException("Unknown Deployment Type: " + accessJob.getDeploymentType());
-			}
-		} catch (MongoInterruptedException | InterruptedException exception) {
+		} catch (InterruptedException exception) {
 			String error = String.format("Thread interrupt received for Job %s", consumerRecord.key());
-			LOGGER.error(error, exception, new AuditElement(consumerRecord.key(), "accessJobTerminated", ""));
-			pzLogger.log(error, Severity.INFORMATIONAL);
+			LOGGER.error(error, exception);
+			pzLogger.log(error, Severity.INFORMATIONAL, new AuditElement(consumerRecord.key(), "accessJobTerminated", ""));
 			StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_CANCELLED);
 			try {
 				producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate, space));
@@ -212,8 +128,9 @@ public class AccessWorker {
 						"Error sending Cancelled Status from Job %s: %s. The Job was cancelled, but its status will not be updated in the Job Manager.",
 						consumerRecord.key(), jsonException.getMessage());
 				LOGGER.error(error, jsonException);
-				pzLogger.log(error, Severity.ERROR);
+				pzLogger.log(error, Severity.ERROR, new AuditElement(consumerRecord.key(), "failedToSendCancelledStatus", ""));
 			}
+			throw exception;
 		} catch (Exception exception) {
 			String error = String.format("Error Accessing Data under Job %s with Error: %s", consumerRecord.key(), exception.getMessage());
 			LOGGER.error(error, exception, new AuditElement(consumerRecord.key(), "failedAccessData", ""));
@@ -240,5 +157,102 @@ public class AccessWorker {
 		}
 
 		return new AsyncResult<>(accessJob);
+	}
+
+	private void processGeoServerType(Job job, AccessJob accessJob, Producer<String, String> producer, String key)
+			throws JsonProcessingException, InvalidInputException, InterruptedException, GeoServerException, DataInspectException {
+		// Update Status that this Job is being processed
+		StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_RUNNING);
+		producer.send(JobMessageFactory.getUpdateStatusMessage(key, statusUpdate, space));
+
+		// Depending on how the user wants to Access the Resource
+		if (accessJob.getDeploymentType().equals(AccessJob.ACCESS_TYPE_GEOSERVER)) {
+			Deployment deployment;
+
+			// Check if a Deployment already exists
+			boolean exists = deployer.doesDeploymentExist(accessJob.getDataId());
+			if (exists) {
+				LOGGER.info("Renewing Deployment Lease for " + accessJob.getDataId());
+				// If it does, then renew the Lease on the
+				// existing deployment.
+				deployment = accessor.getDeploymentByDataId(accessJob.getDataId());
+				leaser.renewDeploymentLease(deployment, accessJob.getDurationDays());
+			} else {
+				LOGGER.info("Creating a new Deployment and lease for " + accessJob.getDataId());
+				// Obtain the Data to be deployed
+				DataResource dataToDeploy = accessor.getData(accessJob.getDataId());
+				if (dataToDeploy == null) {
+					throw new InvalidInputException(String.format("Data with Id %s does not exist.", accessJob.getDataId()));
+				}
+				// Create the Deployment
+				deployment = deployer.createDeployment(dataToDeploy);
+				// Create a new Lease for this Deployment
+				leaser.createDeploymentLease(deployment, accessJob.getDurationDays());
+			}
+
+			if (Thread.interrupted()) {
+				throw new InterruptedException();
+			}
+
+			// Check if the user has requested this layer be added to a new group layer.
+			if ((accessJob.getDeploymentGroupId() != null) && (!accessJob.getDeploymentGroupId().isEmpty())) {
+				addToNewLayerGroup(deployment, accessJob);
+			}
+
+			if (Thread.interrupted()) {
+				throw new InterruptedException();
+			}
+
+			// Update Job Status to complete for this Job.
+			statusUpdate = new StatusUpdate(StatusUpdate.STATUS_SUCCESS);
+			statusUpdate.setResult(new DeploymentResult(deployment));
+			producer.send(JobMessageFactory.getUpdateStatusMessage(key, statusUpdate, space));
+
+			// Console Logging
+			pzLogger.log(
+					String.format("GeoServer Deployment successful for Resource %s by user %s", accessJob.getDataId(), job.getCreatedBy()),
+					Severity.INFORMATIONAL, new AuditElement(job.getJobId(), "accessData", accessJob.getDataId()));
+			LOGGER.info("Deployment Successfully Returned for Resource " + accessJob.getDataId());
+		} else {
+			throw new InvalidInputException("Unknown Deployment Type: " + accessJob.getDeploymentType());
+		}
+	}
+
+	private void addToNewLayerGroup(Deployment deployment, AccessJob accessJob)
+			throws GeoServerException, InvalidInputException, DataInspectException {
+		// First verify that the Deployment exists in GeoServer . This is to avoid a race condition where
+		// another Deployment Job in Piazza is responsible for creating the Deployment Layer for the Data ID
+		// - but has not finished publishing this layer to GeoServer yet.
+		boolean geoServerLayerExists = false;
+		try {
+			geoServerLayerExists = deployer.doesGeoServerLayerExist(deployment.getLayer());
+		} catch (Exception exception) {
+			String error = String.format("Could not create Deployment Group: %s", exception.getMessage());
+			LOGGER.error(error, exception);
+			pzLogger.log(error, Severity.ERROR);
+			throw new GeoServerException(error);
+		}
+
+		if (geoServerLayerExists) {
+			// First, Check if the Deployment Group exists
+			DeploymentGroup deploymentGroup = accessor.getDeploymentGroupById(accessJob.getDeploymentGroupId());
+			if (deploymentGroup == null) {
+				throw new InvalidInputException(
+						String.format("Deployment Group with Id %s does not exist.", accessJob.getDeploymentGroupId()));
+			}
+
+			// Add the Layer to the Deployment Group
+			List<Deployment> deployments = new ArrayList<>();
+			deployments.add(deployment);
+			groupDeployer.updateDeploymentGroup(deploymentGroup, deployments);
+		} else {
+			// If the Layer does not exist on GeoServer yet, but Piazza has reported that a Deployment
+			// exists, then another Job is likely processing this Deployment and has not yet finished. Send
+			// an error back to the user to try again later.
+			String error = String.format("Could not create Deployment Group. The GeoServer layer for %s does not exist.",
+					deployment.getLayer());
+			pzLogger.log(error, Severity.WARNING);
+			throw new GeoServerException(error);
+		}
 	}
 }

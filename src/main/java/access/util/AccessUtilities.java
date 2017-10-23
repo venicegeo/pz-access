@@ -30,7 +30,6 @@ import model.data.FileRepresentation;
 import model.data.location.FileAccessFactory;
 import model.data.location.FileLocation;
 import model.data.location.S3FileStore;
-import model.data.type.RasterDataType;
 import model.logger.AuditElement;
 import model.logger.Severity;
 import util.PiazzaLogger;
@@ -83,7 +82,7 @@ public class AccessUtilities {
 	 */
 	public FileAccessFactory getFileFactoryForDataResource(DataResource dataResource) {
 		// If S3 store, determine if this is the Piazza bucket (use encryption) or not (dont use encryption)
-		FileAccessFactory fileFactory = new FileAccessFactory();
+		final FileAccessFactory fileFactory;
 		FileLocation fileLocation = ((FileRepresentation) dataResource.getDataType()).getLocation();
 		if (fileLocation instanceof S3FileStore) {
 			if (PIAZZA_BUCKET.equals(((S3FileStore) fileLocation).getBucketName())) {

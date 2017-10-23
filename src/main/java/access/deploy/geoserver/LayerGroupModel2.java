@@ -30,39 +30,95 @@ import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlRootElement;
  *
  */
 public class LayerGroupModel2 {
-	public LayerGroup2 layerGroup = new LayerGroup2();
+	private LayerGroup2 layerGroup = new LayerGroup2();
 
 	public LayerGroupModel2() {
 		// Needed for Jackson support.
 	}
 
+	public LayerGroup2 getLayerGroup() {
+		return layerGroup;
+	}
+
+	public void setLayerGroup(LayerGroup2 layerGroup) {
+		this.layerGroup = layerGroup;
+	}
+
 	@JacksonXmlRootElement(localName = "layerGroup")
 	public static class LayerGroup2 {
 		@JacksonXmlProperty(isAttribute = false, localName = "name")
-		public String name;
-		public String mode = "SINGLE";
+		private String name;
+		private String mode = "SINGLE";
 
 		@JacksonXmlElementWrapper(localName = "publishables")
 		@JacksonXmlProperty(localName = "published")
-		public List<GroupLayer2> published = new ArrayList<>();
+		private List<GroupLayer2> published = new ArrayList<>();
 
 		@JacksonXmlElementWrapper(localName = "styles")
 		@JacksonXmlProperty(localName = "style")
-		public List<String> style = new ArrayList<>();
+		private List<String> style = new ArrayList<>();
 
 		public LayerGroup2() {
 			// Needed for Jackson support.
+		}
+
+		public String getName() {
+			return name;
+		}
+
+		public void setName(String name) {
+			this.name = name;
+		}
+
+		public String getMode() {
+			return mode;
+		}
+
+		public void setMode(String mode) {
+			this.mode = mode;
+		}
+
+		public List<GroupLayer2> getPublished() {
+			return published;
+		}
+
+		public void setPublished(List<GroupLayer2> published) {
+			this.published = published;
+		}
+
+		public List<String> getStyle() {
+			return style;
+		}
+
+		public void setStyle(List<String> style) {
+			this.style = style;
 		}
 	}
 
 	public static class GroupLayer2 {
 		@JacksonXmlProperty(isAttribute = true)
-		public String type = "layer";
+		private String type = "layer";
 
-		public String name;
+		private String name;
 
 		public GroupLayer2() {
 			// Needed for Jackson support.
+		}
+
+		public String getType() {
+			return type;
+		}
+
+		public void setType(String type) {
+			this.type = type;
+		}
+
+		public String getName() {
+			return name;
+		}
+
+		public void setName(String name) {
+			this.name = name;
 		}
 	}
 }

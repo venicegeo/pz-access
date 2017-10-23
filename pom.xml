@@ -18,7 +18,7 @@
 	<repositories>
 		<repository>
 			<id>nexus</id>
-			<url>https://nexus.devops.geointservices.io/content/repositories/Piazza-Group/</url>
+			<url>${env.ARTIFACT_STORAGE_URL}</url>
 		</repository>
 	</repositories>
 
@@ -43,6 +43,17 @@
 		</dependency>
 
 		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-data-jpa</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>org.postgresql</groupId>
+			<artifactId>postgresql</artifactId>
+			<version>42.1.1</version>
+		</dependency>
+
+		<dependency>
 			<groupId>org.apache.kafka</groupId>
 			<artifactId>kafka-clients</artifactId>
 			<version>0.9.0.1</version>
@@ -57,13 +68,12 @@
 		<dependency>
 			<groupId>org.venice.piazza</groupId>
 			<artifactId>pz-jobcommon</artifactId>
-			<version>elastic6</version>
+			<version>sonny1</version>
 		</dependency>
 
 		<dependency>
 			<groupId>com.fasterxml.jackson.dataformat</groupId>
 			<artifactId>jackson-dataformat-xml</artifactId>
-			<version>2.6.3</version>
 		</dependency>
 
 		<dependency>
@@ -75,12 +85,6 @@
 		<dependency>
 			<groupId>joda-time</groupId>
 			<artifactId>joda-time</artifactId>
-		</dependency>
-
-		<dependency>
-			<groupId>org.mongojack</groupId>
-			<artifactId>mongojack</artifactId>
-			<version>2.1.0</version>
 		</dependency>
 
 		<dependency>
