@@ -50,6 +50,8 @@ public class AccessUtilities {
 	private String PIAZZA_BUCKET;
 	@Value("${vcap.services.pz-blobstore.credentials.encryption_key}")
 	private String S3_KMS_CMK_ID;
+	@Value("${s3.use.kms}")
+	private Boolean USE_KMS;
 	@Autowired
 	private PiazzaLogger logger;
 
@@ -86,10 +88,13 @@ public class AccessUtilities {
 		FileLocation fileLocation = ((FileRepresentation) dataResource.getDataType()).getLocation();
 		if (fileLocation instanceof S3FileStore) {
 			if (PIAZZA_BUCKET.equals(((S3FileStore) fileLocation).getBucketName())) {
-				// Use encryption
-				fileFactory = new FileAccessFactory(amazonS3AccessKey, amazonS3PrivateKey, S3_KMS_CMK_ID);
+				// Use encryption if enabled
+				if (USE_KMS.booleanValue()) {
+					fileFactory = new FileAccessFactory(amazonS3AccessKey, amazonS3PrivateKey, S3_KMS_CMK_ID);
+				} else {
+					fileFactory = new FileAccessFactory(amazonS3AccessKey, amazonS3PrivateKey);
+				}
 			} else {
-				// Don't use
 				fileFactory = new FileAccessFactory(amazonS3AccessKey, amazonS3PrivateKey);
 			}
 		} else {
