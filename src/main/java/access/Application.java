@@ -57,6 +57,8 @@ import org.apache.http.impl.cookie.DefaultCookieSpec;
 import org.apache.http.protocol.HttpContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.amqp.core.Queue;
+import org.springframework.amqp.rabbit.annotation.EnableRabbit;
 import org.springframework.aop.interceptor.AsyncUncaughtExceptionHandler;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
@@ -81,10 +83,10 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 import org.springframework.web.client.RestTemplate;
 
+import messaging.job.JobMessageFactory;
 import access.deploy.geoserver.AuthHeaders;
 import access.deploy.geoserver.BasicAuthHeaders;
 import access.deploy.geoserver.PKIAuthHeaders;
-
 
 @SpringBootApplication
 @Configuration
@@ -92,6 +94,7 @@ import access.deploy.geoserver.PKIAuthHeaders;
 @EnableScheduling
 @EnableAutoConfiguration
 @EnableTransactionManagement
+@EnableRabbit
 @EnableJpaRepositories(basePackages = { "org.venice.piazza.common.hibernate" })
 @EntityScan(basePackages = { "org.venice.piazza.common.hibernate" })
 @ComponentScan(basePackages = { "access", "util", "org.venice.piazza" })
@@ -100,12 +103,20 @@ public class Application extends SpringBootServletInitializer implements AsyncCo
 	private int threadCountSize;
 	@Value("${thread.count.limit}")
 	private int threadCountLimit;
+	@Value("${SPACE}")
+	private String SPACE;
 
 	private static final Logger LOG = LoggerFactory.getLogger(Application.class);
 
 	@Override
 	protected SpringApplicationBuilder configure(SpringApplicationBuilder builder) {
 		return builder.sources(Application.class);
+	}
+
+	@Bean
+	public Queue updateJobsQueue() {
+		return new Queue(String.format(JobMessageFactory.TOPIC_TEMPLATE, JobMessageFactory.UPDATE_JOB_TOPIC_NAME, SPACE), true, false,
+				false);
 	}
 
 	public static void main(String[] args) {
@@ -124,7 +135,8 @@ public class Application extends SpringBootServletInitializer implements AsyncCo
 
 	@Override
 	public AsyncUncaughtExceptionHandler getAsyncUncaughtExceptionHandler() {
-		return (ex, method, params) -> LOG.error("Uncaught Threading exception encountered in {} with details: {}", ex.getMessage(), method.getName());
+		return (ex, method, params) -> LOG.error("Uncaught Threading exception encountered in {} with details: {}", ex.getMessage(),
+				method.getName());
 	}
 	
 	@Configuration

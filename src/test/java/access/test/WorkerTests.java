@@ -17,23 +17,16 @@ package access.test;
 
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.eq;
-import static org.mockito.Matchers.isA;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.util.concurrent.Future;
-import java.util.concurrent.FutureTask;
-
-import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.clients.producer.Producer;
-import org.apache.kafka.clients.producer.ProducerRecord;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
+import org.springframework.amqp.core.Queue;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -41,13 +34,14 @@ import access.database.DatabaseAccessor;
 import access.deploy.Deployer;
 import access.deploy.Leaser;
 import access.messaging.AccessWorker;
+import messaging.job.JobMessageFactory;
 import messaging.job.WorkerCallback;
 import model.job.Job;
 import model.job.type.AccessJob;
 import util.PiazzaLogger;
 
 /**
- * Tests the Access Worker, which processes Kafka messages
+ * Tests the Access Worker, which processes messages
  * 
  * @author Patrick.Doody
  *
@@ -62,7 +56,12 @@ public class WorkerTests {
 	@Mock
 	private PiazzaLogger logger;
 	@Mock
-	private Producer<String, String> producer;
+	private Queue updateJobsQueue;
+	@Mock
+	private RabbitTemplate rabbitTemplate;
+	@Mock
+	private ObjectMapper mapper;
+
 	@InjectMocks
 	private AccessWorker worker;
 
@@ -73,25 +72,17 @@ public class WorkerTests {
 	public void setup() {
 		MockitoAnnotations.initMocks(this);
 
-		// Mock the Kafka response that Producers will send. This will always
-		// return a Future that completes immediately and simply returns true.
-		when(producer.send(isA(ProducerRecord.class))).thenAnswer(new Answer<Future<Boolean>>() {
-			@Override
-			public Future<Boolean> answer(InvocationOnMock invocation) throws Throwable {
-				Future<Boolean> future = mock(FutureTask.class);
-				when(future.isDone()).thenReturn(true);
-				when(future.get()).thenReturn(true);
-				return future;
-			}
-		});
 	}
 
 	/**
-	 * Tests handling a Kafka message. Verify no exceptions.
+	 * Tests handling a message. Verify no exceptions.
 	 */
 	@Test
 	public void testWorker() throws Exception {
 		// Mock
+		when(updateJobsQueue.getName()).thenReturn("Update-Job-Unit-Test");
+		Mockito.doNothing().when(rabbitTemplate).convertAndSend(eq(JobMessageFactory.PIAZZA_EXCHANGE_NAME), eq("123456"),
+				Mockito.anyString());
 		Job mockJob = new Job();
 		mockJob.setJobId("123456");
 		mockJob.setCreatedBy("Test User");
@@ -99,8 +90,6 @@ public class WorkerTests {
 		accessJob.deploymentType = AccessJob.ACCESS_TYPE_GEOSERVER;
 		accessJob.dataId = "123456";
 		mockJob.setJobType(accessJob);
-		ConsumerRecord<String, String> mockRecord = new ConsumerRecord<String, String>("Access", 0, 0, "123456",
-				new ObjectMapper().writeValueAsString(mockJob));
 		WorkerCallback callback = new WorkerCallback() {
 			@Override
 			public void onComplete(String jobId) {
@@ -110,15 +99,14 @@ public class WorkerTests {
 
 		// Test when refreshing an expired lease
 		when(deployer.doesDeploymentExist(eq("123456"))).thenReturn(true);
-		worker.run(mockRecord, producer, callback);
+		worker.run(mockJob, callback);
 
 		// Test when a current lease doesn't exist - new is created
 		when(deployer.doesDeploymentExist(eq("123456"))).thenReturn(false);
-		worker.run(mockRecord, producer, callback);
+		worker.run(mockJob, callback);
 
 		// Test inner exceptions during deployment
 		accessJob.deploymentType = "Mock";
-		mockRecord = new ConsumerRecord<String, String>("Access", 0, 0, "123456", new ObjectMapper().writeValueAsString(mockJob));
-		worker.run(mockRecord, producer, callback);
+		worker.run(mockJob, callback);
 	}
 }

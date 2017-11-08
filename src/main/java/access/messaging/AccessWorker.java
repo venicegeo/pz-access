@@ -19,10 +19,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Future;
 
-import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.clients.producer.Producer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.amqp.core.Queue;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
@@ -54,7 +54,7 @@ import model.status.StatusUpdate;
 import util.PiazzaLogger;
 
 /**
- * Worker class that handles Access Jobs being passed in through the Kafka. Handles the Access Jobs by standing up
+ * Worker class that handles Access Jobs being passed in through the Message Bus. Handles the Access Jobs by standing up
  * services, retrieving files, or other various forms of Access for data.
  * 
  * This component assumes that the data intended to be accessed is already ingested into the Piazza system; either by
@@ -74,27 +74,30 @@ public class AccessWorker {
 	@Autowired
 	private Leaser leaser;
 	@Autowired
+	private ObjectMapper mapper;
+	@Autowired
 	private PiazzaLogger pzLogger;
+	@Autowired
+	private Queue updateJobsQueue;
+	@Autowired
+	private RabbitTemplate rabbitTemplate;
+
 	@Value("${SPACE}")
 	private String space;
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(AccessWorker.class);
 
 	/**
-	 * Listens for Kafka Access messages for creating Deployments for Access of Resources
-	 * @throws InterruptedException 
+	 * Listens for Access messages for creating Deployments for Access of Resources
 	 */
 	@Async
-	public Future<AccessJob> run(ConsumerRecord<String, String> consumerRecord, Producer<String, String> producer,
-			WorkerCallback callback) throws InterruptedException {
+	public Future<AccessJob> run(Job job, WorkerCallback callback) throws InterruptedException {
 		AccessJob accessJob = null;
 		try {
-			// Parse Job information from Kafka
-			ObjectMapper mapper = new ObjectMapper();
-			Job job = mapper.readValue(consumerRecord.value(), Job.class);
+			// Parse the Job information
 			accessJob = (AccessJob) job.getJobType();
 
-			// Validate inputs for the Kafka Message
+			// Validate inputs for the Message
 			if ((accessJob.getDataId() == null) || (accessJob.getDataId().isEmpty())) {
 				throw new InvalidInputException(String.format("An invalid or empty Data Id was specified: %s", accessJob.getDataId()));
 			}
@@ -114,56 +117,59 @@ public class AccessWorker {
 				throw new InterruptedException();
 			}
 
-			processGeoServerType(job, accessJob, producer, consumerRecord.key());
+			processGeoServerType(job, accessJob, job.getJobId());
 
 		} catch (InterruptedException exception) {
-			String error = String.format("Thread interrupt received for Job %s", consumerRecord.key());
+			String error = String.format("Thread interrupt received for Job %s", job.getJobId());
 			LOGGER.error(error, exception);
-			pzLogger.log(error, Severity.INFORMATIONAL, new AuditElement(consumerRecord.key(), "accessJobTerminated", ""));
+			pzLogger.log(error, Severity.INFORMATIONAL, new AuditElement(job.getJobId(), "accessJobTerminated", ""));
 			StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_CANCELLED);
+			statusUpdate.setJobId(job.getJobId());
 			try {
-				producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate, space));
+				rabbitTemplate.convertAndSend(JobMessageFactory.PIAZZA_EXCHANGE_NAME, updateJobsQueue.getName(), mapper.writeValueAsString(statusUpdate));
 			} catch (JsonProcessingException jsonException) {
 				error = String.format(
 						"Error sending Cancelled Status from Job %s: %s. The Job was cancelled, but its status will not be updated in the Job Manager.",
-						consumerRecord.key(), jsonException.getMessage());
+						job.getJobId(), jsonException.getMessage());
 				LOGGER.error(error, jsonException);
-				pzLogger.log(error, Severity.ERROR, new AuditElement(consumerRecord.key(), "failedToSendCancelledStatus", ""));
+				pzLogger.log(error, Severity.ERROR, new AuditElement(job.getJobId(), "failedToSendCancelledStatus", ""));
 			}
 			throw exception;
 		} catch (Exception exception) {
-			String error = String.format("Error Accessing Data under Job %s with Error: %s", consumerRecord.key(), exception.getMessage());
-			LOGGER.error(error, exception, new AuditElement(consumerRecord.key(), "failedAccessData", ""));
+			String error = String.format("Error Accessing Data under Job %s with Error: %s", job.getJobId(), exception.getMessage());
+			LOGGER.error(error, exception, new AuditElement(job.getJobId(), "failedAccessData", ""));
 			pzLogger.log(error, Severity.ERROR);
 
 			try {
 				// Send the failure message to the Job Manager.
 				StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_ERROR);
 				statusUpdate.setResult(new ErrorResult("Could not Deploy Data", exception.getMessage()));
-				producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate, space));
+				statusUpdate.setJobId(job.getJobId());
+				rabbitTemplate.convertAndSend(JobMessageFactory.PIAZZA_EXCHANGE_NAME, updateJobsQueue.getName(), mapper.writeValueAsString(statusUpdate));
 			} catch (JsonProcessingException jsonException) {
-				// If the Kafka message fails to send, at least log
+				// If the Message fails to send, at least log
 				// something in the console.
 				String errorJson = String.format(
 						"Could not update Job Manager with failure event in Ingest Worker. Error creating message: %s",
 						jsonException.getMessage());
 				LOGGER.error(errorJson, jsonException);
-				pzLogger.log(errorJson, Severity.ERROR, new AuditElement(consumerRecord.key(), "failedAccessData", errorJson));
+				pzLogger.log(errorJson, Severity.ERROR, new AuditElement(job.getJobId(), "failedAccessData", errorJson));
 			}
 		} finally {
 			if (callback != null) {
-				callback.onComplete(consumerRecord.key());
+				callback.onComplete(job.getJobId());
 			}
 		}
 
 		return new AsyncResult<>(accessJob);
 	}
 
-	private void processGeoServerType(Job job, AccessJob accessJob, Producer<String, String> producer, String key)
+	private void processGeoServerType(Job job, AccessJob accessJob, String key)
 			throws JsonProcessingException, InvalidInputException, InterruptedException, GeoServerException, DataInspectException {
 		// Update Status that this Job is being processed
 		StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_RUNNING);
-		producer.send(JobMessageFactory.getUpdateStatusMessage(key, statusUpdate, space));
+		statusUpdate.setJobId(key);
+		rabbitTemplate.convertAndSend(JobMessageFactory.PIAZZA_EXCHANGE_NAME, updateJobsQueue.getName(), mapper.writeValueAsString(statusUpdate));
 
 		// Depending on how the user wants to Access the Resource
 		if (accessJob.getDeploymentType().equals(AccessJob.ACCESS_TYPE_GEOSERVER)) {
@@ -206,7 +212,8 @@ public class AccessWorker {
 			// Update Job Status to complete for this Job.
 			statusUpdate = new StatusUpdate(StatusUpdate.STATUS_SUCCESS);
 			statusUpdate.setResult(new DeploymentResult(deployment));
-			producer.send(JobMessageFactory.getUpdateStatusMessage(key, statusUpdate, space));
+			statusUpdate.setJobId(key);
+			rabbitTemplate.convertAndSend(JobMessageFactory.PIAZZA_EXCHANGE_NAME, updateJobsQueue.getName(), mapper.writeValueAsString(statusUpdate));
 
 			// Console Logging
 			pzLogger.log(
