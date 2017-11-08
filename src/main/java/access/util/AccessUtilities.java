@@ -89,7 +89,7 @@ public class AccessUtilities {
 		if (fileLocation instanceof S3FileStore) {
 			if (PIAZZA_BUCKET.equals(((S3FileStore) fileLocation).getBucketName())) {
 				// Use encryption if enabled
-				if (USE_KMS) {
+				if (USE_KMS.booleanValue()) {
 					fileFactory = new FileAccessFactory(amazonS3AccessKey, amazonS3PrivateKey, S3_KMS_CMK_ID);
 				} else {
 					fileFactory = new FileAccessFactory(amazonS3AccessKey, amazonS3PrivateKey);
