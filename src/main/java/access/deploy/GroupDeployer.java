@@ -20,7 +20,6 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
@@ -42,6 +41,7 @@ import access.deploy.geoserver.LayerGroupModel;
 import access.deploy.geoserver.LayerGroupModel.GroupLayer;
 import access.deploy.geoserver.LayerGroupModel.LayerGroup;
 import access.deploy.geoserver.LayerGroupModel2;
+import access.util.AccessUtilities;
 import exception.DataInspectException;
 import exception.GeoServerException;
 import model.data.deployment.Deployment;
@@ -60,10 +60,6 @@ import util.UUIDFactory;
  */
 @Component
 public class GroupDeployer {
-	@Value("${vcap.services.pz-geoserver-efs.credentials.geoserver.hostname}")
-	private String geoserverHost;
-	@Value("${vcap.services.pz-geoserver-efs.credentials.geoserver.port}")
-	private String geoserverPort;
 	@Autowired
 	private PiazzaLogger pzLogger;
 	@Autowired
@@ -74,6 +70,8 @@ public class GroupDeployer {
 	private RestTemplate restTemplate;
 	@Autowired
 	private AuthHeaders authHeaders;
+	@Autowired
+	private AccessUtilities accessUtilities;
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(GroupDeployer.class);
 	private static final String ACCESS = "access";
@@ -233,7 +231,7 @@ public class GroupDeployer {
 		// Create Request
 		authHeaders.setContentType(MediaType.APPLICATION_JSON);
 		HttpEntity<String> request = new HttpEntity<>(authHeaders.get());
-		String url = String.format("%s:%s/geoserver/rest/workspaces/piazza/layergroups/%s.json", geoserverHost, geoserverPort,
+		String url = String.format("%s/rest/workspaces/piazza/layergroups/%s.json", accessUtilities.getGeoServerBaseUrl(),
 				deploymentGroup.deploymentGroupId);
 
 		// Execute
@@ -282,8 +280,8 @@ public class GroupDeployer {
 		HttpEntity<String> request = new HttpEntity<>(authHeaders.get());
 		// Note that XML format is used. This is a work-around because JSON currently has a bug with GeoServer that
 		// prevents a correct response from returning when Layer count is above 5.
-		String url = String.format("%s:%s/geoserver/rest/workspaces/piazza/layergroups/%s.xml", 
-				geoserverHost, geoserverPort, deploymentGroupId);
+		String url = String.format("%s/rest/workspaces/piazza/layergroups/%s.xml", 
+				accessUtilities.getGeoServerBaseUrl(), deploymentGroupId);
 
 		// Execute the request to get the Layer Group
 		ResponseEntity<String> response;
@@ -361,8 +359,8 @@ public class GroupDeployer {
 			throw new DataInspectException(error);
 		}
 		String url = String.format(
-				method.equals(HttpMethod.PUT) ? "%s:%s/geoserver/rest/workspaces/piazza/layergroups/%s.json"
-						: "%s:%s/geoserver/rest/workspaces/piazza/layergroups.json", geoserverHost, geoserverPort, layerGroup.getLayerGroup().getName());
+				method.equals(HttpMethod.PUT) ? "%s/rest/workspaces/piazza/layergroups/%s.json"
+						: "%s/rest/workspaces/piazza/layergroups.json", accessUtilities.getGeoServerBaseUrl(), layerGroup.getLayerGroup().getName());
 
 		// Send
 		ResponseEntity<String> response = null;

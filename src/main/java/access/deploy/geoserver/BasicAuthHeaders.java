@@ -27,13 +27,13 @@ public class BasicAuthHeaders extends HttpHeaders implements AuthHeaders {
 
 	private static final long serialVersionUID = 1L;
 
-	@Value("${vcap.services.pz-geoserver-efs.credentials.geoserver.username}")
+	@Value("${vcap.services.pz-geoserver.credentials.boundless_geoserver_username}")
 	private String geoserverUsername;
-	@Value("${vcap.services.pz-geoserver-efs.credentials.geoserver.password}")
+	@Value("${vcap.services.pz-geoserver.credentials.boundless_geoserver_password}")
 	private String geoserverPassword;
 
 	public HttpHeaders get() {
-		
+
 		// Get the Basic authentication Headers for GeoServer
 		final String plainCredentials = String.format("%s:%s", geoserverUsername, geoserverPassword);
 		final byte[] credentialBytes = plainCredentials.getBytes();

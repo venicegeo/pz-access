@@ -42,6 +42,8 @@ import util.PiazzaLogger;
  */
 @Component
 public class AccessUtilities {
+	@Value("${vcap.services.pz-geoserver.credentials.boundless_geoserver_url}")
+	private String geoserverUrl;
 	@Value("${vcap.services.pz-blobstore.credentials.access_key_id}")
 	private String amazonS3AccessKey;
 	@Value("${vcap.services.pz-blobstore.credentials.secret_access_key}")
@@ -54,6 +56,28 @@ public class AccessUtilities {
 	private Boolean USE_KMS;
 	@Autowired
 	private PiazzaLogger logger;
+
+	/**
+	 * Gets the base GeoServer URL.
+	 * <p>
+	 * The GeoServer URL as reported by On-Demand service tile is something along the lines of:
+	 * "https://geoserver.ip/geoserver/index.html". In our requests to GeoServer, the index.html portion of the URL is
+	 * obstructing. This method will take in the current VCAP variable for the Boundless URL and return the URL base
+	 * (leading up to the /geoserver path) that can be used to construct URLs for proper POST/PUTs to GeoServer.
+	 * </p>
+	 * <p>
+	 * The return value will take on the form of "http://geoserver.ip/geoserver". Protocol will be determined by the
+	 * VCAP variable. Port will be included if defined in the VCAP, otherwise it will not be present. There will be no
+	 * trailing slash at the end of the URL.
+	 * </p>
+	 */
+	public String getGeoServerBaseUrl() {
+		String baseUrl = geoserverUrl;
+		if (geoserverUrl.contains("/index.html")) {
+			baseUrl = geoserverUrl.replace("/index.html", "");
+		}
+		return baseUrl;
+	}
 
 	/**
 	 * Gets the Bytes for a Data Resource

@@ -24,7 +24,6 @@ import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -66,10 +65,6 @@ import util.UUIDFactory;
  */
 @Component
 public class Deployer {
-	@Value("${vcap.services.pz-geoserver-efs.credentials.geoserver.hostname}")
-	private String geoserverHost;
-	@Value("${vcap.services.pz-geoserver-efs.credentials.geoserver.port}")
-	private String geoserverPort;
 	@Autowired
 	private PiazzaLogger pzLogger;
 	@Autowired
@@ -83,10 +78,8 @@ public class Deployer {
 	@Autowired
 	private AuthHeaders authHeaders;
 
-	private static final String HOST_ADDRESS = "%s:%s%s";
-
-	private static final String ADD_LAYER_ENDPOINT = "/geoserver/rest/workspaces/piazza/datastores/piazza/featuretypes/";
-	private static final String CAPABILITIES_URL = "/geoserver/piazza/wfs?service=wfs&version=2.0.0&request=GetCapabilities";
+	private static final String ADD_LAYER_ENDPOINT = "/rest/workspaces/piazza/datastores/piazza/featuretypes/";
+	private static final String CAPABILITIES_URL = "/piazza/wfs?service=wfs&version=2.0.0&request=GetCapabilities";
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(Deployer.class);
 	private static final String ACCESS = "access";
@@ -210,12 +203,12 @@ public class Deployer {
 
 		// Create a new Deployment for this Resource
 		String deploymentId = uuidFactory.getUUID();
-		String capabilitiesUrl = String.format(HOST_ADDRESS, geoserverHost, geoserverPort, CAPABILITIES_URL);
+		String capabilitiesUrl = String.format("%s%s", accessUtilities.getGeoServerBaseUrl(), CAPABILITIES_URL);
 
 		pzLogger.log(String.format("Created PostGIS Table for Resource %s", dataResource.getDataId()), Severity.INFORMATIONAL,
 				new AuditElement(ACCESS, "createPostGisTable", dataResource.getDataId()));
 
-		return new Deployment(deploymentId, dataResource.getDataId(), geoserverHost, geoserverPort, tableName, capabilitiesUrl);
+		return new Deployment(deploymentId, dataResource.getDataId(), accessUtilities.getGeoServerBaseUrl(), null, tableName, capabilitiesUrl);
 	}
 
 	/**
@@ -238,8 +231,8 @@ public class Deployer {
 		HttpEntity<byte[]> request = new HttpEntity<>(fileBytes, authHeaders.get());
 
 		// Send the Request
-		String url = String.format("%s:%s/geoserver/rest/workspaces/piazza/coveragestores/%s/file.geotiff", 
-				geoserverHost, geoserverPort, dataResource.getDataId());
+		String url = String.format("%s/rest/workspaces/piazza/coveragestores/%s/file.geotiff", 
+				accessUtilities.getGeoServerBaseUrl(), dataResource.getDataId());
 		try {
 			pzLogger.log(String.format("Creating new Raster Deployment to %s", url), Severity.INFORMATIONAL,
 					new AuditElement(ACCESS, "deployGeoServerRasterLayer", dataResource.getDataId()));
@@ -281,9 +274,9 @@ public class Deployer {
 
 		// Create a Deployment for this Resource
 		String deploymentId = uuidFactory.getUUID();
-		String capabilitiesUrl = String.format(HOST_ADDRESS, geoserverHost, geoserverPort, CAPABILITIES_URL);
+		String capabilitiesUrl = String.format("%s%s", accessUtilities.getGeoServerBaseUrl(), CAPABILITIES_URL);
 		String deploymentLayerName = dataResource.getDataId();
-		return new Deployment(deploymentId, dataResource.getDataId(), geoserverHost, geoserverPort, deploymentLayerName, capabilitiesUrl);
+		return new Deployment(deploymentId, dataResource.getDataId(), accessUtilities.getGeoServerBaseUrl(), null, deploymentLayerName, capabilitiesUrl);
 	}
 
 	/**
@@ -306,7 +299,7 @@ public class Deployer {
 		// Delete the Deployment Layer from GeoServer
 		authHeaders.setContentType(MediaType.APPLICATION_JSON);
 		HttpEntity<String> request = new HttpEntity<>(authHeaders.get());
-		String url = String.format("%s:%s/geoserver/rest/layers/%s", geoserverHost, geoserverPort, deployment.getLayer());
+		String url = String.format("%s/rest/layers/%s", accessUtilities.getGeoServerBaseUrl(), deployment.getLayer());
 		try {
 			pzLogger.log(String.format("Deleting Deployment from Resource %s", url), Severity.INFORMATIONAL,
 					new AuditElement(ACCESS, "undeployGeoServerLayer", deploymentId));
@@ -330,8 +323,8 @@ public class Deployer {
 		}
 
 		// If this was a Raster dataset that contained its own unique data store, then delete that Coverage Store.
-		url = String.format("%s:%s/geoserver/rest/workspaces/piazza/coveragestores/%s?purge=all&recurse=true", 
-				geoserverHost, geoserverPort, deployment.getDataId());
+		url = String.format("%s/rest/workspaces/piazza/coveragestores/%s?purge=all&recurse=true", 
+				accessUtilities.getGeoServerBaseUrl(), deployment.getDataId());
 		try {
 			pzLogger.log(String.format("Deleting Coverage Store from Resource %s", url), Severity.INFORMATIONAL,
 					new AuditElement(ACCESS, "deleteGeoServerCoverageStore", deployment.getDataId()));
@@ -372,7 +365,7 @@ public class Deployer {
 	 */
 	private HttpStatus postGeoServerFeatureType(String restURL, String featureType) throws GeoServerException {
 		// Construct the URL for the Service
-		String url = String.format(HOST_ADDRESS, geoserverHost, geoserverPort, restURL);
+		String url = String.format("%s%s", accessUtilities.getGeoServerBaseUrl(), restURL);
 		LOGGER.info("Attempting to push a GeoServer Featuretype {} to URL {}", featureType, url);
 
 		// Create the Request template and execute
@@ -407,7 +400,7 @@ public class Deployer {
 	public boolean doesGeoServerLayerExist(String layerId) throws GeoServerException {
 		authHeaders.setContentType(MediaType.APPLICATION_JSON);
 		HttpEntity<String> request = new HttpEntity<>(authHeaders.get());
-		String url = String.format("%s:%s/geoserver/rest/layers/%s.json", geoserverHost, geoserverPort, layerId);
+		String url = String.format("%s/rest/layers/%s.json", accessUtilities.getGeoServerBaseUrl(), layerId);
 		try {
 			pzLogger.log(String.format("Checking GeoServer if Layer Exists %s", layerId), Severity.INFORMATIONAL,
 					new AuditElement(ACCESS, "checkGeoServerLayerExists", url));

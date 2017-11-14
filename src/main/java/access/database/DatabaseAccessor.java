@@ -34,7 +34,6 @@ import org.venice.piazza.common.hibernate.entity.DataResourceEntity;
 import org.venice.piazza.common.hibernate.entity.DeploymentEntity;
 import org.venice.piazza.common.hibernate.entity.DeploymentGroupEntity;
 import org.venice.piazza.common.hibernate.entity.LeaseEntity;
-import com.google.common.collect.Lists;
 
 import model.data.DataResource;
 import model.data.deployment.Deployment;
@@ -54,15 +53,15 @@ import util.GeoToolsUtil;
 @Component
 public class DatabaseAccessor {
 
-	@Value("${vcap.services.pz-geoserver-efs.credentials.postgres.hostname}")
+	@Value("${vcap.services.pz-postgres.credentials.db_host}")
 	private String postgresHost;
-	@Value("${vcap.services.pz-geoserver-efs.credentials.postgres.port}")
+	@Value("${vcap.services.pz-postgres.credentials.db_port}")
 	private String postgresPort;
-	@Value("${vcap.services.pz-geoserver-efs.credentials.postgres.database}")
+	@Value("${vcap.services.pz-postgres.credentials.db_name}")
 	private String postgresDBName;
-	@Value("${vcap.services.pz-geoserver-efs.credentials.postgres.username}")
+	@Value("${vcap.services.pz-postgres.credentials.username}")
 	private String postgresUser;
-	@Value("${vcap.services.pz-geoserver-efs.credentials.postgres.password}")
+	@Value("${vcap.services.pz-postgres.credentials.password}")
 	private String postgresPassword;
 	@Value("${postgres.schema}")
 	private String postgresSchema;
@@ -293,10 +292,8 @@ public class DatabaseAccessor {
 	 * @return number of Data Resources in the database
 	 */
 	public long getDataCount() {
-		return Lists.newArrayList(getDataResourceCollection()).size();
+		return dataResourceDao.count();
 	}
-
-
 
 	/**
 	 * 

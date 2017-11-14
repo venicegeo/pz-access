@@ -36,6 +36,7 @@ import access.database.DatabaseAccessor;
 import access.deploy.Deployer;
 import access.deploy.GroupDeployer;
 import access.deploy.geoserver.AuthHeaders;
+import access.util.AccessUtilities;
 import model.data.deployment.Deployment;
 import model.data.deployment.DeploymentGroup;
 import util.PiazzaLogger;
@@ -60,6 +61,8 @@ public class GroupDeployerTests {
 	private RestTemplate restTemplate;
 	@Mock
 	private AuthHeaders geoServerHeaders;
+	@Mock
+	private AccessUtilities accessUtilities;
 	@InjectMocks
 	private GroupDeployer groupDeployer;
 

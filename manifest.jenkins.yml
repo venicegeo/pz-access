@@ -9,7 +9,8 @@ applications:
   services:
     - pz-rabbitmq
     - pz-blobstore
-    - pz-geoserver-efs
+    - pz-geoserver
+    - pz-postgres
     - pz-elasticsearch
   env:
     SPRING_PROFILES_ACTIVE: cloud,basic-geoserver-auth
