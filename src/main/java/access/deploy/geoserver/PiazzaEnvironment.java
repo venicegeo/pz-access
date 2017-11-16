@@ -61,6 +61,10 @@ public class PiazzaEnvironment {
 	private String postgresUser;
 	@Value("${vcap.services.pz-postgres.credentials.password}")
 	private String postgresPassword;
+	@Value("${vcap.services.pz-postgres-service-key.credentials.username}")
+	private String postgresServiceKeyUser;
+	@Value("${vcap.services.pz-postgres-service-key.credentials.password}")
+	private String postgresServiceKeyPassword;
 	@Autowired
 	private RestTemplate restTemplate;
 	@Autowired
@@ -191,8 +195,8 @@ public class PiazzaEnvironment {
 		// Create Workspace
 		if (dataStoreBody != null) {
 			// Insert the credential data into the template
-			dataStoreBody = dataStoreBody.replace("$DB_USER", postgresUser);
-			dataStoreBody = dataStoreBody.replace("$DB_PASSWORD", postgresPassword);
+			dataStoreBody = dataStoreBody.replace("$DB_USER", postgresServiceKeyUser);
+			dataStoreBody = dataStoreBody.replace("$DB_PASSWORD", postgresServiceKeyPassword);
 			dataStoreBody = dataStoreBody.replace("$DB_PORT", postgresPort);
 			dataStoreBody = dataStoreBody.replace("$DB_NAME", postgresDatabase);
 			dataStoreBody = dataStoreBody.replace("$DB_HOST", postgresHost);
