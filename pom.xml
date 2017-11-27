@@ -83,7 +83,7 @@
 		<dependency>
 			<groupId>org.venice.piazza</groupId>
 			<artifactId>pz-jobcommon</artifactId>
-			<version>1-0-4-14-gd6f9b5b</version>
+			<version>1-0-4-15-g8cfeb19</version>
 		</dependency>
 
 		<dependency>
