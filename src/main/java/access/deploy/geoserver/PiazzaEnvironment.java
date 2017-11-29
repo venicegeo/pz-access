@@ -133,8 +133,8 @@ public class PiazzaEnvironment {
 				objectMapper.readTree(response.getBody());
 			} catch (IOException exception) {
 				String error = String.format(
-						"Received a non-error response from GeoServer resource check for %s, but it was not valid JSON. Authentication may have failed.",
-						resourceUri);
+						"Received a non-error response from GeoServer resource check for %s, but it was not valid JSON. Authentication may have failed. Contents: %s",
+						resourceUri, response.getBody());
 				LOGGER.error(error, exception);
 				pzLogger.log(error, Severity.ERROR);
 				return false;
