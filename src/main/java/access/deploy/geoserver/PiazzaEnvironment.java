@@ -16,6 +16,7 @@
 package access.deploy.geoserver;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
 
 import javax.annotation.PostConstruct;
@@ -36,6 +37,8 @@ import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import access.util.AccessUtilities;
 import model.logger.AuditElement;
@@ -126,6 +129,18 @@ public class PiazzaEnvironment {
 			pzLogger.log(String.format("Checking if GeoServer Resource Exists at %s", resourceUri), Severity.INFORMATIONAL,
 					new AuditElement(ACCESS, "checkGeoServerResourceExists", resourceUri));
 			ResponseEntity<String> response = restTemplate.exchange(resourceUri, HttpMethod.GET, request, String.class);
+			// Validate that the response body is JSON. Otherwise, an authentication redirect error may have occurred.
+			ObjectMapper objectMapper = new ObjectMapper();
+			try {
+				objectMapper.readTree(response.getBody());
+			} catch (IOException exception) {
+				String error = String.format(
+						"Received a non-error response from GeoServer resource check for %s, but it was not valid JSON. Authentication may have failed.",
+						resourceUri);
+				LOGGER.error(error, exception);
+				pzLogger.log(error, Severity.ERROR);
+				return false;
+			}
 			if (response.getStatusCode().is2xxSuccessful()) {
 				return true;
 			}
