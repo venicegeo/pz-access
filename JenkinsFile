@@ -141,6 +141,7 @@ node {
 			sh "cf set-env ${appName} JKS_FILE piazza.jks"
 			sh "cf set-env ${appName} JKS_PASSPHRASE ${JKS_PASSPHRASE}"
 			sh "cf set-env ${appName} PZ_PASSPHRASE ${PZ_PASSPHRASE}"
+			sh "cf set-env ${appName} SPRING_PROFILES_ACTIVE ${env.SPRING_PROFILES_ACTIVE}"
 			sh "cf start ${appName}"
         } catch (Exception e) {
 			//sh "cf logs --recent ${appName}"
@@ -222,6 +223,7 @@ node {
 			sh "cf set-env ${appName} JKS_FILE piazza.jks"
 			sh "cf set-env ${appName} JKS_PASSPHRASE ${JKS_PASSPHRASE}"
 			sh "cf set-env ${appName} PZ_PASSPHRASE ${PZ_PASSPHRASE}"
+			sh "cf set-env ${appName} SPRING_PROFILES_ACTIVE ${env.SPRING_PROFILES_ACTIVE}"
             sh "cf start ${appName}"
           } catch (Exception e) {
             //sh "cf logs --recent ${appName}"
