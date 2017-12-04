@@ -173,11 +173,24 @@ public class PiazzaEnvironment {
 			pzLogger.log(String.format("Creating Piazza Workspace to %s", uri), Severity.INFORMATIONAL,
 					new AuditElement(ACCESS, "tryCreateGeoServerWorkspace", uri));
 			restTemplate.exchange(uri, HttpMethod.POST, request, String.class);
+			try {
+				// Hack/Workaround: With certain versions of GeoServer, The workspace is not entirely created with this POST request.
+				// In order to properly have layers in this workspace succeed, we must first modify the workspace. Perform
+				// a PUT request that does nothing - but internally in GeoServer this fixes some configuration bug where the
+				// workspace would otherwise not perform properly.
+				String updateWorkspaceUri = String.format("%s/rest/workspaces/piazza.xml", accessUtilities.getGeoServerBaseUrl());
+				restTemplate.exchange(updateWorkspaceUri, HttpMethod.PUT, request, String.class);
+			} catch (HttpClientErrorException | HttpServerErrorException exception) {
+				String error = String.format("Failed to execute a PUT request on the newly-created workspace: %s. This may indicate the workspace may not be fully configured for use.",
+						exception.getResponseBodyAsString());
+				LOGGER.info(error, exception);
+				pzLogger.log(error, Severity.WARNING);
+			}
 		} catch (HttpClientErrorException | HttpServerErrorException exception) {
 			String error = String.format("HTTP Error occurred while trying to create Piazza Workspace: %s",
 					exception.getResponseBodyAsString());
 			LOGGER.info(error, exception);
-			pzLogger.log(error, Severity.WARNING);
+			pzLogger.log(error, Severity.ERROR);
 		} catch (Exception exception) {
 			String error = String.format("Unexpected Error occurred while trying to create Piazza Workspace: %s", exception.getMessage());
 			LOGGER.error(error, exception);
