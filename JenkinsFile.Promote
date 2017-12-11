@@ -90,6 +90,11 @@ withEnv(["CF_HOME=.cf"]) {
           sh "cf set-env ${appName} JKS_FILE piazza.jks"
           sh "cf set-env ${appName} JKS_PASSPHRASE ${JKS_PASSPHRASE}"
           sh "cf set-env ${appName} PZ_PASSPHRASE ${PZ_PASSPHRASE}"
+          if (params.USE_GEOSERVER_PKI_AUTH) {
+            sh "cf set-env ${appName} SPRING_PROFILES_ACTIVE cloud,pki-geoserver-auth"
+          } else {
+            sh "cf set-env ${appName} SPRING_PROFILES_ACTIVE cloud,basic-geoserver-auth"
+          }
           sh "cf start ${appName}"
         } catch (Exception e) {
         try {
