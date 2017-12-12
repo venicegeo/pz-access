@@ -34,7 +34,7 @@ withEnv(["CF_HOME=.cf"]) {
     }
   }
 
-  stage('Build') {
+  stage('Pull Artifact') {
 
     authenticatePcf()
     sh "cf target -o ${env.PCF_ORG} -s ${env.PHASE_TWO_PCF_SPACE}"    
