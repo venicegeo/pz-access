@@ -12,7 +12,6 @@ applications:
     - pz-geoserver
     - pz-postgres
     - pz-postgres-service-key
-    - pz-elasticsearch
   env:
     SPRING_PROFILES_ACTIVE: cloud
     JBP_CONFIG_SPRING_AUTO_RECONFIGURATION: '{enabled: false}'
