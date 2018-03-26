@@ -12,7 +12,7 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>1.5.6.RELEASE</version>
+		<version>1.5.9.RELEASE</version>
 	</parent>
 
 	<repositories>
@@ -22,10 +22,20 @@
 		</repository>
 	</repositories>
 
+	<properties>
+		<java.version>1.8</java.version>
+		<geotools.version>14.2</geotools.version>
+	</properties>
+
 	<dependencies>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-web</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-test</artifactId>
 		</dependency>
 
 		<dependency>
@@ -65,12 +75,13 @@
 		<dependency>
 			<groupId>org.venice.piazza</groupId>
 			<artifactId>pz-jobcommon</artifactId>
-			<version>2-0-0-7-gb51fe13</version>
+			<version>2-0-1-s4-0-gb51fe13</version>
 		</dependency>
 
 		<dependency>
 			<groupId>com.fasterxml.jackson.dataformat</groupId>
 			<artifactId>jackson-dataformat-xml</artifactId>
+			<version>2.8.9</version>
 		</dependency>
 
 		<dependency>
@@ -82,12 +93,7 @@
 		<dependency>
 			<groupId>joda-time</groupId>
 			<artifactId>joda-time</artifactId>
-		</dependency>
-
-		<dependency>
-			<groupId>org.mockito</groupId>
-			<artifactId>mockito-core</artifactId>
-			<scope>test</scope>
+			<version>2.9.4</version>
 		</dependency>
 
 		<dependency>
@@ -99,13 +105,14 @@
 		<dependency>
 			<groupId>org.springframework</groupId>
 			<artifactId>spring-test</artifactId>
-			<version>4.3.5.RELEASE</version>
+			<version>4.3.12.RELEASE</version>
 			<scope>test</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
+			<version>4.12</version>
 			<scope>test</scope>
 		</dependency>
 
@@ -139,13 +146,7 @@
 			<version>${geotools.version}</version>
 		</dependency>
 
-
 	</dependencies>
-
-	<properties>
-		<java.version>1.8</java.version>
-		<geotools.version>14.2</geotools.version>
-	</properties>
 
 	<build>
 		<plugins>
@@ -164,7 +165,7 @@
 					<plugin>
 						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-surefire-plugin</artifactId>
-						<version>2.17</version>
+						<version>2.19.1</version>
 						<configuration>
 							<properties>
 								<property>
