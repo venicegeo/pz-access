@@ -148,6 +148,12 @@
 
 	</dependencies>
 
+	<properties>
+		<java.version>1.8</java.version>
+		<geotools.version>14.2</geotools.version>
+		<sonar.exclusions>**/Application.java</sonar.exclusions>
+	</properties>
+
 	<build>
 		<plugins>
 			<plugin>
