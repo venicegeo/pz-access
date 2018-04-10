@@ -6,10 +6,26 @@ node {
   def zapHome = tool 'ZAProxy_v2_5_0'
   def nodejs = tool 'NodeJS_6'
 
+  stage("Config") {
+    // clone the configuration repository and copy the current configuration
+    def configDir = "${root}/configuration"
+    def configFile = "${root}/config.json"
+    dir(configDir) {
+      git url: "${env.CONFIGURATION_URL}", credentialsId: "${env.CONFIGURATION_CREDS}"
+      sh "mv ${configDir}/${ENVIRONMENT}-config.json ${configFile}"
+      deleteDir()
+    }
+    // read the current configuration
+    def configJson = readJSON file: "${configFile}"
+    for (param in configJson.credparams + configJson.jobparams) { 
+      env."${param.name}" = (param.type == "booleanParam") ? "${param.defaultvalue}".toBoolean() : "${param.defaultvalue}"
+    }
+  }
+  
   stage('Setup') {
     deleteDir()
     // github is open gitlab requires credentials to clone
-    if(env.GITLAB_CREDS) {
+    if(env.USE_GIT_CREDS) {
       git url: "${env.GIT_URL}", branch: "${env.GIT_BRANCH}", credentialsId: "${env.GITLAB_CREDS}"
     } else {
       git url: "${env.GIT_URL}", branch: "${env.GIT_BRANCH}"
@@ -68,7 +84,7 @@ node {
     }
   }
 
-  if(!params.SKIP_SCANS) {
+  if(!env.SKIP_SCANS) {
 	  stage('Scans') {
 		withCredentials([[$class: "StringBinding", credentialsId: "${env.THREADFIX_API_KEY}", variable: "THREADFIX_KEY"]]) {
 		  sh "/jslave/dependency-check/dependency-check/bin/dependency-check.sh --version"
@@ -133,7 +149,7 @@ node {
 			sh "cf set-env ${appName} JKS_FILE piazza.jks"
 			sh "cf set-env ${appName} JKS_PASSPHRASE ${JKS_PASSPHRASE}"
 			sh "cf set-env ${appName} PZ_PASSPHRASE ${PZ_PASSPHRASE}"
-			if (params.USE_GEOSERVER_PKI_AUTH) {
+			if (env.USE_GEOSERVER_PKI_AUTH) {
 				sh "cf set-env ${appName} SPRING_PROFILES_ACTIVE cloud,pki-geoserver-auth"
 			} else {
 				sh "cf set-env ${appName} SPRING_PROFILES_ACTIVE cloud,basic-geoserver-auth"
@@ -150,7 +166,7 @@ node {
         }
       }
     }
-	if(!params.SKIP_SCANS) {
+	if(!env.SKIP_SCANS) {
 		withCredentials([[$class: 'StringBinding', credentialsId: "${env.THREADFIX_API_KEY}", variable: 'THREADFIX_KEY']]) {
 		  sh "mkdir -p ${root}/zap-out"
 		  sh """${zapHome}/zap.sh -cmd \
@@ -180,7 +196,7 @@ node {
     }
   }
 
-  if (!params.SKIP_INTEGRATION_TESTS) {
+  if (!env.SKIP_INTEGRATION_TESTS) {
     stage('Phase One Integration Tests') {
       if(!fileExists("integration-tests")) {
         sh "mkdir -p integration-tests"
@@ -202,7 +218,7 @@ node {
     }
   }
 
-  if(params.DEPLOY_PHASE_TWO) {
+  if(env.DEPLOY_PHASE_TWO) {
     stage('Stage Deploy') {
       if(!fileExists('.cf')) {
         sh "mkdir -p .cf"
@@ -223,7 +239,7 @@ node {
 			sh "cf set-env ${appName} JKS_FILE piazza.jks"
 			sh "cf set-env ${appName} JKS_PASSPHRASE ${JKS_PASSPHRASE}"
 			sh "cf set-env ${appName} PZ_PASSPHRASE ${PZ_PASSPHRASE}"
-			if (params.USE_GEOSERVER_PKI_AUTH) {
+			if (env.USE_GEOSERVER_PKI_AUTH) {
 				sh "cf set-env ${appName} SPRING_PROFILES_ACTIVE cloud,pki-geoserver-auth"
 			} else {
 				sh "cf set-env ${appName} SPRING_PROFILES_ACTIVE cloud,basic-geoserver-auth"
@@ -240,7 +256,7 @@ node {
           }
         }
       }
-	  if(!params.SKIP_SCANS) {
+	  if(!env.SKIP_SCANS) {
 		  withCredentials([[$class: 'StringBinding', credentialsId: "${env.THREADFIX_API_KEY}", variable: 'THREADFIX_KEY']]) {
 			sh """${zapHome}/zap.sh -cmd \
 			-quickout ${root}/zap-out/zap.xml \
