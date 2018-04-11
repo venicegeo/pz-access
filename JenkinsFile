@@ -25,7 +25,7 @@ node {
   stage('Setup') {
     deleteDir()
     // github is open gitlab requires credentials to clone
-    if(env.USE_GIT_CREDS) {
+    if(env.USE_GIT_CREDS.toBoolean()) {
       git url: "${env.GIT_URL}", branch: "${env.GIT_BRANCH}", credentialsId: "${env.GITLAB_CREDS}"
     } else {
       git url: "${env.GIT_URL}", branch: "${env.GIT_BRANCH}"
@@ -84,7 +84,7 @@ node {
     }
   }
 
-  if(!env.SKIP_SCANS) {
+  if(!env.SKIP_SCANS.toBoolean()) {
 	  stage('Scans') {
 		withCredentials([[$class: "StringBinding", credentialsId: "${env.THREADFIX_API_KEY}", variable: "THREADFIX_KEY"]]) {
 		  sh "/jslave/dependency-check/dependency-check/bin/dependency-check.sh --version"
@@ -149,7 +149,7 @@ node {
 			sh "cf set-env ${appName} JKS_FILE piazza.jks"
 			sh "cf set-env ${appName} JKS_PASSPHRASE ${JKS_PASSPHRASE}"
 			sh "cf set-env ${appName} PZ_PASSPHRASE ${PZ_PASSPHRASE}"
-			if (env.USE_GEOSERVER_PKI_AUTH) {
+			if (env.USE_GEOSERVER_PKI_AUTH.toBoolean()) {
 				sh "cf set-env ${appName} SPRING_PROFILES_ACTIVE cloud,pki-geoserver-auth"
 			} else {
 				sh "cf set-env ${appName} SPRING_PROFILES_ACTIVE cloud,basic-geoserver-auth"
@@ -166,7 +166,7 @@ node {
         }
       }
     }
-	if(!env.SKIP_SCANS) {
+	if(!env.SKIP_SCANS.toBoolean()) {
 		withCredentials([[$class: 'StringBinding', credentialsId: "${env.THREADFIX_API_KEY}", variable: 'THREADFIX_KEY']]) {
 		  sh "mkdir -p ${root}/zap-out"
 		  sh """${zapHome}/zap.sh -cmd \
@@ -196,7 +196,7 @@ node {
     }
   }
 
-  if (!env.SKIP_INTEGRATION_TESTS) {
+  if (!env.SKIP_INTEGRATION_TESTS.toBoolean()) {
     stage('Phase One Integration Tests') {
       if(!fileExists("integration-tests")) {
         sh "mkdir -p integration-tests"
@@ -205,7 +205,7 @@ node {
       withCredentials([file(credentialsId: "${POSTMAN_SECRET_FILE}", variable: 'POSTMAN_FILE')]) {
         withEnv(["PATH+=${root}/integration-tests/node_modules/newman/bin:${nodejs}/bin", "PCF_SPACE=${env.PHASE_ONE_PCF_SPACE}", "HOME=${WORKSPACE}"]) {
           dir ("integration-tests") {
-            if(env.INTEGRATION_GITLAB_CREDS) {
+            if(env.INTEGRATION_GITLAB_CREDS.toBoolean()) {
                 git url: "${env.INTEGRATION_GIT_URL}", branch: "${env.INTEGRATION_GIT_BRANCH}", credentialsId: "${env.INTEGRATION_GITLAB_CREDS}"
             } else {
                 git url: "${env.INTEGRATION_GIT_URL}", branch: "${env.INTEGRATION_GIT_BRANCH}"
@@ -218,7 +218,7 @@ node {
     }
   }
 
-  if(env.DEPLOY_PHASE_TWO) {
+  if(env.DEPLOY_PHASE_TWO.toBoolean()) {
     stage('Stage Deploy') {
       if(!fileExists('.cf')) {
         sh "mkdir -p .cf"
@@ -239,7 +239,7 @@ node {
 			sh "cf set-env ${appName} JKS_FILE piazza.jks"
 			sh "cf set-env ${appName} JKS_PASSPHRASE ${JKS_PASSPHRASE}"
 			sh "cf set-env ${appName} PZ_PASSPHRASE ${PZ_PASSPHRASE}"
-			if (env.USE_GEOSERVER_PKI_AUTH) {
+			if (env.USE_GEOSERVER_PKI_AUTH.toBoolean()) {
 				sh "cf set-env ${appName} SPRING_PROFILES_ACTIVE cloud,pki-geoserver-auth"
 			} else {
 				sh "cf set-env ${appName} SPRING_PROFILES_ACTIVE cloud,basic-geoserver-auth"
@@ -256,7 +256,7 @@ node {
           }
         }
       }
-	  if(!env.SKIP_SCANS) {
+	  if(!env.SKIP_SCANS.toBoolean()) {
 		  withCredentials([[$class: 'StringBinding', credentialsId: "${env.THREADFIX_API_KEY}", variable: 'THREADFIX_KEY']]) {
 			sh """${zapHome}/zap.sh -cmd \
 			-quickout ${root}/zap-out/zap.xml \
