@@ -118,7 +118,7 @@ public class PiazzaEnvironment {
 		try {
 			String dataStoreUri = String.format("%s/rest/workspaces/piazza/datastores/piazza.json", accessUtilities.getGeoServerBaseUrl());
 			if (!doesResourceExist(dataStoreUri)) {
-				createPostgresStore(restTemplate);
+				createPostgresStore();
 			} else {
 				LOGGER.info("GeoServer Piazza Data Store found.");
 			}
@@ -214,7 +214,7 @@ public class PiazzaEnvironment {
 	/**
 	 * Creates the Piazza Postgres vector data store
 	 */
-	private void createPostgresStore(RestTemplate restTemplate) {
+	private void createPostgresStore() {
 		// Get Request XML
 		ClassLoader classLoader = getClass().getClassLoader();
 		InputStream inputStream = null;
