@@ -70,7 +70,7 @@ public class PiazzaEnvironment {
 	private String postgresServiceKeyUser;
 	@Value("${vcap.services.pz-postgres-service-key.credentials.password}")
 	private String postgresServiceKeyPassword;
-    @Value("${piazzaEnvironment.connection.readTimeout:120000 default}")
+    @Value("${geoserver.creation.timeout}")
 	private int restTemplateConnectionReadTimeout;
 	@Autowired
     private HttpClient httpClient;
@@ -80,6 +80,9 @@ public class PiazzaEnvironment {
 	private PiazzaLogger pzLogger;
 	@Autowired
 	private AccessUtilities accessUtilities;
+
+	//Class-scoped for mocks. We don't want to AutoWire.
+    private RestTemplate restTemplate = new RestTemplate();
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(PiazzaEnvironment.class);
 	private static final String ACCESS = "access";
@@ -91,8 +94,8 @@ public class PiazzaEnvironment {
 	public void initializeEnvironment() {
 		pzLogger.log("Initializing - checking GeoServer for required workspaces and data stores.", Severity.INFORMATIONAL);
 
-		//Create a RestTemplate with the specified timeout.
-		RestTemplate restTemplate = new RestTemplate();
+		//Since we're on the startup thread, we want to try to complete quickly. i.e. don't wait for slow connections.
+        //Configure a reasonable timeout for the rest client to abort slow requests.
         HttpComponentsClientHttpRequestFactory requestFactory = new HttpComponentsClientHttpRequestFactory(this.httpClient);
         requestFactory.setReadTimeout(restTemplateConnectionReadTimeout);
 		restTemplate.setRequestFactory(requestFactory);
@@ -100,8 +103,8 @@ public class PiazzaEnvironment {
 		// Check for Workspace
 		try {
 			String workspaceUri = String.format("%s/rest/workspaces/piazza.json", accessUtilities.getGeoServerBaseUrl());
-			if (!doesResourceExist(restTemplate, workspaceUri)) {
-				createWorkspace(restTemplate);
+			if (!doesResourceExist(workspaceUri)) {
+				createWorkspace();
 			} else {
 				LOGGER.info("GeoServer Piazza Workspace found.");
 			}
@@ -114,7 +117,7 @@ public class PiazzaEnvironment {
 		// Check for Data Store
 		try {
 			String dataStoreUri = String.format("%s/rest/workspaces/piazza/datastores/piazza.json", accessUtilities.getGeoServerBaseUrl());
-			if (!doesResourceExist(restTemplate, dataStoreUri)) {
+			if (!doesResourceExist(dataStoreUri)) {
 				createPostgresStore(restTemplate);
 			} else {
 				LOGGER.info("GeoServer Piazza Data Store found.");
@@ -131,7 +134,7 @@ public class PiazzaEnvironment {
 	 * 
 	 * @return True if exists, false if not
 	 */
-	private boolean doesResourceExist(RestTemplate restTemplate, String resourceUri) throws HttpStatusCodeException, RestClientException {
+	private boolean doesResourceExist(String resourceUri) throws HttpStatusCodeException, RestClientException {
 		// Check if exists
 		HttpEntity<String> request = new HttpEntity<>(authHeaders.get());
 
@@ -173,7 +176,7 @@ public class PiazzaEnvironment {
 	/**
 	 * Creates the Piazza workspace
 	 */
-	private void createWorkspace(RestTemplate restTemplate) {
+	private void createWorkspace() {
 		// POST the Workspace
 		authHeaders.setContentType(MediaType.APPLICATION_XML);
 		String body = "<workspace><name>piazza</name></workspace>";
