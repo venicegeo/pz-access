@@ -149,6 +149,7 @@ node {
 			sh "cf set-env ${appName} JKS_FILE piazza.jks"
 			sh "cf set-env ${appName} JKS_PASSPHRASE ${JKS_PASSPHRASE}"
 			sh "cf set-env ${appName} PZ_PASSPHRASE ${PZ_PASSPHRASE}"
+      sh "cf set-env ${appName} exit.on.geoserver.provision.failure ${env.EXIT_ON_GEOSERVER_PROVISION_FAILURE}"
 			if (env.USE_GEOSERVER_PKI_AUTH.toBoolean()) {
 				sh "cf set-env ${appName} SPRING_PROFILES_ACTIVE cloud,pki-geoserver-auth"
 			} else {
@@ -239,6 +240,7 @@ node {
 			sh "cf set-env ${appName} JKS_FILE piazza.jks"
 			sh "cf set-env ${appName} JKS_PASSPHRASE ${JKS_PASSPHRASE}"
 			sh "cf set-env ${appName} PZ_PASSPHRASE ${PZ_PASSPHRASE}"
+      sh "cf set-env ${appName} exit.on.geoserver.provision.failure ${env.EXIT_ON_GEOSERVER_PROVISION_FAILURE}"
 			if (env.USE_GEOSERVER_PKI_AUTH.toBoolean()) {
 				sh "cf set-env ${appName} SPRING_PROFILES_ACTIVE cloud,pki-geoserver-auth"
 			} else {

@@ -22,6 +22,7 @@ import java.io.InputStream;
 import javax.annotation.PostConstruct;
 
 import org.apache.commons.io.IOUtils;
+import org.apache.http.client.HttpClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,6 +32,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpServerErrorException;
@@ -68,14 +70,21 @@ public class PiazzaEnvironment {
 	private String postgresServiceKeyUser;
 	@Value("${vcap.services.pz-postgres-service-key.credentials.password}")
 	private String postgresServiceKeyPassword;
+	@Value("${geoserver.creation.timeout}")
+	private int restTemplateConnectionReadTimeout;
+	@Value("${exit.on.geoserver.provision.failure}")
+	private Boolean exitOnGeoServerProvisionFailure;
 	@Autowired
-	private RestTemplate restTemplate;
+	private HttpClient httpClient;
 	@Autowired
 	private AuthHeaders authHeaders;
 	@Autowired
 	private PiazzaLogger pzLogger;
 	@Autowired
 	private AccessUtilities accessUtilities;
+
+	// Class-scoped for mocks. We don't want to AutoWire.
+	private RestTemplate restTemplate = new RestTemplate();
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(PiazzaEnvironment.class);
 	private static final String ACCESS = "access";
@@ -86,6 +95,12 @@ public class PiazzaEnvironment {
 	@PostConstruct
 	public void initializeEnvironment() {
 		pzLogger.log("Initializing - checking GeoServer for required workspaces and data stores.", Severity.INFORMATIONAL);
+
+		// Since we're on the startup thread, we want to try to complete quickly. i.e. don't wait for slow connections.
+		// Configure a reasonable timeout for the rest client to abort slow requests.
+		HttpComponentsClientHttpRequestFactory requestFactory = new HttpComponentsClientHttpRequestFactory(this.httpClient);
+		requestFactory.setReadTimeout(restTemplateConnectionReadTimeout);
+		restTemplate.setRequestFactory(requestFactory);
 
 		// Check for Workspace
 		try {
@@ -174,14 +189,18 @@ public class PiazzaEnvironment {
 					new AuditElement(ACCESS, "tryCreateGeoServerWorkspace", uri));
 			restTemplate.exchange(uri, HttpMethod.POST, request, String.class);
 			try {
-				// Hack/Workaround: With certain versions of GeoServer, The workspace is not entirely created with this POST request.
-				// In order to properly have layers in this workspace succeed, we must first modify the workspace. Perform
-				// a PUT request that does nothing - but internally in GeoServer this fixes some configuration bug where the
+				// Hack/Workaround: With certain versions of GeoServer, The workspace is not entirely created with this
+				// POST request.
+				// In order to properly have layers in this workspace succeed, we must first modify the workspace.
+				// Perform
+				// a PUT request that does nothing - but internally in GeoServer this fixes some configuration bug where
+				// the
 				// workspace would otherwise not perform properly.
 				String updateWorkspaceUri = String.format("%s/rest/workspaces/piazza.xml", accessUtilities.getGeoServerBaseUrl());
 				restTemplate.exchange(updateWorkspaceUri, HttpMethod.PUT, request, String.class);
 			} catch (HttpClientErrorException | HttpServerErrorException exception) {
-				String error = String.format("Failed to execute a PUT request on the newly-created workspace: %s. This may indicate the workspace may not be fully configured for use.",
+				String error = String.format(
+						"Failed to execute a PUT request on the newly-created workspace: %s. This may indicate the workspace may not be fully configured for use.",
 						exception.getResponseBodyAsString());
 				LOGGER.info(error, exception);
 				pzLogger.log(error, Severity.WARNING);
@@ -191,10 +210,12 @@ public class PiazzaEnvironment {
 					exception.getResponseBodyAsString());
 			LOGGER.info(error, exception);
 			pzLogger.log(error, Severity.ERROR);
+			determineExit();
 		} catch (Exception exception) {
 			String error = String.format("Unexpected Error occurred while trying to create Piazza Workspace: %s", exception.getMessage());
 			LOGGER.error(error, exception);
 			pzLogger.log(error, Severity.ERROR);
+			determineExit();
 		}
 	}
 
@@ -242,14 +263,28 @@ public class PiazzaEnvironment {
 						exception.getResponseBodyAsString());
 				LOGGER.info(error, exception);
 				pzLogger.log(error, Severity.WARNING);
+				determineExit();
 			} catch (Exception exception) {
 				String error = String.format("Unexpected Error occurred while trying to create Piazza Data Store: %s",
 						exception.getMessage());
 				LOGGER.error(error, exception);
 				pzLogger.log(error, Severity.ERROR);
+				determineExit();
 			}
 		} else {
 			pzLogger.log("Could not create GeoServer Data Store. Could not load Request XML from local Resources.", Severity.ERROR);
+		}
+	}
+
+	/**
+	 * If the application is configured to exit on GeoServer configuration error, this method will terminate it.
+	 */
+	private void determineExit() {
+		if (exitOnGeoServerProvisionFailure.booleanValue()) {
+			pzLogger.log(
+					"GeoServer resources could not be appropriately provisioned due to errors received from GeoServer. This application is configured to shut down and will do so now.",
+					Severity.INFORMATIONAL);
+			System.exit(1);
 		}
 	}
 }
