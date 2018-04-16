@@ -1,12 +1,12 @@
 /**
  * Copyright 2016, RadiantBlue Technologies, Inc.
- * 
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -15,21 +15,10 @@
  **/
 package access;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.URI;
-import java.security.KeyManagementException;
-import java.security.KeyStore;
-import java.security.KeyStoreException;
-import java.security.NoSuchAlgorithmException;
-import java.security.UnrecoverableKeyException;
-import java.security.cert.CertificateException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.Executor;
-
-import javax.net.ssl.SSLContext;
-
+import access.deploy.geoserver.AuthHeaders;
+import access.deploy.geoserver.BasicAuthHeaders;
+import access.deploy.geoserver.PKIAuthHeaders;
+import messaging.job.JobMessageFactory;
 import org.apache.http.HttpRequest;
 import org.apache.http.HttpResponse;
 import org.apache.http.HttpStatus;
@@ -42,24 +31,21 @@ import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.client.methods.RequestBuilder;
 import org.apache.http.config.Registry;
 import org.apache.http.config.RegistryBuilder;
-import org.apache.http.ssl.SSLContexts;
 import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.http.conn.ssl.TrustSelfSignedStrategy;
-import org.apache.http.cookie.Cookie;
-import org.apache.http.cookie.CookieOrigin;
-import org.apache.http.cookie.CookieSpec;
-import org.apache.http.cookie.CookieSpecProvider;
-import org.apache.http.cookie.MalformedCookieException;
+import org.apache.http.cookie.*;
 import org.apache.http.impl.client.BasicCookieStore;
 import org.apache.http.impl.client.DefaultRedirectStrategy;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.cookie.DefaultCookieSpec;
 import org.apache.http.protocol.HttpContext;
+import org.apache.http.ssl.SSLContexts;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.rabbit.annotation.EnableRabbit;
 import org.springframework.aop.interceptor.AsyncUncaughtExceptionHandler;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
@@ -83,10 +69,15 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 import org.springframework.web.client.RestTemplate;
 
-import messaging.job.JobMessageFactory;
-import access.deploy.geoserver.AuthHeaders;
-import access.deploy.geoserver.BasicAuthHeaders;
-import access.deploy.geoserver.PKIAuthHeaders;
+import javax.net.ssl.SSLContext;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.URI;
+import java.security.*;
+import java.security.cert.CertificateException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.Executor;
 
 @SpringBootApplication
 @Configuration
@@ -95,192 +86,194 @@ import access.deploy.geoserver.PKIAuthHeaders;
 @EnableAutoConfiguration
 @EnableTransactionManagement
 @EnableRabbit
-@EnableJpaRepositories(basePackages = { "org.venice.piazza.common.hibernate" })
-@EntityScan(basePackages = { "org.venice.piazza.common.hibernate" })
-@ComponentScan(basePackages = { "access", "util", "org.venice.piazza" })
+@EnableJpaRepositories(basePackages = {"org.venice.piazza.common.hibernate"})
+@EntityScan(basePackages = {"org.venice.piazza.common.hibernate"})
+@ComponentScan(basePackages = {"access", "util", "org.venice.piazza"})
 public class Application extends SpringBootServletInitializer implements AsyncConfigurer {
-	@Value("${thread.count.size}")
-	private int threadCountSize;
-	@Value("${thread.count.limit}")
-	private int threadCountLimit;
-	@Value("${SPACE}")
-	private String SPACE;
+    @Value("${thread.count.size}")
+    private int threadCountSize;
+    @Value("${thread.count.limit}")
+    private int threadCountLimit;
+    @Value("${SPACE}")
+    private String SPACE;
 
-	private static final Logger LOG = LoggerFactory.getLogger(Application.class);
+    private static final Logger LOG = LoggerFactory.getLogger(Application.class);
 
-	@Override
-	protected SpringApplicationBuilder configure(SpringApplicationBuilder builder) {
-		return builder.sources(Application.class);
-	}
+    @Override
+    protected SpringApplicationBuilder configure(SpringApplicationBuilder builder) {
+        return builder.sources(Application.class);
+    }
 
-	@Bean
-	public Queue updateJobsQueue() {
-		return new Queue(String.format(JobMessageFactory.TOPIC_TEMPLATE, JobMessageFactory.UPDATE_JOB_TOPIC_NAME, SPACE), true, false,
-				false);
-	}
+    @Bean
+    public Queue updateJobsQueue() {
+        return new Queue(String.format(JobMessageFactory.TOPIC_TEMPLATE, JobMessageFactory.UPDATE_JOB_TOPIC_NAME, SPACE), true, false,
+                false);
+    }
 
-	public static void main(String[] args) {
-		SpringApplication.run(Application.class, args); // NOSONAR
-	}
+    public static void main(String[] args) {
+        SpringApplication.run(Application.class, args); // NOSONAR
+    }
 
-	@Override
-	@Bean
-	public Executor getAsyncExecutor() {
-		ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-		executor.setCorePoolSize(threadCountSize);
-		executor.setMaxPoolSize(threadCountLimit);
-		executor.initialize();
-		return executor;
-	}
+    @Override
+    @Bean
+    public Executor getAsyncExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(threadCountSize);
+        executor.setMaxPoolSize(threadCountLimit);
+        executor.initialize();
+        return executor;
+    }
 
-	@Override
-	public AsyncUncaughtExceptionHandler getAsyncUncaughtExceptionHandler() {
-		return (ex, method, params) -> LOG.error("Uncaught Threading exception encountered in {} with details: {}", ex.getMessage(),
-				method.getName());
-	}
-	
-	@Configuration
-	@Profile({ "basic-geoserver-auth" })
-	protected static class BasicAuthenticationConfig {
+    @Override
+    public AsyncUncaughtExceptionHandler getAsyncUncaughtExceptionHandler() {
+        return (ex, method, params) -> LOG.error("Uncaught Threading exception encountered in {} with details: {}", ex.getMessage(),
+                method.getName());
+    }
 
-		@Value("${http.max.total}")
-		private int httpMaxTotal;
+    @Configuration
+    @Profile({"basic-geoserver-auth"})
+    protected static class BasicAuthenticationConfig {
 
-		@Value("${http.max.route}")
-		private int httpMaxRoute;
+        @Value("${http.max.total}")
+        private int httpMaxTotal;
 
-		@Bean
-		public RestTemplate restTemplate() {			
-			final RestTemplate restTemplate = new RestTemplate();
-			final HttpClient httpClient = HttpClientBuilder.create().setMaxConnTotal(httpMaxTotal).setMaxConnPerRoute(httpMaxRoute).build();
+        @Value("${http.max.route}")
+        private int httpMaxRoute;
+
+        @Bean
+        public HttpClient httpClient() {
+            return HttpClientBuilder.create().setMaxConnTotal(httpMaxTotal).setMaxConnPerRoute(httpMaxRoute).build();
+        }
+
+        @Bean
+        public RestTemplate restTemplate(@Autowired HttpClient httpClient) {
+            final RestTemplate restTemplate = new RestTemplate();
 			restTemplate.setRequestFactory(new HttpComponentsClientHttpRequestFactory(httpClient));
-			return restTemplate;
-		}
-		
-		@Bean
-		public AuthHeaders authHeaders() {
-			return new BasicAuthHeaders();
-		}
-	}
+            return restTemplate;
+        }
 
-	@Configuration
-	@Profile({ "pki-geoserver-auth" })
-	protected static class PKIAuthenticationConfig {
+        @Bean
+        public AuthHeaders authHeaders() {
+            return new BasicAuthHeaders();
+        }
+    }
 
-		@Value("${http.max.total}")
-		private int httpMaxTotal;
+    @Configuration
+    @Profile({"pki-geoserver-auth"})
+    protected static class PKIAuthenticationConfig {
 
-		@Value("${http.max.route}")
-		private int httpMaxRoute;
+        @Value("${http.max.total}")
+        private int httpMaxTotal;
 
-		@Value("${JKS_FILE}")
-		private String keystoreFileName;
+        @Value("${http.max.route}")
+        private int httpMaxRoute;
 
-		@Value("${JKS_PASSPHRASE}")
-		private String keystorePassphrase;
+        @Value("${JKS_FILE}")
+        private String keystoreFileName;
 
-		@Value("${PZ_PASSPHRASE}")
-		private String piazzaKeyPassphrase;
+        @Value("${JKS_PASSPHRASE}")
+        private String keystorePassphrase;
 
-		@Bean
-		public RestTemplate restTemplate() throws KeyManagementException, UnrecoverableKeyException, NoSuchAlgorithmException,
-				KeyStoreException, CertificateException, IOException {
-			
-			SSLContext sslContext = SSLContexts.custom()
-					.loadKeyMaterial(getStore(), piazzaKeyPassphrase.toCharArray())
-					.loadTrustMaterial(null, new TrustSelfSignedStrategy()).useProtocol("TLS").build();
+        @Value("${PZ_PASSPHRASE}")
+        private String piazzaKeyPassphrase;
 
-			Registry<CookieSpecProvider> registry = RegistryBuilder.<CookieSpecProvider>create().register("myspec", new MySpecProvider()).build();
-			RequestConfig requestConfig = RequestConfig.custom().setCookieSpec("myspec").setCircularRedirectsAllowed(true).build();
-			
-			HttpClient httpClient = HttpClientBuilder.create()
-					.setDefaultRequestConfig(requestConfig)
-					.setMaxConnTotal(httpMaxTotal)
-					.setSSLContext(sslContext)
-					.setSSLHostnameVerifier(new NoopHostnameVerifier())
-					.setDefaultCookieStore(new BasicCookieStore())
-					.setDefaultCookieSpecRegistry(registry)
-					.setRedirectStrategy(new MyRedirectStrategy())
-					.setMaxConnPerRoute(httpMaxRoute).build();
-			
-			RestTemplate restTemplate = new RestTemplate();
-			restTemplate.setRequestFactory(new HttpComponentsClientHttpRequestFactory(httpClient));
-			
-			List<HttpMessageConverter<?>> messageConverters = new ArrayList<HttpMessageConverter<?>>();
-			messageConverters.add(new StringHttpMessageConverter());
-			messageConverters.add(new MappingJackson2HttpMessageConverter());
-			restTemplate.setMessageConverters(messageConverters);
-			
-			return restTemplate;
-		}
+        @Bean
+        public HttpClient httpClient() throws CertificateException, NoSuchAlgorithmException, KeyStoreException, IOException, UnrecoverableKeyException, KeyManagementException {
+            SSLContext sslContext = SSLContexts.custom()
+                    .loadKeyMaterial(getStore(), piazzaKeyPassphrase.toCharArray())
+                    .loadTrustMaterial(null, new TrustSelfSignedStrategy()).useProtocol("TLS").build();
 
-		@Bean
-		public AuthHeaders authHeaders() {
-			return new PKIAuthHeaders();
-		}
-		
-		protected KeyStore getStore() throws KeyStoreException, IOException, CertificateException, NoSuchAlgorithmException {
-			final KeyStore store = KeyStore.getInstance(KeyStore.getDefaultType());
-			InputStream inputStream = getClass().getClassLoader().getResourceAsStream(keystoreFileName);
-			try {
-				store.load(inputStream, keystorePassphrase.toCharArray());
-			} finally {
-				inputStream.close();
-			}
+            Registry<CookieSpecProvider> registry = RegistryBuilder.<CookieSpecProvider>create().register("myspec", new MySpecProvider()).build();
+            RequestConfig requestConfig = RequestConfig.custom().setCookieSpec("myspec").setCircularRedirectsAllowed(true).build();
 
-			return store;
-		}
+            return HttpClientBuilder.create()
+                    .setDefaultRequestConfig(requestConfig)
+                    .setMaxConnTotal(httpMaxTotal)
+                    .setSSLContext(sslContext)
+                    .setSSLHostnameVerifier(new NoopHostnameVerifier())
+                    .setDefaultCookieStore(new BasicCookieStore())
+                    .setDefaultCookieSpecRegistry(registry)
+                    .setRedirectStrategy(new MyRedirectStrategy())
+                    .setMaxConnPerRoute(httpMaxRoute).build();
+        }
 
-		protected class MyCookieSpec extends DefaultCookieSpec {
-			
-			@Override
-			public void validate(Cookie c, CookieOrigin co) throws MalformedCookieException {
-				// Do nothing; accept all cookies
-			}
-		}
-		
-		protected class MySpecProvider implements CookieSpecProvider {
-			
-			@Override
-			public CookieSpec create(HttpContext context) {
-				
-				return new MyCookieSpec();
-			}
-		}
-		
-		protected class MyRedirectStrategy extends DefaultRedirectStrategy {
-			
-		    @Override
-		    protected boolean isRedirectable(final String method) {
+        @Bean
+        public RestTemplate restTemplate(@Autowired HttpClient httpClient)  {
+            RestTemplate restTemplate = new RestTemplate();
+            restTemplate.setRequestFactory(new HttpComponentsClientHttpRequestFactory(httpClient));
 
-		        return true;
-		    }
-		    
-		    @Override
-		    public HttpUriRequest getRedirect(final HttpRequest request, final HttpResponse response, 
-		    		final HttpContext context) throws ProtocolException {
-		    	
-		        final URI uri = getLocationURI(request, response, context);
-		        final String method = request.getRequestLine().getMethod();
-		        
-		        if (method.equalsIgnoreCase(HttpHead.METHOD_NAME)) {
-		            return new HttpHead(uri);
-		        } 
-		        else if (method.equalsIgnoreCase(HttpGet.METHOD_NAME)) {
-		            return new HttpGet(uri);
-		        } 
-		        else {
-		            final int status = response.getStatusLine().getStatusCode();
-		            
-		            if (status == HttpStatus.SC_TEMPORARY_REDIRECT || status ==  HttpStatus.SC_MOVED_PERMANENTLY 
-		            		|| status == HttpStatus.SC_MOVED_TEMPORARILY) {
-		                return RequestBuilder.copy(request).setUri(uri).build();
-		            } 
-		            else {
-		                return new HttpGet(uri);
-		            }
-		        }
-		    }
-		}
-	}
+            List<HttpMessageConverter<?>> messageConverters = new ArrayList<HttpMessageConverter<?>>();
+            messageConverters.add(new StringHttpMessageConverter());
+            messageConverters.add(new MappingJackson2HttpMessageConverter());
+            restTemplate.setMessageConverters(messageConverters);
+
+            return restTemplate;
+        }
+
+        @Bean
+        public AuthHeaders authHeaders() {
+            return new PKIAuthHeaders();
+        }
+
+        protected KeyStore getStore() throws KeyStoreException, IOException, CertificateException, NoSuchAlgorithmException {
+            final KeyStore store = KeyStore.getInstance(KeyStore.getDefaultType());
+            InputStream inputStream = getClass().getClassLoader().getResourceAsStream(keystoreFileName);
+            try {
+                store.load(inputStream, keystorePassphrase.toCharArray());
+            } finally {
+                inputStream.close();
+            }
+
+            return store;
+        }
+
+        protected class MyCookieSpec extends DefaultCookieSpec {
+
+            @Override
+            public void validate(Cookie c, CookieOrigin co) throws MalformedCookieException {
+                // Do nothing; accept all cookies
+            }
+        }
+
+        protected class MySpecProvider implements CookieSpecProvider {
+
+            @Override
+            public CookieSpec create(HttpContext context) {
+
+                return new MyCookieSpec();
+            }
+        }
+
+        protected class MyRedirectStrategy extends DefaultRedirectStrategy {
+
+            @Override
+            protected boolean isRedirectable(final String method) {
+
+                return true;
+            }
+
+            @Override
+            public HttpUriRequest getRedirect(final HttpRequest request, final HttpResponse response,
+                                              final HttpContext context) throws ProtocolException {
+
+                final URI uri = getLocationURI(request, response, context);
+                final String method = request.getRequestLine().getMethod();
+
+                if (method.equalsIgnoreCase(HttpHead.METHOD_NAME)) {
+                    return new HttpHead(uri);
+                } else if (method.equalsIgnoreCase(HttpGet.METHOD_NAME)) {
+                    return new HttpGet(uri);
+                } else {
+                    final int status = response.getStatusLine().getStatusCode();
+
+                    if (status == HttpStatus.SC_TEMPORARY_REDIRECT || status == HttpStatus.SC_MOVED_PERMANENTLY
+                            || status == HttpStatus.SC_MOVED_TEMPORARILY) {
+                        return RequestBuilder.copy(request).setUri(uri).build();
+                    } else {
+                        return new HttpGet(uri);
+                    }
+                }
+            }
+        }
+    }
 }
